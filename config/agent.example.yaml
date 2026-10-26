@@ -25,12 +25,13 @@ providers:
 
 # Each configuration is a fixed pair of models: the fast path and the slow
 # path. `chosen` is the date the model id was pinned. The slow path uses
-# gemini-3.5-flash, not 3.8: 3.8 allows only 20 free requests a day.
+# gemini-3.6-flash, not 3.8: 3.8 allows only 20 free requests a day.
 configurations:
   # The default: needs only GEMINI_API_KEY.
   hosted:
     fast: {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-26}
-    slow: {provider: gemini, model: gemini-3.5-flash, chosen: 2026-10-26}
+    # gemini-3.6-flash: Google's deprecations page says gemini-3.5-flash routes every request to it.
+    slow: {provider: gemini, model: gemini-3.6-flash, chosen: 2026-10-26}
   # Both paths on the local server. PLACEHOLDER model ids: not yet chosen;
   # replace them and their `chosen` dates when the server is set up.
   local:
@@ -39,7 +40,8 @@ configurations:
   # The local small model routes and answers fast turns; Gemini answers slow ones.
   routed:
     fast: {provider: local, model: local-small, chosen: 2026-10-26}  # not yet chosen
-    slow: {provider: gemini, model: gemini-3.5-flash, chosen: 2026-10-26}
+    # gemini-3.6-flash: Google's deprecations page says gemini-3.5-flash routes every request to it.
+    slow: {provider: gemini, model: gemini-3.6-flash, chosen: 2026-10-26}
 
 # The router: the fast model classifies each turn as fast or slow. A fast
 # turn is retrieved first and answered by the fast model; a slow turn runs the
@@ -109,7 +111,8 @@ eval:
   # The judge: any model from `providers`. Gemini Flash by default; a
   # self-hosted model works too. It is the slow model of hosted and routed,
   # so results.md says that it shares their model family.
-  judge: {provider: gemini, model: gemini-3.5-flash, chosen: 2026-10-26}
+  # gemini-3.6-flash: Google's deprecations page says gemini-3.5-flash routes every request to it.
+  judge: {provider: gemini, model: gemini-3.6-flash, chosen: 2026-10-26}
   # Seconds between the starts of two requests (judge included). The free
   # tier's per-minute limits are shown only in AI Studio; 7 s is about 8.5
   # requests a minute.
@@ -126,10 +129,8 @@ eval:
       output_usd_per_mtok: 2.50
       as_of: 2026-10-26
       source: https://ai.google.dev/gemini-api/docs/pricing
-    # The pricing page no longer lists gemini-3.5-flash: the deprecations page
-    # says the endpoint now routes every request to gemini-3.6-flash, so this
-    # is gemini-3.6-flash's price (it rises to 1.50 / 7.50 on 2027-01-01).
-    gemini-3.5-flash:
+    # The list rate is valid through 2026-12-31; it changes on 2027-01-01.
+    gemini-3.6-flash:
       input_usd_per_mtok: 0.75
       output_usd_per_mtok: 3.75
       as_of: 2026-10-26

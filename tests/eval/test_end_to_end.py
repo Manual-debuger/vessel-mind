@@ -422,7 +422,7 @@ def test_a_configuration_marked_not_run_is_refused_and_listed_with_its_reason(tm
     assert "not run" in capsys.readouterr().err
     text = (results / "results.md").read_text(encoding="utf-8")
     assert "| local | local-small / local-large | *not run* |" in text
-    assert "| routed | local-small / gemini-3.5-flash | *not run* |" in text
+    assert "| routed | local-small / gemini-3.6-flash | *not run* |" in text
     assert "- **local** was not run: " in text
     assert "| hosted | — | *not run* |" in text
 
@@ -460,8 +460,8 @@ def test_the_example_config_names_the_judge_and_dated_list_prices():
 
     settings = load_config(EXAMPLE).eval
     assert settings is not None
-    assert settings.judge.model == "gemini-3.5-flash"
-    for model in ("gemini-3.5-flash-lite", "gemini-3.5-flash"):
+    assert settings.judge.model == "gemini-3.6-flash"
+    for model in ("gemini-3.5-flash-lite", "gemini-3.6-flash"):
         price = settings.prices[model]
         assert price.source.startswith("https://ai.google.dev/")
         assert price.as_of == date(2026, 10, 26)
