@@ -41,4 +41,10 @@ def app_from_config(path: Path | None = None, environ: Mapping[str, str] | None 
         backoff_base=config.retry.backoff_base,
         backoff_max=config.retry.backoff_max,
     )
-    return create_app(model, system=config.agent.system, max_tokens=config.agent.max_tokens)
+    return create_app(
+        model,
+        system=config.agent.system,
+        max_tokens=config.agent.max_tokens,
+        state_path=config.state.path,
+        max_turns_per_session=config.sessions.max_turns,
+    )

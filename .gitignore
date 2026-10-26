@@ -11,7 +11,8 @@ __pycache__/
 # Local agent config; the committed example is config/agent.example.yaml.
 config/agent.yaml
 
-# The retrieval index (task ingest; rebuilt from the corpus) and the
+# Runtime data: the retrieval index (task ingest; rebuilt from the corpus),
+# the state file (sessions, history, proposals; cannot be rebuilt), and the
 # downloaded corpus tarballs and embedding models.
 data/
 .cache/

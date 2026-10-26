@@ -52,12 +52,25 @@ class Agent(_Config):
     max_tokens: int | None = Field(default=None, gt=0)
 
 
+class State(_Config):
+    # The SQLite state file: sessions, history and proposals. A relative path is
+    # relative to the server's working directory. Never the retrieval index's file.
+    path: Path = Path("data/state.db")
+
+
+class Sessions(_Config):
+    # The turns one session may start, to protect the free quota. None: no limit.
+    max_turns: int | None = Field(default=None, gt=0)
+
+
 class AgentConfig(_Config):
     configuration: Literal["hosted", "local", "routed"]
     providers: dict[str, Provider]
     configurations: dict[str, Configuration]
     retry: Retry = Retry()
     agent: Agent = Agent()
+    state: State = State()
+    sessions: Sessions = Sessions()
 
     @model_validator(mode="after")
     def _references_resolve(self) -> "AgentConfig":
