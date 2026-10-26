@@ -1,0 +1,91 @@
+"""config/agent.yaml: providers, configurations and agent settings.
+
+Config names the env var that holds a key; it never holds the key itself.
+"""
+
+import datetime
+from pathlib import Path
+from typing import Literal
+
+import yaml
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+
+
+class ConfigError(Exception):
+    """The config file is missing, invalid or refers to an unset env var."""
+
+
+class _Config(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+class Provider(_Config):
+    """An OpenAI-compatible endpoint."""
+
+    base_url: str
+    # The name of the env var that holds the key; None for a keyless local server.
+    api_key_env: str | None = None
+
+
+class ModelChoice(_Config):
+    provider: str
+    model: str
+    # The date the model id was pinned, so results can be reproduced.
+    chosen: datetime.date
+
+
+class Configuration(_Config):
+    """A named, fixed pair of models for the fast path and the slow path."""
+
+    fast: ModelChoice
+    slow: ModelChoice
+
+
+class Retry(_Config):
+    max_retries: int = Field(default=3, ge=0)
+    backoff_base: float = Field(default=1.0, gt=0)
+    backoff_max: float = Field(default=30.0, gt=0)
+
+
+class Agent(_Config):
+    system: str | None = None
+    max_tokens: int | None = Field(default=None, gt=0)
+
+
+class AgentConfig(_Config):
+    configuration: Literal["hosted", "local", "routed"]
+    providers: dict[str, Provider]
+    configurations: dict[str, Configuration]
+    retry: Retry = Retry()
+    agent: Agent = Agent()
+
+    @model_validator(mode="after")
+    def _references_resolve(self) -> "AgentConfig":
+        if self.configuration not in self.configurations:
+            raise ValueError(f"configuration {self.configuration!r} is not defined")
+        for name, configuration in self.configurations.items():
+            for path in (configuration.fast, configuration.slow):
+                if path.provider not in self.providers:
+                    raise ValueError(f"{name}: unknown provider {path.provider!r}")
+        return self
+
+    @property
+    def active(self) -> Configuration:
+        return self.configurations[self.configuration]
+
+
+def load_config(path: Path) -> AgentConfig:
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as error:
+        raise ConfigError(f"{path}: {error}") from None
+    try:
+        return AgentConfig.model_validate(raw)
+    except ValidationError as error:
+        # The message lists locations and error types, never input values,
+        # in case a key was pasted into the file by mistake.
+        problems = "; ".join(
+            f"{'.'.join(str(part) for part in e['loc'])}: {e['msg']}"
+            for e in error.errors(include_input=False)
+        )
+        raise ConfigError(f"{path}: {problems}") from None
