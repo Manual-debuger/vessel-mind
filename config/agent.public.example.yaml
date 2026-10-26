@@ -29,13 +29,15 @@ providers:
 configurations:
   hosted:
     fast: {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-26}
-    slow: {provider: gemini, model: gemini-3.5-flash, chosen: 2026-10-26}
+    # gemini-3.6-flash: Google's deprecations page says gemini-3.5-flash routes every request to it.
+    slow: {provider: gemini, model: gemini-3.6-flash, chosen: 2026-10-26}
   local:
     fast: {provider: local, model: local-small, chosen: 2026-10-26}  # not yet chosen
     slow: {provider: local, model: local-large, chosen: 2026-10-26}  # not yet chosen
   routed:
     fast: {provider: local, model: local-small, chosen: 2026-10-26}  # not yet chosen
-    slow: {provider: gemini, model: gemini-3.5-flash, chosen: 2026-10-26}
+    # gemini-3.6-flash: Google's deprecations page says gemini-3.5-flash routes every request to it.
+    slow: {provider: gemini, model: gemini-3.6-flash, chosen: 2026-10-26}
 
 router:
   enabled: true

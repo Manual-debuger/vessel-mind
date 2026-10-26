@@ -72,8 +72,8 @@ def test_the_example_config_serves_the_hosted_slow_path_model(tmp_path, monkeypa
     with TestClient(app) as client:
         health = client.get("/health").json()
 
-    # gemini-3.8-flash allows 20 free requests a day; the author pinned 3.5 instead.
-    assert health == {"status": "ok", "model": "gemini-3.5-flash"}
+    # gemini-3.8-flash allows 20 free requests a day; the author pinned 3.6 instead.
+    assert health == {"status": "ok", "model": "gemini-3.6-flash"}
 
 
 def test_the_app_keeps_sessions_in_the_configured_state_file(tmp_path, monkeypatch):
@@ -302,7 +302,7 @@ def test_the_example_defines_three_configurations_and_hosted_is_the_default():
     assert config.configuration == "hosted"
     assert sorted(config.configurations) == ["hosted", "local", "routed"]
     hosted, local, routed = (config.configurations[n] for n in ("hosted", "local", "routed"))
-    assert (hosted.fast.model, hosted.slow.model) == ("gemini-3.5-flash-lite", "gemini-3.5-flash")
+    assert (hosted.fast.model, hosted.slow.model) == ("gemini-3.5-flash-lite", "gemini-3.6-flash")
     # routed pairs the local small model with the hosted slow model.
     assert routed.fast == local.fast
     assert routed.slow == hosted.slow
@@ -320,8 +320,8 @@ def test_the_router_is_on_in_the_example_with_a_classification_timeout():
 @pytest.mark.parametrize(
     ("configuration", "fast", "slow"),
     [
-        ("hosted", "gemini-3.5-flash-lite", "gemini-3.5-flash"),
-        ("routed", "local-small", "gemini-3.5-flash"),
+        ("hosted", "gemini-3.5-flash-lite", "gemini-3.6-flash"),
+        ("routed", "local-small", "gemini-3.6-flash"),
     ],
 )
 def test_the_router_pairs_the_selected_configurations_models(configuration, fast, slow):

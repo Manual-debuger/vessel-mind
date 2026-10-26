@@ -202,7 +202,7 @@ bytes.
 
 On HTTP 429, HTTP 503 or a first-byte timeout, the adapter retries with exponential backoff,
 honouring `Retry-After` when present, up to a configured limit. Each path then has an ordered
-**fallback list** of models in config (for example `gemini-3.8-flash` → `gemini-3.5-flash`): when
+**fallback list** of models in config (for example `gemini-3.8-flash` → `gemini-3.6-flash`): when
 retries are exhausted, the next model is tried, and the `route` event names the model that
 actually answered. The eval spaces its requests to stay inside free-tier limits; a question that
 still fails is reported as *failed*, never dropped.
