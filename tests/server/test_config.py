@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from vessel_mind.rag.corpus import Document
 from vessel_mind.server.config import ConfigError, load_config
-from vessel_mind.server.main import app_from_config
+from vessel_mind.server.main import app_from_config, build_router
 
 EXAMPLE = Path(__file__).resolve().parent.parent.parent / "config" / "agent.example.yaml"
 
@@ -173,6 +173,71 @@ def test_a_key_pasted_in_place_of_the_env_var_name_is_refused_without_echoing_it
         load_config(config)
 
     assert PASTED not in str(error.value)
+
+
+def test_the_example_defines_three_configurations_and_hosted_is_the_default():
+    config = load_config(EXAMPLE)
+
+    assert config.configuration == "hosted"
+    assert sorted(config.configurations) == ["hosted", "local", "routed"]
+    hosted, local, routed = (config.configurations[n] for n in ("hosted", "local", "routed"))
+    assert (hosted.fast.model, hosted.slow.model) == ("gemini-3.5-flash-lite", "gemini-3.5-flash")
+    # routed pairs the local small model with the hosted slow model.
+    assert routed.fast == local.fast
+    assert routed.slow == hosted.slow
+    assert {local.fast.provider, local.slow.provider} == {"local"}
+    assert config.providers["local"].auth.scheme == "none"
+
+
+def test_the_router_is_on_in_the_example_with_a_classification_timeout():
+    router = load_config(EXAMPLE).router
+
+    assert router.enabled is True
+    assert router.timeout > 0
+
+
+@pytest.mark.parametrize(
+    ("configuration", "fast", "slow"),
+    [
+        ("hosted", "gemini-3.5-flash-lite", "gemini-3.5-flash"),
+        ("routed", "local-small", "gemini-3.5-flash"),
+    ],
+)
+def test_the_router_pairs_the_selected_configurations_models(configuration, fast, slow):
+    config = load_config(EXAMPLE)
+
+    router = build_router(config, {"GEMINI_API_KEY": "k"}, configuration=configuration)
+
+    assert (router.fast.id, router.slow.id, router.enabled) == (fast, slow, True)
+
+
+def test_the_local_configuration_needs_no_key():
+    router = build_router(load_config(EXAMPLE), {}, configuration="local")
+
+    assert (router.fast.id, router.slow.id) == ("local-small", "local-large")
+
+
+def test_the_router_can_be_turned_off_for_the_slow_only_baseline(tmp_path):
+    assert (
+        build_router(load_config(EXAMPLE), {"GEMINI_API_KEY": "k"}, enabled=False).enabled is False
+    )
+    config = config_with(tmp_path, "enabled: true", "enabled: false")
+    assert build_router(load_config(config), {"GEMINI_API_KEY": "k"}).enabled is False
+
+
+def test_an_undefined_configuration_is_a_config_error():
+    with pytest.raises(ConfigError, match="'remote' is not defined"):
+        build_router(load_config(EXAMPLE), {}, configuration="remote")
+
+
+def test_app_from_config_serves_the_configuration_it_is_given(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    app = app_from_config(EXAMPLE, environ={}, configuration="local", **offline())
+
+    with TestClient(app) as client:
+        health = client.get("/health").json()
+
+    assert health == {"status": "ok", "model": "local-large"}
 
 
 def test_a_provider_must_state_its_auth_scheme(tmp_path):

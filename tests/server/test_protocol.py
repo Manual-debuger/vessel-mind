@@ -6,6 +6,7 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
+from vessel_mind.agent.router import Router
 from vessel_mind.core.capabilities import CapabilityRegistry
 from vessel_mind.core.chat import (
     ChatModelError,
@@ -223,3 +224,43 @@ def test_health_reports_ready():
 
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+
+
+class NamedStepModel:
+    """A ChatModel with an id that answers each request with its next scripted step."""
+
+    def __init__(self, id: str, *steps) -> None:
+        self.id = id
+        self.steps = list(steps)
+
+    async def stream(self, req: ChatRequest):
+        for event in self.steps.pop(0):
+            yield event
+
+
+def test_a_routed_turn_streams_the_route_first_then_the_answer():
+    fast = NamedStepModel(
+        "small",
+        [TextDelta(delta='{"route": "fast"}'), Stop(reason="end", usage=Usage(input_tokens=9))],
+        [TextDelta(delta="Hello."), Stop(reason="end", usage=Usage(input_tokens=20))],
+    )
+    slow = NamedStepModel("large")
+    app = create_app(slow, router=Router(fast, slow))
+
+    with TestClient(app) as client:
+        turn_id = client.post("/turns", json={"text": "Hi"}).json()["turn_id"]
+        events = read_events(client, turn_id)
+
+    assert events[0] == (
+        "route",
+        {
+            "type": "route",
+            "route": "fast",
+            "reason": "classified",
+            "router_model": "small",
+            "router_usage": {"input_tokens": 9, "output_tokens": 0, "thinking_tokens": 0},
+            "model": "small",
+        },
+    )
+    assert [name for name, _ in events[1:]] == ["text", "done"]
+    assert events[-1][1]["usage"]["input_tokens"] == 20

@@ -16,14 +16,41 @@ providers:
     # key_env: NAME} sends the key in that header. key_env is the NAME of the
     # env var, in upper snake case; a pasted key fails validation.
     auth: {scheme: bearer, key_env: GEMINI_API_KEY}
+  local:
+    # A local OpenAI-compatible server (llama-server or Ollama; both serve
+    # /v1/chat/completions). PLACEHOLDER: the server is not set up yet, so this
+    # URL and the local model ids below are not chosen.
+    base_url: http://127.0.0.1:8080/v1
+    auth: {scheme: none}
 
-# Each configuration is a fixed pair of models. `chosen` is the date the
-# model id was pinned. The slow path uses gemini-3.5-flash, not 3.8: 3.8
-# allows only 20 free requests a day.
+# Each configuration is a fixed pair of models: the fast path and the slow
+# path. `chosen` is the date the model id was pinned. The slow path uses
+# gemini-3.5-flash, not 3.8: 3.8 allows only 20 free requests a day.
 configurations:
+  # The default: needs only GEMINI_API_KEY.
   hosted:
     fast: {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-26}
     slow: {provider: gemini, model: gemini-3.5-flash, chosen: 2026-10-26}
+  # Both paths on the local server. PLACEHOLDER model ids: not yet chosen;
+  # replace them and their `chosen` dates when the server is set up.
+  local:
+    fast: {provider: local, model: local-small, chosen: 2026-10-26}  # not yet chosen
+    slow: {provider: local, model: local-large, chosen: 2026-10-26}  # not yet chosen
+  # The local small model routes and answers fast turns; Gemini answers slow ones.
+  routed:
+    fast: {provider: local, model: local-small, chosen: 2026-10-26}  # not yet chosen
+    slow: {provider: gemini, model: gemini-3.5-flash, chosen: 2026-10-26}
+
+# The router: the fast model classifies each turn as fast or slow. A fast
+# turn is retrieved first and answered by the fast model; a slow turn runs the
+# tool loop on the slow model. A classification slower than `timeout` seconds,
+# or one that is not the expected JSON, goes slow. `enabled: false` sends
+# every turn to the slow path (the eval's slow-only baseline).
+router:
+  enabled: true
+  timeout: 10.0
+  # The classification's token budget; Gemini counts thinking tokens in it.
+  max_tokens: 1024
 
 # HTTP 429 and 503: exponential backoff from backoff_base seconds, honouring
 # Retry-After. A wait longer than backoff_max seconds (Gemini's daily limit

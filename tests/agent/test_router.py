@@ -1,0 +1,311 @@
+"""The router (§5.7), driven by scripted fake models. No live API."""
+
+import asyncio
+
+import pytest
+from pydantic import JsonValue
+
+from vessel_mind.agent.router import Router
+from vessel_mind.core.capabilities import CapabilityRegistry
+from vessel_mind.core.chat import (
+    AssistantMessage,
+    ChatModelError,
+    ChatRequest,
+    Stop,
+    TextDelta,
+    ToolCall,
+    ToolMessage,
+    ToolSpec,
+    Usage,
+    UserMessage,
+)
+from vessel_mind.core.events import (
+    DoneEvent,
+    RouteEvent,
+    TextEvent,
+    ToolResultEvent,
+    ToolStartEvent,
+)
+
+
+class ScriptedModel:
+    """Replays one scripted list of events per request and keeps every request."""
+
+    def __init__(self, id: str, *steps) -> None:
+        self.id = id
+        self.steps = list(steps)
+        self.requests: list[ChatRequest] = []
+
+    async def stream(self, req: ChatRequest):
+        self.requests.append(req)
+        step = self.steps[len(self.requests) - 1]
+        if isinstance(step, Exception):
+            raise step
+        for event in step:
+            yield event
+
+
+class HangingModel:
+    """Never answers: a classification that times out."""
+
+    id = "hanging"
+
+    def __init__(self) -> None:
+        self.requests: list[ChatRequest] = []
+
+    async def stream(self, req: ChatRequest):
+        self.requests.append(req)
+        await asyncio.Event().wait()
+        yield TextDelta(delta="never")
+
+
+class FakeSearch:
+    spec = ToolSpec(name="search_docs", description="Search.", parameters={})
+
+    def __init__(self, result) -> None:
+        self.result = result
+        self.calls: list[dict] = []
+
+    async def execute(self, input):
+        self.calls.append(input)
+        return self.result
+
+
+RESULTS: JsonValue = {
+    "results": [
+        {
+            "n": 1,
+            "source": "vessel-mind/GLOSSARY.md#proposal",
+            "url": "https://github.com/o/r/blob/c/GLOSSARY.md#proposal",
+            "heading": "Proposal",
+            "text": "A proposal waits for a human decision.",
+            "score": 0.03,
+        }
+    ]
+}
+
+READ = {"resource": "public_corpus", "effect": "read", "exfil": False, "taints_context": False}
+
+
+def tools(*registered) -> CapabilityRegistry:
+    registry = CapabilityRegistry(warn=lambda message: None)
+    for tool in registered:
+        registry.register(tool, READ)
+    return registry
+
+
+ROUTER_USAGE = Usage(input_tokens=50, output_tokens=6)
+ANSWER_USAGE = Usage(input_tokens=200, output_tokens=12)
+
+
+def classified(text: str) -> list:
+    return [TextDelta(delta=text), Stop(reason="end", usage=ROUTER_USAGE)]
+
+
+def answer(text: str) -> list:
+    return [TextDelta(delta=text), Stop(reason="end", usage=ANSWER_USAGE)]
+
+
+async def collect(router: Router, history, text: str, **kwargs) -> list:
+    return [event async for event in router.run(history, text, **kwargs)]
+
+
+@pytest.mark.asyncio
+async def test_a_fast_turn_retrieves_first_and_answers_on_the_fast_model_with_that_context():
+    fast = ScriptedModel(
+        "small", classified('{"route": "fast"}'), answer("It waits for approval [1].")
+    )
+    slow = ScriptedModel("large")
+    search = FakeSearch(RESULTS)
+    history = [UserMessage(text="Hi"), AssistantMessage(text="Hello.")]
+
+    events = await collect(
+        Router(fast, slow), history, "What is a proposal?", tools=tools(search), system="Be brief."
+    )
+
+    assert events == [
+        RouteEvent(
+            route="fast",
+            reason="classified",
+            router_model="small",
+            router_usage=ROUTER_USAGE,
+            model="small",
+        ),
+        ToolStartEvent(
+            call_id="fast-path-search", name="search_docs", input={"query": "What is a proposal?"}
+        ),
+        ToolResultEvent(
+            call_id="fast-path-search", name="search_docs", result=RESULTS, is_error=False
+        ),
+        TextEvent(text="It waits for approval [1]."),
+        DoneEvent(reason="end", usage=ANSWER_USAGE, steps=1),
+    ]
+    assert search.calls == [{"query": "What is a proposal?"}]
+    assert slow.requests == []
+    classify, reply = fast.requests
+    # The classification sees the conversation as text and offers no tools.
+    assert classify.tools == []
+    assert classify.messages[-1] == UserMessage(text="What is a proposal?")
+    # The answer gets the retrieved sections, numbered as search_docs numbers them.
+    assert reply.tools == []
+    assert reply.system is not None
+    assert reply.system.startswith("Be brief.")
+    assert "A proposal waits for a human decision." in reply.system
+    assert '"n": 1' in reply.system
+    assert reply.messages == [*history, UserMessage(text="What is a proposal?")]
+
+
+@pytest.mark.asyncio
+async def test_a_slow_turn_runs_the_tool_loop_on_the_slow_model():
+    fast = ScriptedModel("small", classified('{"route": "slow"}'))
+    search = FakeSearch(RESULTS)
+    slow = ScriptedModel(
+        "large",
+        [
+            ToolCall(id="c1", name="search_docs", input={"query": "proposal"}),
+            Stop(reason="tool_use", usage=ANSWER_USAGE),
+        ],
+        answer("Compared [1]."),
+    )
+
+    events = await collect(Router(fast, slow), [], "Compare X and Y.", tools=tools(search))
+
+    assert events[0] == RouteEvent(
+        route="slow",
+        reason="classified",
+        router_model="small",
+        router_usage=ROUTER_USAGE,
+        model="large",
+    )
+    assert [type(e) for e in events[1:]] == [
+        ToolStartEvent,
+        ToolResultEvent,
+        TextEvent,
+        DoneEvent,
+    ]
+    assert events[-1] == DoneEvent(reason="end", usage=ANSWER_USAGE + ANSWER_USAGE, steps=2)
+    assert len(fast.requests) == 1  # only the classification
+    assert [t.name for t in slow.requests[0].tools] == ["search_docs"]
+
+
+@pytest.mark.asyncio
+async def test_a_classification_that_times_out_falls_back_to_the_slow_path():
+    fast = HangingModel()
+    slow = ScriptedModel("large", answer("Slow answer."))
+
+    events = await collect(Router(fast, slow, timeout=0.01), [], "Hello?")
+
+    assert events == [
+        RouteEvent(
+            route="slow",
+            reason="timeout",
+            router_model="hanging",
+            router_usage=Usage(),
+            model="large",
+        ),
+        TextEvent(text="Slow answer."),
+        DoneEvent(reason="end", usage=ANSWER_USAGE, steps=1),
+    ]
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        "fast, I think",
+        '{"route": "medium"}',
+        '{"route": "fast", "why": "one search"}',
+        '{"route": "fast"} {"route": "slow"}',
+        "",
+    ],
+)
+@pytest.mark.asyncio
+async def test_a_classification_that_is_not_the_expected_json_falls_back_to_the_slow_path(reply):
+    fast = ScriptedModel("small", classified(reply))
+    slow = ScriptedModel("large", answer("Slow answer."))
+
+    events = await collect(Router(fast, slow), [], "Hello?")
+
+    assert events[0] == RouteEvent(
+        route="slow",
+        reason="invalid",
+        router_model="small",
+        router_usage=ROUTER_USAGE,
+        model="large",
+    )
+    assert events[1:] == [
+        TextEvent(text="Slow answer."),
+        DoneEvent(reason="end", usage=ANSWER_USAGE, steps=1),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_json_in_a_markdown_code_fence_is_still_a_classification():
+    fast = ScriptedModel("small", classified('```json\n{"route": "fast"}\n```'), answer("Hi!"))
+    slow = ScriptedModel("large")
+
+    events = await collect(Router(fast, slow), [], "Hello!")
+
+    assert events[0].route == "fast"
+    assert events[0].reason == "classified"
+
+
+@pytest.mark.asyncio
+async def test_a_fast_model_error_while_classifying_falls_back_to_the_slow_path():
+    fast = ScriptedModel("small", ChatModelError("small: HTTP 503"))
+    slow = ScriptedModel("large", answer("Slow answer."))
+
+    events = await collect(Router(fast, slow), [], "Hello?")
+
+    assert events[0] == RouteEvent(
+        route="slow",
+        reason="model_error",
+        router_model="small",
+        router_usage=Usage(),
+        model="large",
+    )
+    assert events[-1] == DoneEvent(reason="end", usage=ANSWER_USAGE, steps=1)
+
+
+@pytest.mark.asyncio
+async def test_with_the_router_off_every_turn_takes_the_slow_path_without_classifying():
+    fast = ScriptedModel("small")
+    slow = ScriptedModel("large", answer("Slow answer."))
+
+    events = await collect(Router(fast, slow, enabled=False), [], "Hello!")
+
+    assert events[0] == RouteEvent(
+        route="slow", reason="router_off", router_model=None, router_usage=Usage(), model="large"
+    )
+    assert fast.requests == []
+
+
+@pytest.mark.asyncio
+async def test_a_fast_turn_without_a_search_tool_answers_with_no_retrieval():
+    fast = ScriptedModel("small", classified('{"route": "fast"}'), answer("Hello!"))
+    slow = ScriptedModel("large")
+
+    events = await collect(Router(fast, slow), [], "Hi", system="Be brief.")
+
+    assert [type(e) for e in events] == [RouteEvent, TextEvent, DoneEvent]
+    assert fast.requests[1].system == "Be brief."
+
+
+@pytest.mark.asyncio
+async def test_the_classification_sees_the_conversation_as_text_only():
+    fast = ScriptedModel("small", classified('{"route": "slow"}'))
+    slow = ScriptedModel("large", answer("Ok."))
+    call = ToolCall(id="c1", name="search_docs", input={"query": "x"})
+    history = [
+        UserMessage(text="Find x."),
+        AssistantMessage(text="", tool_calls=[call]),
+        ToolMessage(tool_call_id="c1", content="{}"),
+        AssistantMessage(text="Found x [1]."),
+    ]
+
+    await collect(Router(fast, slow), history, "And y?")
+
+    assert fast.requests[0].messages == [
+        UserMessage(text="Find x."),
+        AssistantMessage(text="Found x [1]."),
+        UserMessage(text="And y?"),
+    ]
