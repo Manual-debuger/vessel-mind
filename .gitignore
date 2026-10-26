@@ -17,6 +17,9 @@ config/agent.yaml
 data/
 .cache/
 
+# A row file of the end-to-end eval being rewritten (an interrupted write).
+*.json.partial
+
 # The Notion MCP server, installed from deploy/notion-mcp/package-lock.json
 # with npm ci; only the two package files are committed.
 deploy/notion-mcp/node_modules/

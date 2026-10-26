@@ -47,6 +47,11 @@ def _model(config: AgentConfig, choice: ModelChoice, environ: Mapping[str, str])
     )
 
 
+def build_model(config: AgentConfig, choice: ModelChoice, environ: Mapping[str, str]) -> ChatModel:
+    """One model from config, with its provider's key. Raises ConfigError for an unset key."""
+    return _model(config, choice, environ)
+
+
 def build_router(
     config: AgentConfig,
     environ: Mapping[str, str],

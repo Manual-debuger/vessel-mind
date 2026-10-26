@@ -213,7 +213,7 @@ sources:
     code = main(
         [
             "--retrieval-only",
-            "--config",
+            "--config-file",
             str(REPO / "config" / "agent.example.yaml"),
             "--golden",
             str(REPO / "eval" / "golden.yaml"),
@@ -234,6 +234,9 @@ sources:
     assert not (tmp_path / "index.sqlite").exists()
 
 
-def test_the_end_to_end_eval_is_not_built_yet(capsys):
-    assert main([]) == 2
+def test_the_eval_needs_a_mode(capsys):
+    with pytest.raises(SystemExit) as exit:
+        main([])
+
+    assert exit.value.code == 2
     assert "--retrieval-only" in capsys.readouterr().err
