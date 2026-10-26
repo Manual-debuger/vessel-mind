@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>vessel-mind console</title>
+  <link rel="stylesheet" href="/static/console.css">
+  <script src="/static/vendor/htmx-2.0.11.min.js"></script>
+  <script src="/static/vendor/htmx-ext-sse-2.2.4.min.js"></script>
+  <script src="/static/console.js" defer></script>
+</head>
+<body>
+  <header>
+    <h1>vessel-mind</h1>
+    <p class="model">model: {{ model_id }}</p>
+  </header>
+  <p class="notice">Messages are sent to Google Gemini's free tier, which may use them to improve
+    its models. Do not enter personal data.</p>
+  <main id="turns"></main>
+  <form id="ask">
+    <textarea id="question" name="text" rows="3" maxlength="8000" required
+              placeholder="Ask a question"></textarea>
+    <div class="actions">
+      <button type="submit" id="send">Send</button>
+      <button type="button" id="stop" disabled>Stop</button>
+    </div>
+  </form>
+</body>
+</html>

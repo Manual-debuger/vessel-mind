@@ -1,0 +1,36 @@
+:root {
+  color-scheme: light dark;
+  --fg: #1c1c1c;
+  --bg: #fafafa;
+  --muted: #666;
+  --line: #ddd;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #e8e8e8;
+    --bg: #161616;
+    --muted: #9a9a9a;
+    --line: #333;
+  }
+}
+
+body {
+  margin: 0 auto;
+  max-width: 48rem;
+  padding: 1rem;
+  font: 16px/1.5 system-ui, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+header { display: flex; align-items: baseline; justify-content: space-between; }
+h1 { font-size: 1.25rem; margin: 0; }
+.model, .status, .notice { color: var(--muted); font-size: 0.875rem; }
+.notice { border-left: 3px solid var(--line); padding-left: 0.5rem; }
+.turn { border-top: 1px solid var(--line); padding: 0.5rem 0; }
+.question { font-weight: 600; margin: 0.25rem 0; }
+.answer { white-space: pre-wrap; margin: 0.25rem 0; }
+form { position: sticky; bottom: 0; background: var(--bg); padding: 0.5rem 0; }
+textarea { width: 100%; box-sizing: border-box; font: inherit; }
+.actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.25rem; }

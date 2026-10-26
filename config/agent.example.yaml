@@ -1,0 +1,33 @@
+# vessel-mind agent config. Copy to config/agent.yaml to change it; without
+# that file, the app reads this one. Set VESSEL_MIND_CONFIG to use another.
+#
+# Keys never go in this file: a provider names the env var that holds its key.
+
+# The active configuration: hosted, local or routed.
+configuration: hosted
+
+providers:
+  gemini:
+    # Gemini's OpenAI-compatible endpoint, free tier (no billing account).
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai
+    api_key_env: GEMINI_API_KEY
+
+# Each configuration is a fixed pair of models. `chosen` is the date the
+# model id was pinned.
+configurations:
+  hosted:
+    fast: {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-26}
+    slow: {provider: gemini, model: gemini-3.8-flash, chosen: 2026-10-26}
+
+# HTTP 429 and 503: exponential backoff from backoff_base seconds, honouring
+# Retry-After. A wait longer than backoff_max seconds (Gemini's daily limit
+# asks for about a day) fails the turn at once.
+retry:
+  max_retries: 3
+  backoff_base: 1.0
+  backoff_max: 30.0
+
+agent:
+  system: You are vessel-mind, a concise assistant. Answer in plain text.
+  # Gemini counts thinking tokens against this budget.
+  max_tokens: 4096

@@ -7,3 +7,6 @@ __pycache__/
 # checkout.
 .claude/settings.local.json
 .claude/worktrees/
+
+# Local agent config; the committed example is config/agent.example.yaml.
+config/agent.yaml
