@@ -17,6 +17,7 @@ from pydantic import (
     model_validator,
 )
 
+from vessel_mind.agent.models.openai_compatible import ReasoningEffort
 from vessel_mind.core.capabilities import CapabilityLabels
 from vessel_mind.core.credentials import EnvVarName, NoAuth, ProviderAuth
 from vessel_mind.rag.embed import DEFAULT_MODEL
@@ -45,6 +46,9 @@ class ModelChoice(_Config):
     model: str
     # The date the model id was pinned, so results can be reproduced.
     chosen: datetime.date
+    # Sent as the request's reasoning_effort when set; "none" turns thinking off.
+    # Unset: the provider's default.
+    reasoning_effort: ReasoningEffort | None = None
 
 
 class Configuration(_Config):

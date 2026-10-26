@@ -44,6 +44,7 @@ def _model(config: AgentConfig, choice: ModelChoice, environ: Mapping[str, str])
         max_retries=config.retry.max_retries,
         backoff_base=config.retry.backoff_base,
         backoff_max=config.retry.backoff_max,
+        reasoning_effort=choice.reasoning_effort,
     )
 
 

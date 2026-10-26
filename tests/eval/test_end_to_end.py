@@ -10,6 +10,7 @@ from datetime import date
 from pathlib import Path
 
 import pytest
+import yaml
 
 from vessel_mind.agent.router import CLASSIFIER_SYSTEM, Router
 from vessel_mind.core.capabilities import CapabilityRegistry
@@ -32,6 +33,7 @@ from vessel_mind.eval.end_to_end import (
 from vessel_mind.eval.golden import load_golden
 from vessel_mind.eval.judge import Judge
 from vessel_mind.eval.pacing import PacedModel, Pacer
+from vessel_mind.eval.records import row_name
 from vessel_mind.eval.results import render_results
 from vessel_mind.rag.search import SearchResult
 from vessel_mind.rag.search_docs import SearchDocsTool
@@ -208,16 +210,21 @@ def _registry() -> CapabilityRegistry:
 
 
 async def _run(
-    tmp_path: Path, *, router_on: bool, models: Models | None = None, golden=None, **kwargs
+    tmp_path: Path,
+    *,
+    router_on: bool,
+    models: Models | None = None,
+    golden=None,
+    configuration: str = "hosted",
+    **kwargs,
 ):
     models = models or Models()
     pacer = Pacer(0.0)
-    name = "hosted" if router_on else "slow-only"
     return await run_end_to_end(
         golden=golden or _golden(tmp_path),
         spec=RowSpec(
-            name=name,
-            configuration="hosted",
+            name=row_name(configuration, router_on),
+            configuration=configuration,
             router=router_on,
             fast_model="fake-lite",
             slow_model="fake-flash",
@@ -327,6 +334,19 @@ async def test_the_judge_is_named_and_a_shared_model_family_is_stated(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_misroutes_compare_with_the_slow_only_row_of_the_same_configuration(tmp_path):
+    await _run(tmp_path, router_on=True, configuration="local")
+    await _run(tmp_path, router_on=False, configuration="local")
+
+    text = render_results(tmp_path / "results")
+
+    assert "### Router: local\n" in text
+    assert "Costly misroutes: 2 (en-01, en-02)." in text
+    assert "### Router: local-slow-only" not in text
+    assert "| slow-only | — | *not run* |" in text
+
+
+@pytest.mark.asyncio
 async def test_without_a_slow_only_row_misroutes_are_not_computed(tmp_path):
     await _run(tmp_path, router_on=True)
 
@@ -415,15 +435,13 @@ EXAMPLE = REPO / "config" / "agent.example.yaml"
 def test_a_configuration_marked_not_run_is_refused_and_listed_with_its_reason(tmp_path, capsys):
     from vessel_mind.eval.run import main
 
+    data = yaml.safe_load(EXAMPLE.read_text(encoding="utf-8"))
+    data["eval"]["not_run"] = {
+        "hosted": "The free tier is spent.",
+        "local": "The local model server is off.",
+    }
     config = tmp_path / "agent.yaml"
-    config.write_text(
-        EXAMPLE.read_text(encoding="utf-8").replace(
-            "not_run: {}",
-            "not_run:\n    local: The local model server is off.\n"
-            "    routed: Its fast path is the local model server.",
-        ),
-        encoding="utf-8",
-    )
+    config.write_text(yaml.safe_dump(data), encoding="utf-8")
     results = tmp_path / "results"
     code = main(["--config", "local", "--config-file", str(config), "--results-dir", str(results)])
 
@@ -431,19 +449,26 @@ def test_a_configuration_marked_not_run_is_refused_and_listed_with_its_reason(tm
     assert "not run" in capsys.readouterr().err
     text = (results / "results.md").read_text(encoding="utf-8")
     assert "| local | qwen3:8b / qwen3.6:35b-a3b | *not run* |" in text
-    assert "| routed | qwen3:8b / gemini-3.6-flash | *not run* |" in text
-    assert "- **local** was not run: " in text
-    assert "| hosted | — | *not run* |" in text
+    assert "- **local** was not run: The local model server is off." in text
+    assert "| hosted | gemini-3.5-flash-lite / gemini-3.6-flash | *not run* |" in text
+    # A configuration that is not run has no slow-only row either.
+    assert "| slow-only | router off / gemini-3.6-flash | *not run* |" in text
+    assert "- **slow-only** was not run: The free tier is spent." in text
+    assert "| routed | — | *not run* |" in text
 
 
 def test_a_run_without_the_key_is_refused_before_any_request(tmp_path, monkeypatch, capsys):
     from vessel_mind.eval.run import main
 
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    data = yaml.safe_load(EXAMPLE.read_text(encoding="utf-8"))
+    data["eval"]["not_run"] = {}
+    config = tmp_path / "agent.yaml"
+    config.write_text(yaml.safe_dump(data), encoding="utf-8")
     results = tmp_path / "results"
 
     code = main(
-        ["--config", "hosted", "--no-router", "--config-file", str(EXAMPLE)]
+        ["--config", "hosted", "--no-router", "--config-file", str(config)]
         + ["--results-dir", str(results)]
     )
 
@@ -469,12 +494,13 @@ def test_the_example_config_names_the_judge_and_dated_list_prices():
 
     settings = load_config(EXAMPLE).eval
     assert settings is not None
-    assert settings.judge.model == "gemini-3.6-flash"
+    # The free tier allows 20 gemini-3.6-flash requests a day, so the judge is local.
+    assert (settings.judge.provider, settings.judge.model) == ("local", "qwen3.6:35b-a3b")
     for model in ("gemini-3.5-flash-lite", "gemini-3.6-flash"):
         price = settings.prices[model]
         assert price.source.startswith("https://ai.google.dev/")
         assert price.as_of == date(2026, 10, 26)
-    assert settings.not_run == {}
+    assert set(settings.not_run) == {"hosted", "routed"}
     assert settings.self_hosted_providers == ["local"]
 
 

@@ -289,6 +289,21 @@ async def test_request_translates_the_seam_types_to_chat_completions():
     }
 
 
+@pytest.mark.asyncio
+async def test_a_reasoning_effort_is_sent_only_when_set():
+    sent: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.append(request)
+        return sse_response("gemini_text.sse")
+
+    await collect(make_model(handler, reasoning_effort="none"), question())
+    await collect(make_model(handler), question())
+
+    assert json.loads(sent[0].content)["reasoning_effort"] == "none"
+    assert "reasoning_effort" not in json.loads(sent[1].content)
+
+
 class HangingStream(httpx.AsyncByteStream):
     """Sends the fixture's first event, then waits forever, as a slow model would."""
 
