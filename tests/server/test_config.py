@@ -1,14 +1,21 @@
 """The app built from config/agent.example.yaml, as `task dev` builds it."""
 
+import json
+import sys
 from pathlib import Path
 
 import pytest
+import yaml
 from fastapi.testclient import TestClient
 
+from vessel_mind.agent.loop import run_tool
+from vessel_mind.core.capabilities import CapabilityRegistry
+from vessel_mind.core.credentials import BearerAuth
 from vessel_mind.server.config import ConfigError, load_config
-from vessel_mind.server.main import app_from_config
+from vessel_mind.server.main import app_from_config, mcp_servers_from_config
 
-EXAMPLE = Path(__file__).resolve().parent.parent.parent / "config" / "agent.example.yaml"
+REPO = Path(__file__).resolve().parent.parent.parent
+EXAMPLE = REPO / "config" / "agent.example.yaml"
 
 
 def test_the_example_config_serves_the_hosted_slow_path_model(tmp_path, monkeypatch):
@@ -103,3 +110,108 @@ def test_a_provider_must_state_its_auth_scheme(tmp_path):
 
     with pytest.raises(ConfigError, match="auth"):
         load_config(config)
+
+
+NOTION_PIN = REPO / "deploy" / "notion-mcp"
+NOTION_PACKAGE = "node_modules/@notionhq/notion-mcp-server"
+
+
+def test_the_example_starts_the_pinned_notion_server_with_node_and_is_off_by_default():
+    notion = load_config(EXAMPLE).mcp_servers["notion"]
+    package = json.loads((NOTION_PIN / "package.json").read_text(encoding="utf-8"))
+    lock = json.loads((NOTION_PIN / "package-lock.json").read_text(encoding="utf-8"))
+
+    pinned = package["dependencies"]["@notionhq/notion-mcp-server"]
+    locked = lock["packages"][NOTION_PACKAGE]
+    entry = f"deploy/notion-mcp/{NOTION_PACKAGE}/{locked['bin']['notion-mcp-server']}"
+    assert pinned == "2.5.2"
+    assert locked["version"] == pinned
+    assert notion.command == "node"
+    assert notion.args == [entry]
+    assert notion.enabled is False
+    assert notion.auth == BearerAuth(key_env="NOTION_TOKEN")
+    assert notion.headers_env == "OPENAPI_MCP_HEADERS"
+
+
+def test_the_example_labels_notion_search_and_read_as_read_and_create_and_update_as_write():
+    tools = load_config(EXAMPLE).mcp_servers["notion"].tools
+    effects = {name: labels.effect for name, labels in tools.items()}
+
+    assert effects == {
+        "API-post-search": "read",
+        "API-retrieve-a-page": "read",
+        "API-get-block-children": "read",
+        "API-post-page": "write",
+        "API-patch-page": "write",
+        "API-patch-block-children": "write",
+    }
+    assert all(labels.resource == "workspace" for labels in tools.values())
+    assert all(labels.exfil for labels in tools.values() if labels.effect == "write")
+
+
+NOTION_ENABLED = "    enabled: false"
+
+
+def test_an_mcp_server_is_never_started_with_a_package_runner(tmp_path):
+    config = config_with(tmp_path, "command: node", "command: npx")
+
+    with pytest.raises(ConfigError, match="mcp_servers.notion.command"):
+        load_config(config)
+
+
+def test_an_mcp_server_with_a_credential_names_the_env_var_that_carries_it(tmp_path):
+    config = config_with(tmp_path, "    headers_env: OPENAPI_MCP_HEADERS\n", "")
+
+    with pytest.raises(ConfigError, match="headers_env"):
+        load_config(config)
+
+
+def test_invalid_mcp_tool_labels_are_a_config_error(tmp_path):
+    config = config_with(tmp_path, "effect: read", "effect: maybe")
+
+    with pytest.raises(ConfigError, match="API-post-search"):
+        load_config(config)
+
+
+def test_an_enabled_server_without_its_token_names_the_env_var(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    config = config_with(tmp_path, NOTION_ENABLED, "    enabled: true")
+
+    with pytest.raises(ConfigError, match="mcp server 'notion': NOTION_TOKEN is unset or empty"):
+        app_from_config(config, environ={"GEMINI_API_KEY": "test-key"})
+
+
+FAKE = REPO / "tests" / "fixtures" / "fake_mcp_server.py"
+
+
+@pytest.mark.asyncio
+async def test_configured_mcp_servers_register_their_labelled_tools(tmp_path):
+    raw = yaml.safe_load(EXAMPLE.read_text(encoding="utf-8"))
+    raw["mcp_servers"]["fake"] = {
+        "command": sys.executable,
+        "args": [str(FAKE), str(tmp_path / "calls.jsonl")],
+        "auth": {"scheme": "bearer", "key_env": "FAKE_TOKEN"},
+        "headers_env": "FAKE_HEADERS",
+        "tools": {
+            "environment": {
+                "resource": "workspace",
+                "effect": "read",
+                "exfil": False,
+                "taints_context": True,
+            }
+        },
+    }
+    config = tmp_path / "agent.yaml"
+    config.write_text(yaml.safe_dump(raw), encoding="utf-8")
+    registry = CapabilityRegistry(warn=lambda message: None)
+
+    servers = mcp_servers_from_config(load_config(config), registry, {"FAKE_TOKEN": "t-1"})
+    # The disabled Notion server is not started.
+    assert [server.name for server in servers] == ["fake"]
+    async with servers[0]:
+        result, is_error = await run_tool(registry, "fake_environment", {})
+
+    assert [spec.name for spec in registry.specs()] == ["fake_environment"]
+    assert is_error is False
+    assert isinstance(result, dict)
+    assert result["headers"] == {"Authorization": "Bearer t-1"}
