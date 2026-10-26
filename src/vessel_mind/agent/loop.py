@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass, field
 
 from vessel_mind.core.chat import (
+    AssistantMessage,
     ChatMessage,
     ChatModel,
     ChatModelError,
@@ -25,6 +26,9 @@ class TurnTally:
 
     usage: Usage = field(default_factory=Usage)
     steps: int = 0
+    # What the turn added to the conversation, in order: the user message, then
+    # each message the model produced. The caller stores them as history.
+    messages: list[ChatMessage] = field(default_factory=list)
 
 
 async def run_turn(
@@ -42,17 +46,21 @@ async def run_turn(
     DoneEvent(reason="cancelled") and the tally.
     """
     tally = tally if tally is not None else TurnTally()
+    user = UserMessage(text=user_text)
+    tally.messages.append(user)
     request = ChatRequest(
         system=system,
-        messages=[*history, UserMessage(text=user_text)],
+        messages=[*history, user],
         max_tokens=max_tokens,
     )
     tally.steps += 1
     reason = "end"
+    text: list[str] = []
     try:
         async for event in model.stream(request):
             match event:
                 case TextDelta(delta=delta):
+                    text.append(delta)
                     yield TextEvent(text=delta)
                 case Stop(reason=stop_reason, usage=usage):
                     tally.usage += usage
@@ -63,4 +71,5 @@ async def run_turn(
     except ChatModelError as error:
         yield ErrorEvent(code="model_error", message=str(error))
         return
+    tally.messages.append(AssistantMessage(text="".join(text)))
     yield DoneEvent(reason=reason, usage=tally.usage, steps=tally.steps)

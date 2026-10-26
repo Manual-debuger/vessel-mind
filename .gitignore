@@ -10,3 +10,6 @@ __pycache__/
 
 # Local agent config; the committed example is config/agent.example.yaml.
 config/agent.yaml
+
+# Runtime data: the state file (sessions, history, proposals).
+data/

@@ -31,3 +31,14 @@ agent:
   system: You are vessel-mind, a concise assistant. Answer in plain text.
   # Gemini counts thinking tokens against this budget.
   max_tokens: 4096
+
+# The SQLite file for sessions, their history and proposals. It is not the
+# retrieval index: the index can be rebuilt, this file cannot. A relative
+# path is relative to the directory the server runs in.
+state:
+  path: data/state.db
+
+# A session may start at most this many turns (cancelled ones count too),
+# so one visitor cannot spend the whole free quota. Omit it for no limit.
+sessions:
+  max_turns: 30

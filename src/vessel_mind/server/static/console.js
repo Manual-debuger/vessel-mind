@@ -39,14 +39,24 @@
       `out ${u.output_tokens}, thinking ${u.thinking_tokens}`;
   }
 
+  // The session of this page. Reloading the page starts a new session.
+  let sessionId = null;
+
   async function startTurn(text) {
+    const body = sessionId ? { session_id: sessionId, text } : { text };
     const response = await fetch("/turns", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify(body),
     });
-    if (!response.ok) throw new Error(`POST /turns: HTTP ${response.status}`);
-    return (await response.json()).turn_id;
+    if (!response.ok) {
+      const error = await response.json().catch(() => null);
+      const detail = error && error.detail && error.detail.message;
+      throw new Error(detail || `POST /turns: HTTP ${response.status}`);
+    }
+    const started = await response.json();
+    sessionId = started.session_id;
+    return started.turn_id;
   }
 
   form.addEventListener("submit", async (submit) => {

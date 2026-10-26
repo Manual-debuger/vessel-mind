@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -15,8 +14,9 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict, Field
 
 from vessel_mind.agent.loop import TurnTally, run_turn
-from vessel_mind.core.chat import ChatModel
+from vessel_mind.core.chat import ChatMessage, ChatModel
 from vessel_mind.core.events import AgentEvent, DoneEvent, ErrorEvent
+from vessel_mind.server.state import SessionStore, TurnLimitReached, TurnStatus
 
 log = logging.getLogger(__name__)
 
@@ -27,10 +27,13 @@ _templates = Jinja2Templates(directory=_HERE / "templates")
 class StartTurn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    # None starts a new session.
+    session_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{32}$")
     text: str = Field(min_length=1, max_length=8000)
 
 
 class TurnStarted(BaseModel):
+    session_id: str
     turn_id: str
 
 
@@ -73,30 +76,66 @@ def create_app(
     *,
     system: str | None = None,
     max_tokens: int | None = None,
+    state_path: Path | str = ":memory:",
+    max_turns_per_session: int | None = None,
 ) -> FastAPI:
-    turns: dict[str, Turn] = {}
+    """The app over one model. state_path is the SQLite state file, opened at startup.
 
-    async def drive(turn: Turn, text: str) -> None:
+    max_turns_per_session bounds the turns one session may start, to protect the
+    provider's free quota; None means no bound.
+    """
+    # Turns in this process, for streaming. The state file outlives them.
+    turns: dict[str, Turn] = {}
+    # The latest turn of each session, and a lock so a session starts one turn at a time.
+    latest: dict[str, Turn] = {}
+    session_locks: dict[str, asyncio.Lock] = {}
+    stores: list[SessionStore] = []
+
+    def store() -> SessionStore:
+        return stores[0]
+
+    async def drive(turn: Turn, turn_id: str, history: list[ChatMessage], text: str) -> None:
         tally = TurnTally()
+        finished = False
+
+        def finish(status: TurnStatus, messages: list[ChatMessage] | None = None) -> None:
+            nonlocal finished
+            if not finished:
+                finished = True
+                store().finish_turn(turn_id, status, messages or [])
+
         try:
             async for event in run_turn(
-                model, [], text, system=system, max_tokens=max_tokens, tally=tally
+                model, history, text, system=system, max_tokens=max_tokens, tally=tally
             ):
+                # History is saved before the client is told the turn ended, so a
+                # client that starts the next turn on `done` always sees it.
+                if isinstance(event, DoneEvent):
+                    finish("done", tally.messages)
+                elif isinstance(event, ErrorEvent):
+                    finish("error")
                 await turn.publish(event)
         except asyncio.CancelledError:
+            # A cancelled turn leaves no history: its messages may be half a step.
+            finish("cancelled")
             await turn.publish(DoneEvent(reason="cancelled", usage=tally.usage, steps=tally.steps))
             raise
         except Exception:
             log.exception("turn failed")
+            finish("error")
             await turn.publish(ErrorEvent(code="internal_error", message="The turn failed."))
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        yield
-        running = [t.task for t in turns.values() if t.task and not t.task.done()]
-        for task in running:
-            task.cancel()
-        await asyncio.gather(*running, return_exceptions=True)
+        stores.append(SessionStore.open(state_path))
+        try:
+            yield
+            running = [t.task for t in turns.values() if t.task and not t.task.done()]
+            for task in running:
+                task.cancel()
+            await asyncio.gather(*running, return_exceptions=True)
+        finally:
+            stores.pop().close()
 
     app = FastAPI(title="vessel-mind", lifespan=lifespan)
     app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")
@@ -111,11 +150,37 @@ def create_app(
 
     @app.post("/turns")
     async def start_turn(body: StartTurn) -> TurnStarted:
-        turn_id = uuid.uuid4().hex
-        turn = Turn()
-        turns[turn_id] = turn
-        turn.task = asyncio.create_task(drive(turn, body.text))
-        return TurnStarted(turn_id=turn_id)
+        if body.session_id is None:
+            session_id = store().create_session()
+        elif store().has_session(body.session_id):
+            session_id = body.session_id
+        else:
+            raise HTTPException(status_code=404, detail="unknown session")
+
+        async with session_locks.setdefault(session_id, asyncio.Lock()):
+            previous = latest.get(session_id)
+            if previous is not None and previous.task is not None:
+                # A new turn cancels the running one, and waits until it has ended,
+                # so the new turn starts from the history the old one left.
+                previous.task.cancel()
+                await asyncio.wait([previous.task])
+            try:
+                turn_id = store().begin_turn(session_id, max_turns=max_turns_per_session)
+            except TurnLimitReached:
+                raise HTTPException(
+                    status_code=429,
+                    detail={
+                        "code": "turn_limit",
+                        "message": f"This session has used all {max_turns_per_session} "
+                        "of its turns. Start a new session.",
+                    },
+                ) from None
+            turn = Turn()
+            turns[turn_id] = turn
+            latest[session_id] = turn
+            history = store().history(session_id)
+            turn.task = asyncio.create_task(drive(turn, turn_id, history, body.text))
+        return TurnStarted(session_id=session_id, turn_id=turn_id)
 
     def find(turn_id: str) -> Turn:
         turn = turns.get(turn_id)
