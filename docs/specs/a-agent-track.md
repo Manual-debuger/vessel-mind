@@ -35,8 +35,9 @@ One-week sprint. Each day ends with `main` passing `task verify`.
 
 **If Thursday slips, cut in this order:** (1) the `llama-server` reranker (keep CPU); (2) the
 `local` eval row (report *not run*); (3) console polish; (4) the language split in the retrieval
-table. **Never cut:** approval tests, schema drift test, frozen golden set, `hosted` and slow-only
-rows, public URL, README numbers.
+table; (5) the public URL (Cloudflare Tunnel and Access; demo mode stays in code). **Never cut:**
+approval tests, schema drift test, frozen golden set, `hosted` and slow-only rows, the demo video,
+README numbers.
 
 **Golden set:** drafted Wed 10/28; reviewed, and Chinese questions written, by Thu 10/29 evening;
 frozen before Fri's first end-to-end run.
@@ -361,8 +362,10 @@ GitHub MCP; hosted tracing; multi-user auth beyond Cloudflare Access. Do not add
 - [ ] Retrieval ablation table committed (vector / keyword / hybrid / hybrid + rerank)
 - [ ] `task eval` results committed for every configuration that could run
 - [ ] `docker compose up` from a clean clone serves the console with hosted providers only
+- [ ] A 2–3 minute demo video, on the public corpus and a demo Notion page only: a cited answer,
+      a tool call, the route, and Approve → Notion write on localhost; linked from the README
 - [ ] Public hostname works behind Access, in demo mode (a proposal is shown, its approval is
-      refused), with llama-server not reachable from it
+      refused), with llama-server not reachable from it — or listed as cut, with the reason
 - [ ] README: architecture diagram, results table, protocol summary, public-corpus statement;
       Vessel named as the future client but **not linked** while it is private
 - [ ] Whole history scanned for secrets before the repository is made public

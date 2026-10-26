@@ -19,7 +19,7 @@ reach the author's tools, so an open URL is a spending and data risk.
 |---|---|
 | Ingress | `cloudflared` runs as a compose service and opens an outbound tunnel. No inbound port is opened on the home network. |
 | What is exposed | The app server only (HTTP, including its Server-Sent Events stream). `llama-server`, the database and MCP servers stay on the internal network and are never routed through the tunnel. |
-| Authentication | Cloudflare Access in front of the hostname; one-time PIN by email for an allow-list. The app does not implement its own login in this track. |
+| Authentication | Cloudflare Access in front of the hostname; one-time PIN sent to any email address (no allow-list). The app does not implement its own login in this track. |
 | TLS | Terminated by Cloudflare with a certificate for the real hostname. |
 | Demo mode | On the public hostname, only read tools execute. The loop still makes proposals for write tools, and the console shows them. The server refuses every **approval** with a "demo mode" error, so no write tool executes there. |
 | Spend | The hosted model key belongs to a project with **no billing account**, so it cannot spend money. A per-session turn limit protects the free quota. |
@@ -66,3 +66,12 @@ write. The localhost recording uses a second integration with write rights. Each
 shared with one demo page only, never a personal page. Write tools stay registered on the public
 host, so proposals are still shown. Rejected options: one token guarded only by the app's check,
 and no Notion on the public host (no proposal to show).
+
+**2026-10-26: any email may sign in; the public URL is optional.** An allow-list locks out the
+reviewer who clicks the link from an application, because their address is not known in advance.
+Access now sends a one-time PIN to any email address. Cost is still bounded by the free-quota key
+with no billing account and by the per-session turn limit, and writes are still impossible on the
+public host. The track now treats a demo video as required and the public URL as the last item in
+its cut order; this ADR decides how the URL is exposed if it ships. Rejected options: keep the
+allow-list (reviewers cannot get in), and drop the public URL entirely (loses a live link for
+interviews when time allows).
