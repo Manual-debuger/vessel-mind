@@ -65,7 +65,9 @@ class IndexStore:
         ingest rebuilds it.
         """
         path.parent.mkdir(parents=True, exist_ok=True)
-        db = sqlite3.connect(path)
+        # The server searches from worker threads. The store is not thread-safe:
+        # the caller runs one call at a time.
+        db = sqlite3.connect(path, check_same_thread=False)
         try:
             foreign = sorted(
                 name
