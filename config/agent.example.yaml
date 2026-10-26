@@ -96,6 +96,11 @@ retrieval:
   # The results search_docs returns; at most candidate_k.
   top_k: 5
   embedding_model: jinaai/jina-embeddings-v2-base-zh
+  # Reorders the candidates before the top_k cut. cpu: a fastembed
+  # cross-encoder (downloaded on the first search, 0.57 GB); none: no rerank
+  # stage. A multilingual model, since questions may be in Chinese.
+  reranker: cpu
+  reranker_model: BAAI/bge-reranker-v2-m3-int8
   model_cache: .cache/fastembed
   tarball_cache: .cache/corpus
 

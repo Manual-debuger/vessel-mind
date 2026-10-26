@@ -1,19 +1,20 @@
 """The retrieval pipeline (docs/specs/a-agent-track.md §5.6).
 
     candidates = vector | keyword | hybrid (RRF, k = 60)   -> top candidate_k (30)
-    results    = candidates[:top_k]                       -> top k (default 5)
+    reranked   = rerank(query, candidates)                -> top k (default 5)
 
-A reranker (a later stage) goes between the two lines: it reorders the
-candidates and never adds or drops one.
+The reranker reorders the candidates and never adds or drops one; without a
+reranker the candidates keep their fused order.
 
 Every candidate stage scores with reciprocal rank fusion, so a score means the
 same thing in every stage: ``vector`` and ``keyword`` fuse one ranking,
 ``hybrid`` fuses both. Higher is better.
 """
 
+from collections import Counter
 from collections.abc import Hashable, Iterable, Sequence
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Protocol
 
 from vessel_mind.rag.embed import Embedder
 from vessel_mind.rag.store import IndexStore, StoredChunk
@@ -47,6 +48,16 @@ class SearchResult:
     rerank_score: float | None = None  # set only by a reranker
 
 
+class Reranker(Protocol):
+    """Reorders candidates for a query, best first, and sets each one's
+    ``rerank_score``. It returns the same candidates it was given."""
+
+    @property
+    def model_id(self) -> str: ...
+
+    def rerank(self, query: str, candidates: Sequence[SearchResult]) -> list[SearchResult]: ...
+
+
 def _result(chunk: StoredChunk, score: float) -> SearchResult:
     url = f"https://github.com/{chunk.repo}/blob/{chunk.commit}/{chunk.path}"
     if chunk.anchor:
@@ -72,6 +83,7 @@ class SearchPipeline:
         candidates: CandidateStage = "hybrid",
         candidate_k: int = CANDIDATE_K,
         top_k: int = TOP_K,
+        reranker: Reranker | None = None,
     ) -> None:
         if candidate_k < 1 or top_k < 1:
             raise ValueError("candidate_k and top_k must be at least 1")
@@ -80,6 +92,7 @@ class SearchPipeline:
         self.stage: CandidateStage = candidates
         self.candidate_k = candidate_k
         self.top_k = top_k
+        self.reranker = reranker
 
     def candidates(self, query: str) -> list[SearchResult]:
         """The candidate stage: at most candidate_k results, best first."""
@@ -93,4 +106,11 @@ class SearchPipeline:
         return [_result(self._store.chunk(cid), score) for cid, score in fused]
 
     def search(self, query: str, top_k: int | None = None) -> list[SearchResult]:
-        return self.candidates(query)[: top_k or self.top_k]
+        """The top k results: the candidates, reranked when there is a reranker."""
+        results = self.candidates(query)
+        if self.reranker is not None:
+            reranked = self.reranker.rerank(query, results)
+            if Counter(r.source for r in reranked) != Counter(r.source for r in results):
+                raise ValueError(f"reranker {self.reranker.model_id} added or dropped a candidate")
+            results = reranked
+        return results[: top_k or self.top_k]

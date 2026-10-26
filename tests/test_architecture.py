@@ -1,7 +1,8 @@
 """The package's dependency direction, as the import-linter contracts in pyproject.toml state it.
 
 core imports nothing else in vessel_mind; agent and rag import only core, and
-agent never imports rag; nothing imports server.
+agent never imports rag; only the eval harness imports server, and nothing
+imports eval.
 """
 
 from pathlib import Path
