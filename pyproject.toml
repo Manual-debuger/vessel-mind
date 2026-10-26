@@ -26,15 +26,17 @@ pythonpath = ["src"]
 # tests/test_architecture.py. Each layer may import only the layers below it,
 # and "agent | rag" are independent: neither imports the other. exhaustive
 # makes every direct child of vessel_mind take a place here, so a new
-# top-level module cannot sit outside the rules.
+# top-level module cannot sit outside the rules. eval (the harness behind
+# task eval) sits on top: it builds what it measures from the server's config,
+# and nothing imports it.
 [tool.importlinter]
 root_package = "vessel_mind"
 
 [[tool.importlinter.contracts]]
-name = "server > agent | rag > core"
+name = "eval > server > agent | rag > core"
 type = "layers"
 containers = ["vessel_mind"]
-layers = ["server", "agent | rag", "core"]
+layers = ["eval", "server", "agent | rag", "core"]
 exhaustive = true
 
 [dependency-groups]

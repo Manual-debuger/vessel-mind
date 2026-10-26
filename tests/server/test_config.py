@@ -3,6 +3,7 @@
 import json
 import sys
 from collections.abc import Sequence
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,7 @@ from vessel_mind.agent.loop import run_tool
 from vessel_mind.core.capabilities import CapabilityRegistry
 from vessel_mind.core.credentials import BearerAuth
 from vessel_mind.rag.corpus import Document
+from vessel_mind.rag.search import SearchResult
 from vessel_mind.server.config import ConfigError, load_config
 from vessel_mind.server.main import app_from_config, build_router, mcp_servers_from_config
 
@@ -46,9 +48,20 @@ DOCS = [
 ]
 
 
+class FakeReranker:
+    model_id = "fake/identity"
+
+    def rerank(self, query: str, candidates: Sequence[SearchResult]) -> list[SearchResult]:
+        return [replace(c, rerank_score=0.0) for c in candidates]
+
+
 def offline(embedder: FakeEmbedder | None = None) -> dict:
-    """The startup-ingest seams, faked: no model loads and no corpus is fetched."""
-    return {"embedder": embedder or FakeEmbedder(), "load_documents": lambda: DOCS}
+    """The retrieval seams, faked: no model loads and no corpus is fetched."""
+    return {
+        "embedder": embedder or FakeEmbedder(),
+        "load_documents": lambda: DOCS,
+        "reranker": FakeReranker(),
+    }
 
 
 def test_the_example_config_serves_the_hosted_slow_path_model(tmp_path, monkeypatch):
@@ -128,6 +141,37 @@ def test_top_k_may_not_exceed_the_candidates(tmp_path):
 
     with pytest.raises(ConfigError, match="top_k"):
         load_config(config)
+
+
+def test_the_example_config_reranks_on_cpu_with_a_multilingual_cross_encoder():
+    retrieval = load_config(EXAMPLE).retrieval
+
+    assert retrieval.reranker == "cpu"
+    assert retrieval.reranker_model == "BAAI/bge-reranker-v2-m3-int8"
+
+
+def test_the_reranker_can_be_turned_off(tmp_path):
+    config = config_with(tmp_path, "reranker: cpu", "reranker: none")
+
+    assert load_config(config).retrieval.reranker == "none"
+
+
+def test_the_cut_llama_server_reranker_is_refused(tmp_path):
+    config = config_with(tmp_path, "reranker: cpu", "reranker: llama-server")
+
+    with pytest.raises(ConfigError, match=r"retrieval\.reranker"):
+        load_config(config)
+
+
+def test_an_unknown_reranker_model_is_a_config_error(tmp_path):
+    config = config_with(
+        tmp_path, "reranker_model: BAAI/bge-reranker-v2-m3-int8", "reranker_model: no/such"
+    )
+    fakes = offline()
+    del fakes["reranker"]
+
+    with pytest.raises(ConfigError, match=r"retrieval\.reranker_model"):
+        app_from_config(config, environ={"GEMINI_API_KEY": "k"}, **fakes)
 
 
 def test_the_app_ingests_the_corpus_into_the_configured_index_at_startup(tmp_path, monkeypatch):

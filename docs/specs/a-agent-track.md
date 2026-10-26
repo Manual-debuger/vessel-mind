@@ -148,7 +148,9 @@ so it runs inside the managed `task verify`):
 - `core` imports nothing else in `vessel_mind`;
 - `agent` and `rag` import only `core` — **`agent` does not import `rag`**: retrieval reaches
   the loop as an injected `Tool`;
-- `server` may import everything; nothing imports `server`.
+- `server` may import everything; nothing imports `server` except `eval`.
+- `eval` (the harness behind `task eval`) is a second composition root above `server`: it
+  may import `server` for config, and nothing imports `eval` (amended 2026-10-26, ticket #13).
 
 ## 5. Deliverables
 
