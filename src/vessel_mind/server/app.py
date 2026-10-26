@@ -84,6 +84,7 @@ def create_app(
     state_path: Path | str = ":memory:",
     max_turns_per_session: int | None = None,
     demo_mode: bool = False,
+    public_host: bool = False,
     clock: Clock | None = None,
     services: Sequence[AbstractAsyncContextManager[object]] = (),
 ) -> FastAPI:
@@ -103,7 +104,9 @@ def create_app(
     provider's free quota; None means no bound.
 
     demo_mode (ADR 0002) still makes and shows proposals but refuses every
-    approval. clock gives the current time for proposal expiry; tests fake it.
+    approval. public_host shows the free-tier notice: the app is served on the
+    public hostname (spec §5.4). clock gives the current time for proposal expiry;
+    tests fake it.
     """
     registry = tools if tools is not None else CapabilityRegistry()
     # Turns in this process, for streaming. The state file outlives them.
@@ -185,6 +188,7 @@ def create_app(
                 "model_id": model.id,
                 "fast_model_id": router.fast.id if router is not None else None,
                 "demo_mode": demo_mode,
+                "public_host": public_host,
             },
         )
 

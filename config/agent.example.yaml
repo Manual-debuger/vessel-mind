@@ -70,9 +70,11 @@ agent:
 
 # The SQLite file for sessions, their history and proposals. It is not the
 # retrieval index: the index can be rebuilt, this file cannot. A relative
-# path is relative to the directory the server runs in.
+# path is relative to the directory the server runs in. It sits in its own
+# directory so the container can keep it in a volume (compose.yaml) apart
+# from the index that the image ships.
 state:
-  path: data/state.db
+  path: data/state/state.db
 
 # A session may start at most this many turns (cancelled ones count too),
 # so one visitor cannot spend the whole free quota. Omit it for no limit.
@@ -82,7 +84,9 @@ sessions:
 # search_docs: the retrieval pipeline. At startup, the server ingests the
 # pinned corpus into the index when the index is missing or unfinished (the
 # first start downloads the embedding model and may fetch a tarball); a
-# complete index is opened as it is. Rebuild it with `task ingest`.
+# complete index is opened as it is. Rebuild it with `task ingest`. The
+# Docker image is built with a complete index and the embedding model, so the
+# container embeds nothing at startup (deploy/Dockerfile).
 retrieval:
   index: data/index.sqlite
   corpus: eval/corpus.yaml
@@ -148,6 +152,11 @@ eval:
 # the server refuses every approval (HTTP 403, code demo_mode), so no write
 # tool runs. Keep it false on localhost.
 demo_mode: false
+
+# True only on the public hostname: the console then shows the notice that
+# messages go to Gemini's free tier. It requires demo_mode: true and
+# sessions.max_turns. config/agent.public.example.yaml sets both.
+public_host: false
 
 # MCP servers, started over stdio when the app starts. The model sees each
 # tool as <server>_<tool>, for example notion_API-post-search.

@@ -1,0 +1,20 @@
+# The build context of deploy/Dockerfile (compose.yaml: context ".").
+# .git stays in the context: the index stage bind-mounts it to read the corpus
+# pin. No stage copies it into a layer.
+
+# Secrets and local config.
+.env
+config/agent.yaml
+
+# Runtime data and caches; the image builds its own index.
+data
+.cache
+.venv
+**/__pycache__
+.pytest_cache
+.ruff_cache
+deploy/notion-mcp/node_modules
+
+# Agent tooling and worktrees (each worktree is a full checkout).
+.claude
+.agents

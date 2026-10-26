@@ -130,6 +130,7 @@ def app_from_config(
         state_path=config.state.path,
         max_turns_per_session=config.sessions.max_turns,
         demo_mode=config.demo_mode,
+        public_host=config.public_host,
         services=[retrieval, *mcp_servers],
     )
 
