@@ -1,0 +1,49 @@
+# golangci-lint v2. `task lint` runs `go vet ./...` and `golangci-lint run`,
+# and verify fails on any finding. go vet catches the contract's planted
+# static-analysis defect (a Printf call whose arguments do not match its
+# format); the linters below add to it. Adapt the list to the team's rules,
+# but keep govet.
+version: "2"
+
+run:
+  timeout: 5m
+  # golangci-lint takes one lock per machine. Without this, a run that
+  # overlaps another one (an agent hook, a second worktree) exits 3.
+  allow-serial-runners: true
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - bodyclose
+    - errorlint
+    - gocritic
+    - gosec
+    - misspell
+    - nakedret
+    - revive
+    - unconvert
+    - unparam
+  settings:
+    revive:
+      rules:
+        - name: exported
+          disabled: false
+    gosec:
+      excludes:
+        - G104 # errcheck already covers unhandled errors
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - gosec
+          - errcheck
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

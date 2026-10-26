@@ -1,0 +1,59 @@
+name: Audit
+
+# .github/workflows/audit.yml: the contract audit in a job of its own. It
+# is the only CI job that runs vibe; removing VibeConform is deleting this
+# file. The job does not call verify itself: vibe audit runs verify and
+# verify-fast in a probe copy (after the setup entrypoint, such as
+# `uv sync --frozen`), and the guard probes through the hooks in
+# .claude/settings.json. So it sets up every tool the entrypoints call,
+# and the setup action installs vibe and vibe-guard.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.13"
+
+jobs:
+  audit:
+    name: audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install task
+        uses: go-task/setup-task@a00fbb05ce67b35648be3c78cbc9fd85354c757e # v2.2.0
+        with:
+          version: 3.53.1
+      # The setup action installs vibe and vibe-guard v0.14.0-alpha.1 from
+      # the release and checks the archives against its checksums.txt.
+      # version must be an exact release such as v0.12.0-alpha.1, never
+      # latest: the action refuses it. Where this file says latest (it came
+      # from a vibe built from source), use the newest release tag instead,
+      # here and in the pin and its comment; list the tags with
+      #   git ls-remote --tags https://github.com/Manual-debuger/VibeConform
+      # The other inputs keep their defaults: tools (vibe vibe-guard),
+      # source (auto: the release for a release version), verify-attestation
+      # (false) and checksums (the release's own). Replace the zeros with the
+      # commit SHA of that release tag:
+      #   git ls-remote https://github.com/Manual-debuger/VibeConform refs/tags/v0.14.0-alpha.1
+      - name: Install vibe and vibe-guard
+        uses: Manual-debuger/VibeConform@eda947fa48662feb799762b2570af2974e4501eb # v0.14.0-alpha.1
+        with:
+          version: "v0.14.0-alpha.1"
+      - name: vibe audit
+        run: vibe audit

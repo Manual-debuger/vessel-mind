@@ -1,0 +1,56 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"${CLAUDE_PROJECT_DIR:-.}\" && task -x hook:context",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v vibe-guard >/dev/null 2>&1 || { echo \"vibe-guard is not installed; install it: go install github.com/Manual-debuger/VibeConform/cmd/vibe-guard@v0.14.0-alpha.1, or download it from https://github.com/Manual-debuger/VibeConform/releases/tag/v0.14.0-alpha.1\" >&2; exit 2; }; vibe-guard hook"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"${CLAUDE_PROJECT_DIR:-.}\" && task fmt 1>&2 || exit 2",
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "cd \"${CLAUDE_PROJECT_DIR:-.}\" && task -x hook:check",
+            "timeout": 300,
+            "asyncRewake": true
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "vibe-guard relock 2>/dev/null; cd \"${CLAUDE_PROJECT_DIR:-.}\" && { task -x hook:stamp:check >/dev/null 2>&1 </dev/null || { task verify:fast 1>&2 </dev/null && task -x hook:stamp:save >/dev/null 2>&1 </dev/null; } || task -x hook:done; }",
+            "timeout": 600
+          }
+        ]
+      }
+    ]
+  }
+}

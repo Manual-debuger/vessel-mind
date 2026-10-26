@@ -1,0 +1,19 @@
+# .github/dependabot.yml: one entry per component's ecosystem, and one for
+# github-actions, so the pinned action SHAs are updated too. Dependabot's
+# pip ecosystem reads pyproject.toml and uv.lock.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    # No auto-merge: dependency PRs are reviewed like any other change.
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5

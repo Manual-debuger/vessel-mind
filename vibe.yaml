@@ -1,0 +1,13 @@
+# vibe.yaml version 2, written by vibe init. vibe audit reads it and
+# checks the repository against the VibeConform contract.
+contract: 1.1.0
+platforms: [linux, windows]
+agents: [claude]
+# No components: one component at the root, found from pyproject.toml.
+# setup installs the dependencies in each probe copy of the audit.
+entrypoints:
+  setup: uv sync --frozen
+  verify: task verify
+  verify-fast: task verify:fast
+  fmt: task fmt
+  fmt-check: task fmt:check

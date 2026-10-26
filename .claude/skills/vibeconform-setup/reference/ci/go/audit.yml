@@ -1,0 +1,63 @@
+name: Audit
+
+# .github/workflows/audit.yml: the contract audit in a job of its own. It
+# is the only CI job that runs vibe; removing VibeConform is deleting this
+# file. The job does not call verify itself: vibe audit runs verify and
+# verify-fast in a probe copy, and the guard probes through the hooks in
+# .claude/settings.json. So it sets up every tool the entrypoints call,
+# and the setup action installs vibe and vibe-guard.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.27.0"
+  TASK_VERSION: "v3.53.1"
+  GOLANGCI_LINT_VERSION: "v2.13.2"
+
+jobs:
+  audit:
+    name: audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Install task and the Go tools the entrypoints call
+        run: |
+          go install github.com/go-task/task/v3/cmd/task@${{ env.TASK_VERSION }}
+          go install golang.org/x/tools/cmd/goimports@v0.51.0
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${{ env.GOLANGCI_LINT_VERSION }}
+          go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+      # The setup action installs vibe and vibe-guard v0.14.0-alpha.1 from
+      # the release and checks the archives against its checksums.txt.
+      # version must be an exact release such as v0.12.0-alpha.1, never
+      # latest: the action refuses it. Where this file says latest (it came
+      # from a vibe built from source), use the newest release tag instead,
+      # here and in the pin and its comment; list the tags with
+      #   git ls-remote --tags https://github.com/Manual-debuger/VibeConform
+      # The other inputs keep their defaults: tools (vibe vibe-guard),
+      # source (auto: the release for a release version), verify-attestation
+      # (false) and checksums (the release's own). Replace the zeros with the
+      # commit SHA of that release tag:
+      #   git ls-remote https://github.com/Manual-debuger/VibeConform refs/tags/v0.14.0-alpha.1
+      - name: Install vibe and vibe-guard
+        uses: Manual-debuger/VibeConform@0000000000000000000000000000000000000000 # v0.14.0-alpha.1
+        with:
+          version: "v0.14.0-alpha.1"
+      - name: vibe audit
+        run: vibe audit

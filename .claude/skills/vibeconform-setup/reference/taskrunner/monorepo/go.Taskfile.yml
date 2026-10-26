@@ -1,0 +1,93 @@
+version: "3"
+
+# A Go component of a monorepo; copy it to <component path>/Taskfile.yml.
+# The root Taskfile.yml includes this file under the component's id, so
+# "task <id>:test" at the root runs "task test" here; "task verify" works
+# from this directory too.
+
+tasks:
+  fmt:
+    desc: Apply gofmt/goimports formatting.
+    cmds:
+      - gofmt -l -w .
+      - goimports -l -w .
+
+  fmt:check:
+    desc: Fail if any file is not gofmt/goimports formatted (CI-safe, no writes).
+    cmds:
+      - test -z "$(gofmt -l .)"
+      - test -z "$(goimports -l .)"
+
+  lint:
+    desc: Run go vet and golangci-lint.
+    cmds:
+      - go vet ./...
+      - golangci-lint run
+
+  typecheck:
+    desc: Type-check by building all packages (Go has no separate typechecker).
+    cmds:
+      - go build ./...
+
+  # Every test. go test's own timeout is ten minutes, which a slow suite
+  # outgrows; 30 minutes means nobody needs GOFLAGS to run it or push.
+  test:
+    desc: Run the test suite.
+    cmds:
+      - go test -timeout 30m ./...
+
+  test:race:
+    desc: Run the test suite with the race detector.
+    cmds:
+      - go test -race -timeout 30m ./...
+
+  # What verify:fast and the agents' background check run: go test -short
+  # skips the tests that check testing.Short() and run only in task test.
+  # It prints only what an agent needs: go test's "ok" and "[no test
+  # files]" lines are dropped, every other line is kept, and the exit code
+  # is go test's. The filter is Task's own shell, not grep, which a Windows
+  # machine can lack. Silent, so Task does not echo the script.
+  test:short:
+    desc: Run the test suite in short mode (go test -short); "task test"
+      runs every test.
+    silent: true
+    cmds:
+      - |
+        rc=0
+        out=$(go test -short ./... 2>&1) || rc=$?
+        printf '%s\n' "$out" | while IFS= read -r l; do
+          case "$l" in 'ok '*|'? '*) ;; *) printf '%s\n' "$l" ;; esac
+        done
+        exit $rc
+
+  mod:verify:
+    desc: Ensure go.mod/go.sum are tidy and modules are verified.
+    cmds:
+      - go mod tidy
+      - go mod verify
+      - git diff --exit-code -- go.mod go.sum
+
+  security:
+    desc: Run vulnerability scanning.
+    cmds:
+      - govulncheck ./...
+
+  verify:
+    desc: Verification gate for this component. Race detection needs a C
+      compiler (CGO); run "task test:race" separately if you have one.
+    cmds:
+      - task: fmt:check
+      - task: typecheck
+      - task: lint
+      - task: test
+      - task: mod:verify
+      - task: security
+
+  verify:fast:
+    desc: Fast incremental subset of verify (format, build, lint, tests in
+      short mode).
+    cmds:
+      - task: fmt:check
+      - task: typecheck
+      - task: lint
+      - task: test:short

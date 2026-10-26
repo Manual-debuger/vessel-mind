@@ -1,0 +1,12 @@
+# vibe.yaml version 2 for a TypeScript repository with one component at
+# the root. setup installs the dependencies in each probe copy of the audit.
+contract: 1.1.0
+platforms: [linux, windows]
+agents: [claude]
+# No components: one component at the root, found from package.json.
+entrypoints:
+  setup: pnpm install --frozen-lockfile
+  verify: task verify
+  verify-fast: task verify:fast
+  fmt: task fmt
+  fmt-check: task fmt:check

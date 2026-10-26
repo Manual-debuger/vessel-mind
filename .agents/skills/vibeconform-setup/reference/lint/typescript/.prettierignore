@@ -1,0 +1,5 @@
+# Prettier also skips what .gitignore lists. The setup skill's directories
+# hold Markdown and reference configs that vibe init --skill rewrites, so
+# the repository's format check does not judge them.
+.claude/skills/vibeconform-setup/
+.agents/skills/vibeconform-setup/

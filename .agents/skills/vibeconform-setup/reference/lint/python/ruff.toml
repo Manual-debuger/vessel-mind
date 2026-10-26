@@ -1,0 +1,22 @@
+# Ruff: formatting (`ruff format`) and lint (`ruff check`) in one file.
+#
+# A file of its own rather than a [tool.ruff] section in pyproject.toml,
+# which holds [project] metadata. Ruff reads ruff.toml in preference to
+# pyproject.toml when both are present. The F rules catch a reference to
+# an undefined name, the contract's planted static-analysis defect.
+
+target-version = "py312"
+line-length = 100
+# The setup skill's directories hold reference configs, not the
+# repository's code: vibe init --skill rewrites them, and Ruff would read
+# the reference ruff.toml there as a nested project.
+extend-exclude = [".claude/skills/vibeconform-setup", ".agents/skills/vibeconform-setup"]
+
+[lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP", "RUF100", "DTZ", "S", "BLE"]
+# StrEnum changes user-visible str(enum) behavior; migrating API enums needs a product-level review.
+ignore = ["UP042"]
+
+[lint.per-file-ignores]
+# Assertions are the test contract, not runtime input validation.
+"tests/**/*.py" = ["S101"]
