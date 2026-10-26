@@ -16,7 +16,7 @@ def test_committed_event_schema_matches_the_models():
 def test_event_schema_names_every_protocol_event():
     mapping = event_schema()["discriminator"]["mapping"]
 
-    assert sorted(mapping) == ["done", "error", "text"]
+    assert sorted(mapping) == ["done", "error", "text", "tool_result", "tool_start"]
 
 
 def test_every_field_a_client_receives_is_required_in_the_schema():
@@ -24,5 +24,12 @@ def test_every_field_a_client_receives_is_required_in_the_schema():
     # field the server always sends, as optional.
     defs = event_schema()["$defs"]
 
-    for name in ["TextEvent", "DoneEvent", "ErrorEvent", "Usage"]:
+    for name in [
+        "TextEvent",
+        "ToolStartEvent",
+        "ToolResultEvent",
+        "DoneEvent",
+        "ErrorEvent",
+        "Usage",
+    ]:
         assert sorted(defs[name]["required"]) == sorted(defs[name]["properties"]), name

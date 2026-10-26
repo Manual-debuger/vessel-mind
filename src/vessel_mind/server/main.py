@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import FastAPI
 
 from vessel_mind.agent.models.openai_compatible import OpenAICompatibleModel
+from vessel_mind.core.credentials import CredentialError, resolve_credential
 from vessel_mind.server.app import create_app
 from vessel_mind.server.config import ConfigError, ModelChoice, load_config
 
@@ -27,16 +28,15 @@ def app_from_config(path: Path | None = None, environ: Mapping[str, str] | None 
     # The tracer answers every turn on the slow path; the router comes later.
     choice: ModelChoice = config.active.slow
     provider = config.providers[choice.provider]
-    api_key = None
-    if provider.api_key_env is not None:
-        api_key = environ.get(provider.api_key_env)
-        if not api_key:
-            raise ConfigError(f"{provider.api_key_env} is not set")
+    try:
+        credential = resolve_credential(provider.auth, environ)
+    except CredentialError as error:
+        raise ConfigError(f"provider {choice.provider!r}: {error}") from None
 
     model = OpenAICompatibleModel(
         id=choice.model,
         base_url=provider.base_url,
-        api_key=api_key,
+        credential=credential,
         max_retries=config.retry.max_retries,
         backoff_base=config.retry.backoff_base,
         backoff_max=config.retry.backoff_max,

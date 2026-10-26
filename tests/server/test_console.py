@@ -23,6 +23,14 @@ def test_the_console_page_has_a_question_box_and_a_stop_button():
     assert 'id="stop"' in page.text
 
 
+def test_the_console_listens_for_every_protocol_event_it_renders():
+    # No browser runs in CI; this checks the SSE subscription names the tool events.
+    with TestClient(create_app(SilentModel())) as client:
+        script = client.get("/static/console.js").text
+
+    assert 'sse-swap", "text,tool_start,tool_result,done,error"' in script
+
+
 def test_the_console_scripts_are_served_from_the_app_not_a_cdn():
     with TestClient(create_app(SilentModel())) as client:
         page = client.get("/").text

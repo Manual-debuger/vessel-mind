@@ -14,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict, Field
 
 from vessel_mind.agent.loop import TurnTally, run_turn
+from vessel_mind.core.capabilities import CapabilityRegistry
 from vessel_mind.core.chat import ChatMessage, ChatModel
 from vessel_mind.core.events import AgentEvent, DoneEvent, ErrorEvent
 from vessel_mind.server.state import SessionStore, TurnLimitReached, TurnStatus
@@ -74,12 +75,14 @@ def _sse(event: AgentEvent) -> str:
 def create_app(
     model: ChatModel,
     *,
+    tools: CapabilityRegistry | None = None,
     system: str | None = None,
     max_tokens: int | None = None,
     state_path: Path | str = ":memory:",
     max_turns_per_session: int | None = None,
 ) -> FastAPI:
-    """The app over one model. state_path is the SQLite state file, opened at startup.
+    """The app over one model. tools is the capability registry the loop may call;
+    None offers no tools. state_path is the SQLite state file, opened at startup.
 
     max_turns_per_session bounds the turns one session may start, to protect the
     provider's free quota; None means no bound.
@@ -106,7 +109,13 @@ def create_app(
 
         try:
             async for event in run_turn(
-                model, history, text, system=system, max_tokens=max_tokens, tally=tally
+                model,
+                history,
+                text,
+                tools=tools,
+                system=system,
+                max_tokens=max_tokens,
+                tally=tally,
             ):
                 # History is saved before the client is told the turn ended, so a
                 # client that starts the next turn on `done` always sees it.

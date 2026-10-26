@@ -4,7 +4,7 @@ import sqlite3
 
 import pytest
 
-from vessel_mind.core.chat import AssistantMessage, UserMessage
+from vessel_mind.core.chat import AssistantMessage, ToolCall, ToolMessage, UserMessage
 from vessel_mind.server.state import (
     MIGRATIONS,
     SessionStore,
@@ -35,6 +35,34 @@ def test_reopening_a_migrated_file_keeps_its_data(tmp_path):
     store.close()
 
 
+def test_tool_calls_with_provider_data_and_tool_results_round_trip_through_history(tmp_path):
+    messages = [
+        UserMessage(text="Weather in Paris?"),
+        AssistantMessage(
+            text="",
+            tool_calls=[
+                ToolCall(
+                    id="call_1",
+                    name="get_weather",
+                    input={"city": "Paris"},
+                    provider_data={"extra_content": {"google": {"thought_signature": "c2ln"}}},
+                )
+            ],
+        ),
+        ToolMessage(tool_call_id="call_1", content='{"temp_c": 18}'),
+        AssistantMessage(text="18°C."),
+    ]
+    path = tmp_path / "state.db"
+    store = SessionStore.open(path)
+    session_id = store.create_session()
+    store.finish_turn(store.begin_turn(session_id), "done", messages)
+    store.close()
+
+    store = SessionStore.open(path)
+    assert store.history(session_id) == messages
+    store.close()
+
+
 def test_a_state_file_from_newer_code_is_refused(tmp_path):
     path = tmp_path / "state.db"
     db = sqlite3.connect(path)
@@ -52,7 +80,12 @@ def test_history_appends_turn_after_turn_in_order(tmp_path):
         turn_id = store.begin_turn(session_id)
         store.finish_turn(turn_id, "done", [UserMessage(text=word), AssistantMessage(text=word)])
 
-    assert [m.text for m in store.history(session_id)] == ["one", "one", "two", "two"]
+    assert store.history(session_id) == [
+        UserMessage(text="one"),
+        AssistantMessage(text="one"),
+        UserMessage(text="two"),
+        AssistantMessage(text="two"),
+    ]
     store.close()
 
 

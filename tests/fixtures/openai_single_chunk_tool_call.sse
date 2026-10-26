@@ -1,0 +1,8 @@
+data: {"id":"chatcmpl-2","object":"chat.completion.chunk","model":"local-model","choices":[{"index":0,"delta":{"role":"assistant","tool_calls":[{"index":0,"id":"call_c","type":"function","function":{"name":"get_weather","arguments":"{\"city\": \"Oslo\"}"}}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-2","object":"chat.completion.chunk","model":"local-model","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}
+
+data: {"id":"chatcmpl-2","object":"chat.completion.chunk","model":"local-model","choices":[],"usage":{"prompt_tokens":60,"completion_tokens":12,"total_tokens":72}}
+
+data: [DONE]
+

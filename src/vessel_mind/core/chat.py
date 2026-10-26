@@ -67,14 +67,36 @@ class UserMessage(_Model):
 class AssistantMessage(_Model):
     role: Literal["assistant"] = "assistant"
     text: str
+    # The calls the model made in this step, each with its provider_data, so the
+    # adapter can send them back unchanged on the next step.
+    tool_calls: list[ToolCall] = []
 
 
-ChatMessage = Annotated[UserMessage | AssistantMessage, Field(discriminator="role")]
+class ToolMessage(_Model):
+    """The result of one tool call, sent back to the model as text (usually JSON)."""
+
+    role: Literal["tool"] = "tool"
+    tool_call_id: str
+    content: str
+
+
+ChatMessage = Annotated[UserMessage | AssistantMessage | ToolMessage, Field(discriminator="role")]
+
+
+class ToolSpec(_Model):
+    """A tool as the model sees it: a name, what it does, and its input's JSON Schema."""
+
+    # The character set every OpenAI-compatible provider accepts for a function name.
+    name: str = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
+    description: str
+    parameters: dict[str, Any]
 
 
 class ChatRequest(_Model):
     system: str | None = None
     messages: list[ChatMessage]
+    # Offered to the model on this step; empty means it can only answer in text.
+    tools: list[ToolSpec] = []
     max_tokens: int | None = None
 
 

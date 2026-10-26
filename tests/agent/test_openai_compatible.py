@@ -18,9 +18,13 @@ from vessel_mind.core.chat import (
     ChatRequest,
     Stop,
     TextDelta,
+    ToolCall,
+    ToolMessage,
+    ToolSpec,
     Usage,
     UserMessage,
 )
+from vessel_mind.core.credentials import BearerAuth, resolve_credential
 
 FIXTURES = Path(__file__).resolve().parent.parent / "fixtures"
 BASE_URL = "https://models.test/v1"
@@ -36,8 +40,9 @@ def sse_response(name: str) -> httpx.Response:
 
 def make_model(handler, **kwargs) -> OpenAICompatibleModel:
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    credential = resolve_credential(BearerAuth(key_env="TEST_KEY"), {"TEST_KEY": "test-key"})
     return OpenAICompatibleModel(
-        id="gemini-3.5-flash", base_url=BASE_URL, api_key="test-key", client=client, **kwargs
+        id="gemini-3.5-flash", base_url=BASE_URL, credential=credential, client=client, **kwargs
     )
 
 
@@ -84,6 +89,169 @@ async def test_gemini_spending_the_budget_on_thinking_stops_with_max_tokens():
             usage=Usage(input_tokens=14, output_tokens=0, thinking_tokens=209),
         )
     ]
+
+
+PARIS_SIGNATURE = (
+    "EpADCo0DAWkUfRPoXPZapE8Eclqk9NJ6qKjL7J5ZrpCTBQTuKgFf3rsMInHKB4+HrRm/kz2ICXRok5FIcq0qvapz26X8"
+)
+
+
+def weather_request() -> ChatRequest:
+    return ChatRequest(
+        system="Use the tools. Call every tool you need in one step.",
+        messages=[UserMessage(text="What is the weather in Paris and in Tokyo right now?")],
+        tools=[WEATHER],
+    )
+
+
+WEATHER = ToolSpec(
+    name="get_weather",
+    description="Current weather for one city.",
+    parameters={
+        "type": "object",
+        "properties": {"city": {"type": "string"}},
+        "required": ["city"],
+    },
+)
+
+
+@pytest.mark.asyncio
+async def test_gemini_two_parallel_tool_calls_yield_one_tool_call_each():
+    # Recorded live from gemini-3.5-flash. Gemini sends no `index`: each call
+    # arrives whole, with its own id, and only the first carries a thought signature.
+    model = make_model(lambda request: sse_response("gemini_two_tool_calls.sse"))
+
+    events = await collect(model, weather_request())
+
+    assert [type(e).__name__ for e in events] == ["ToolCall", "ToolCall", "Stop"]
+    paris, tokyo, stop = events
+    assert (paris.id, paris.name, paris.input) == ("call_2266557", "get_weather", {"city": "Paris"})
+    signature = paris.provider_data["extra_content"]["google"]["thought_signature"]
+    assert signature.startswith(PARIS_SIGNATURE)
+    assert tokyo == ToolCall(id="call_2266560", name="get_weather", input={"city": "Tokyo"})
+    # Gemini says finish_reason "stop"; a step that produced calls stops for tool use.
+    assert stop == Stop(
+        reason="tool_use", usage=Usage(input_tokens=70, output_tokens=32, thinking_tokens=61)
+    )
+
+
+@pytest.mark.asyncio
+async def test_interleaved_fragments_keyed_by_index_yield_one_whole_call_each():
+    # Hand-written in the OpenAI / llama-server dialect, not recorded: the
+    # arguments of two calls arrive in fragments that interleave by `index`.
+    model = make_model(lambda request: sse_response("openai_interleaved_tool_calls.sse"))
+
+    events = await collect(model, weather_request())
+
+    assert events == [
+        TextDelta(delta="Checking both."),
+        ToolCall(id="call_a", name="get_weather", input={"city": "Paris"}),
+        ToolCall(id="call_b", name="get_weather", input={"city": "Tokyo"}),
+        Stop(reason="tool_use", usage=Usage(input_tokens=80, output_tokens=40)),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_a_call_keyed_by_index_in_one_chunk_yields_one_call():
+    # Hand-written in the OpenAI / llama-server dialect, not recorded.
+    model = make_model(lambda request: sse_response("openai_single_chunk_tool_call.sse"))
+
+    events = await collect(model, weather_request())
+
+    assert events == [
+        ToolCall(id="call_c", name="get_weather", input={"city": "Oslo"}),
+        Stop(reason="tool_use", usage=Usage(input_tokens=60, output_tokens=12)),
+    ]
+
+
+def sse_lines(*chunks: dict) -> httpx.Response:
+    body = "".join(f"data: {json.dumps(chunk)}\n\n" for chunk in chunks) + "data: [DONE]\n\n"
+    return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=body)
+
+
+@pytest.mark.asyncio
+async def test_arguments_that_are_not_a_json_object_fail_the_step():
+    fragment = {"index": 0, "id": "call_x", "function": {"name": "get_weather", "arguments": "{"}}
+    model = make_model(
+        lambda request: sse_lines({"choices": [{"delta": {"tool_calls": [fragment]}}]})
+    )
+
+    with pytest.raises(ChatModelError, match="get_weather"):
+        await collect(model, weather_request())
+
+
+@pytest.mark.asyncio
+async def test_the_second_step_sends_tools_calls_with_provider_data_and_results():
+    # Step 1's calls go back unchanged, signature included, as the author's live
+    # check did when Gemini accepted step 2 (fixture gemini_after_tool_results.sse).
+    step1 = await collect(
+        make_model(lambda request: sse_response("gemini_two_tool_calls.sse")), weather_request()
+    )
+    paris, tokyo = step1[0], step1[1]
+    sent: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.append(request)
+        return sse_response("gemini_after_tool_results.sse")
+
+    req = weather_request().model_copy(
+        update={
+            "messages": [
+                *weather_request().messages,
+                AssistantMessage(text="", tool_calls=[paris, tokyo]),
+                ToolMessage(tool_call_id="call_2266557", content='{"city": "Paris", "temp_c": 18}'),
+                ToolMessage(tool_call_id="call_2266560", content='{"city": "Tokyo", "temp_c": 18}'),
+            ]
+        }
+    )
+    events = await collect(make_model(handler), req)
+
+    body = json.loads(sent[0].content)
+    assert body["tools"] == [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "description": "Current weather for one city.",
+                "parameters": WEATHER.parameters,
+            },
+        }
+    ]
+    assert body["messages"][2:] == [
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": "call_2266557",
+                    "type": "function",
+                    "function": {"name": "get_weather", "arguments": '{"city": "Paris"}'},
+                    "extra_content": paris.provider_data["extra_content"],
+                },
+                {
+                    "id": "call_2266560",
+                    "type": "function",
+                    "function": {"name": "get_weather", "arguments": '{"city": "Tokyo"}'},
+                },
+            ],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "call_2266557",
+            "content": '{"city": "Paris", "temp_c": 18}',
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "call_2266560",
+            "content": '{"city": "Tokyo", "temp_c": 18}',
+        },
+    ]
+    assert "".join(e.delta for e in events if isinstance(e, TextDelta)) == (
+        "The current weather in both Paris and Tokyo is 18°C."
+    )
+    assert events[-1] == Stop(
+        reason="end", usage=Usage(input_tokens=218, output_tokens=15, thinking_tokens=41)
+    )
 
 
 @pytest.mark.asyncio

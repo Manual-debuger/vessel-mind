@@ -10,6 +10,8 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
+from vessel_mind.core.credentials import ProviderAuth
+
 
 class ConfigError(Exception):
     """The config file is missing, invalid or refers to an unset env var."""
@@ -23,8 +25,8 @@ class Provider(_Config):
     """An OpenAI-compatible endpoint."""
 
     base_url: str
-    # The name of the env var that holds the key; None for a keyless local server.
-    api_key_env: str | None = None
+    # Required and never defaulted: a keyless server states {scheme: none}.
+    auth: ProviderAuth
 
 
 class ModelChoice(_Config):

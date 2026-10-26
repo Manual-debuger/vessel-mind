@@ -31,6 +31,12 @@ h1 { font-size: 1.25rem; margin: 0; }
 .turn { border-top: 1px solid var(--line); padding: 0.5rem 0; }
 .question { font-weight: 600; margin: 0.25rem 0; }
 .answer { white-space: pre-wrap; margin: 0.25rem 0; }
+.tool { border: 1px solid var(--line); border-radius: 4px; padding: 0.25rem 0.5rem; margin: 0.5rem 0; white-space: normal; }
+.tool summary { cursor: pointer; }
+.tool-state, .tool-label { color: var(--muted); font-size: 0.875rem; }
+.tool-label { margin: 0.25rem 0 0; }
+.tool pre { margin: 0; overflow-x: auto; font-size: 0.8125rem; white-space: pre-wrap; word-break: break-word; }
+.tool-error { border-color: #c33; }
 form { position: sticky; bottom: 0; background: var(--bg); padding: 0.5rem 0; }
 textarea { width: 100%; box-sizing: border-box; font: inherit; }
 .actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.25rem; }

@@ -33,6 +33,31 @@
     }
   }
 
+  function pretty(value) {
+    return JSON.stringify(value, null, 2);
+  }
+
+  // A collapsible card: the tool's name in the summary, its input and result inside.
+  function toolCard(event) {
+    const root = element("details", "tool");
+    const summary = element("summary");
+    summary.append(element("code", "tool-name", event.name));
+    const state = element("span", "tool-state", " running…");
+    summary.append(state);
+    root.append(summary);
+    root.append(element("p", "tool-label", "input"));
+    root.append(element("pre", "tool-input", pretty(event.input)));
+    const result = element("pre", "tool-result", "");
+    root.append(element("p", "tool-label", "result"), result);
+    return { root, state, result };
+  }
+
+  function showResult(card, event) {
+    card.state.textContent = event.is_error ? " error" : " done";
+    card.root.classList.toggle("tool-error", event.is_error);
+    card.result.textContent = pretty(event.result);
+  }
+
   function describeDone(event) {
     const u = event.usage;
     return `${event.reason} · ${event.steps} step(s) · tokens in ${u.input_tokens}, ` +
@@ -89,15 +114,28 @@
     // text, never as HTML.
     article.setAttribute("hx-ext", "sse");
     article.setAttribute("sse-connect", `/turns/${encodeURIComponent(turnId)}/events`);
-    answer.setAttribute("sse-swap", "text,done,error");
+    answer.setAttribute("sse-swap", "text,tool_start,tool_result,done,error");
     article.addEventListener("htmx:sseOpen", (open) => {
       turn.source = open.detail.source;
     });
+    // One card per tool call, keyed by call_id; text after a tool call goes
+    // into a new paragraph below its card.
+    const cards = new Map();
+    let paragraph = answer;
     answer.addEventListener("htmx:sseBeforeMessage", (message) => {
       message.preventDefault();
       const event = JSON.parse(message.detail.data);
       if (event.type === "text") {
-        answer.append(document.createTextNode(event.text));
+        paragraph.append(document.createTextNode(event.text));
+      } else if (event.type === "tool_start") {
+        const card = toolCard(event);
+        cards.set(event.call_id, card);
+        answer.append(card.root);
+        paragraph = element("span", "answer-part");
+        answer.append(paragraph);
+      } else if (event.type === "tool_result") {
+        const card = cards.get(event.call_id);
+        if (card) showResult(card, event);
       } else if (event.type === "done") {
         finish(turn, status, describeDone(event));
       } else if (event.type === "error") {
