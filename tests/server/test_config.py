@@ -94,6 +94,70 @@ def test_demo_mode_is_off_in_the_example_and_on_when_the_config_says_so(tmp_path
     assert 'id="demo-mode"' in page
 
 
+PUBLIC = REPO / "config" / "agent.public.example.yaml"
+
+
+def test_the_public_host_flag_shows_the_free_tier_notice(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert load_config(EXAMPLE).public_host is False
+    config = public_config(tmp_path)
+
+    app = app_from_config(config, environ={"GEMINI_API_KEY": "test-key"}, **offline())
+    with TestClient(app) as client:
+        page = client.get("/").text
+
+    assert 'id="free-tier"' in page
+    assert 'id="demo-mode"' in page
+
+
+def public_config(tmp_path, *, demo_mode: bool = True, max_turns: bool = True) -> Path:
+    """The example with public_host on, and demo mode and the turn limit as given."""
+    text = EXAMPLE.read_text(encoding="utf-8")
+    for old, new in [
+        ("public_host: false", "public_host: true"),
+        ("demo_mode: false", f"demo_mode: {str(demo_mode).lower()}"),
+        ("sessions:\n  max_turns: 30\n", "sessions:\n  max_turns: 30\n" if max_turns else ""),
+    ]:
+        assert old in text
+        text = text.replace(old, new)
+    config = tmp_path / "agent.yaml"
+    config.write_text(text, encoding="utf-8")
+    return config
+
+
+def test_the_public_host_must_run_in_demo_mode(tmp_path):
+    config = public_config(tmp_path, demo_mode=False)
+
+    with pytest.raises(ConfigError, match="public_host requires demo_mode"):
+        load_config(config)
+
+
+def test_the_public_host_must_limit_the_turns_of_a_session(tmp_path):
+    config = public_config(tmp_path, max_turns=False)
+
+    with pytest.raises(ConfigError, match="public_host requires sessions.max_turns"):
+        load_config(config)
+
+
+def test_the_public_example_runs_routed_in_demo_mode_with_a_turn_limit():
+    config = load_config(PUBLIC)
+
+    assert config.configuration == "routed"
+    assert (config.public_host, config.demo_mode) == (True, True)
+    assert config.sessions.max_turns is not None
+    # In the container, 127.0.0.1 is the container itself, not llama-server's host.
+    assert "127.0.0.1" not in config.providers["local"].base_url
+
+
+def test_the_public_example_keeps_notions_write_tools_labelled_so_proposals_show():
+    public = load_config(PUBLIC).mcp_servers["notion"]
+    example = load_config(EXAMPLE).mcp_servers["notion"]
+
+    assert public.enabled is True
+    assert public.tools == example.tools
+    assert (public.command, public.args) == (example.command, example.args)
+
+
 def test_the_example_config_bounds_turns_per_session_and_names_a_state_file():
     config = load_config(EXAMPLE)
 

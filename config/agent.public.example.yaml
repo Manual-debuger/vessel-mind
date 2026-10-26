@@ -1,0 +1,101 @@
+# vessel-mind config for the PUBLIC hostname (ADR 0002): the routed
+# configuration, demo mode, the free-tier notice and a turn limit.
+#
+# On the public host, copy it to config/agent.yaml (git-ignored); compose.yaml
+# mounts config/ into the container, and the app reads config/agent.yaml
+# when it exists. Keys never go in this file: each provider names the env
+# var that holds its key.
+
+# routed: the local small model routes and answers fast turns; Gemini answers
+# slow ones.
+configuration: routed
+
+providers:
+  gemini:
+    # Gemini's OpenAI-compatible endpoint. GEMINI_API_KEY must belong to a
+    # Google Cloud project with NO billing account (ADR 0002), so the public
+    # URL can spend free quota but never money.
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai
+    auth: {scheme: bearer, key_env: GEMINI_API_KEY}
+  local:
+    # llama-server, outside compose. In the container, 127.0.0.1 is the
+    # container itself; host.docker.internal is the Docker host (compose.yaml
+    # maps it on Linux). If llama-server runs on another machine, put its LAN
+    # address here. The tunnel never routes to this address: only the app
+    # calls it.
+    base_url: http://host.docker.internal:8080/v1
+    auth: {scheme: none}
+
+configurations:
+  hosted:
+    fast: {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-26}
+    slow: {provider: gemini, model: gemini-3.5-flash, chosen: 2026-10-26}
+  local:
+    fast: {provider: local, model: local-small, chosen: 2026-10-26}  # not yet chosen
+    slow: {provider: local, model: local-large, chosen: 2026-10-26}  # not yet chosen
+  routed:
+    fast: {provider: local, model: local-small, chosen: 2026-10-26}  # not yet chosen
+    slow: {provider: gemini, model: gemini-3.5-flash, chosen: 2026-10-26}
+
+router:
+  enabled: true
+  timeout: 10.0
+  max_tokens: 1024
+
+retry:
+  max_retries: 3
+  backoff_base: 1.0
+  backoff_max: 30.0
+
+agent:
+  system: >-
+    You are vessel-mind, a concise assistant. Answer in plain text. For a
+    question about vessel-mind or VibeConform, call search_docs first, answer
+    only from its results, and cite each claim as [n].
+  max_tokens: 4096
+
+# In the volume that compose.yaml mounts at data/state.
+state:
+  path: data/state/state.db
+
+# Required on the public host: one session may start at most this many
+# turns, so one visitor cannot spend the whole free quota.
+sessions:
+  max_turns: 20
+
+# The image ships a complete index at data/index.sqlite.
+retrieval:
+  index: data/index.sqlite
+  corpus: eval/corpus.yaml
+  candidates: hybrid
+  candidate_k: 30
+  top_k: 5
+  embedding_model: jinaai/jina-embeddings-v2-base-zh
+  model_cache: .cache/fastembed
+  tarball_cache: .cache/corpus
+
+# Proposals are shown; every approval is refused with 403 demo_mode.
+demo_mode: true
+
+# The console shows: "Messages are sent to Google Gemini's free tier, which
+# may use them to improve its models. Do not enter personal data."
+public_host: true
+
+mcp_servers:
+  notion:
+    command: node
+    args: [deploy/notion-mcp/node_modules/@notionhq/notion-mcp-server/bin/cli.mjs]
+    enabled: true
+    # The READ-ONLY integration (capability "Read content" only), shared with
+    # one demo page. Never the localhost write integration's token: Notion
+    # itself must refuse a write here even if the app's check had a bug.
+    auth: {scheme: bearer, key_env: NOTION_TOKEN}
+    headers_env: OPENAPI_MCP_HEADERS
+    # The write tools stay labelled, so the console shows their proposals.
+    tools:
+      API-post-search: {resource: workspace, effect: read, exfil: false, taints_context: true}
+      API-retrieve-a-page: {resource: workspace, effect: read, exfil: false, taints_context: true}
+      API-get-block-children: {resource: workspace, effect: read, exfil: false, taints_context: true}
+      API-post-page: {resource: workspace, effect: write, exfil: true, taints_context: true}
+      API-patch-page: {resource: workspace, effect: write, exfil: true, taints_context: true}
+      API-patch-block-children: {resource: workspace, effect: write, exfil: true, taints_context: true}

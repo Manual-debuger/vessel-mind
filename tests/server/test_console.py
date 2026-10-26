@@ -31,6 +31,32 @@ def test_the_console_page_has_a_question_box_and_a_stop_button():
     assert 'id="stop"' in page.text
 
 
+FREE_TIER_NOTICE = (
+    "Messages are sent to Google Gemini's free tier, which may use them to improve its "
+    "models. Do not enter personal data."
+)
+
+
+def notice_text(page: str) -> str:
+    return " ".join(page.split())
+
+
+def test_the_public_host_shows_the_free_tier_notice():
+    with TestClient(create_app(SilentModel(), public_host=True, demo_mode=True)) as client:
+        page = client.get("/").text
+
+    assert FREE_TIER_NOTICE in notice_text(page)
+    assert 'id="free-tier"' in page
+
+
+def test_localhost_does_not_show_the_free_tier_notice():
+    with TestClient(create_app(SilentModel())) as client:
+        page = client.get("/").text
+
+    assert "free tier" not in page
+    assert 'id="free-tier"' not in page
+
+
 def test_the_console_listens_for_every_protocol_event_it_renders():
     # No browser runs in CI; this checks the SSE subscription names the tool events.
     with TestClient(create_app(SilentModel())) as client:

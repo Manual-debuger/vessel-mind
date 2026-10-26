@@ -77,7 +77,7 @@ class Agent(_Config):
 class State(_Config):
     # The SQLite state file: sessions, history and proposals. A relative path is
     # relative to the server's working directory. Never the retrieval index's file.
-    path: Path = Path("data/state.db")
+    path: Path = Path("data/state/state.db")
 
 
 class Sessions(_Config):
@@ -153,6 +153,9 @@ class AgentConfig(_Config):
     retrieval: Retrieval = Retrieval()
     # ADR 0002: on the public host, proposals are shown but every approval is refused.
     demo_mode: bool = False
+    # The app is served on the public hostname (ADR 0002): the console shows the
+    # free-tier notice. It requires demo mode and a per-session turn limit.
+    public_host: bool = False
     # MCP servers by name; the model sees each tool as '<name>_<tool>'.
     mcp_servers: dict[
         Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]{0,19}$")], McpServerConfig
@@ -166,6 +169,16 @@ class AgentConfig(_Config):
             for path in (configuration.fast, configuration.slow):
                 if path.provider not in self.providers:
                     raise ValueError(f"{name}: unknown provider {path.provider!r}")
+        return self
+
+    @model_validator(mode="after")
+    def _public_host_is_guarded(self) -> "AgentConfig":
+        # ADR 0002: on the public hostname no approval runs and the free quota is
+        # protected per session. A missing guard is a config error, not a default.
+        if self.public_host and not self.demo_mode:
+            raise ValueError("public_host requires demo_mode: true")
+        if self.public_host and self.sessions.max_turns is None:
+            raise ValueError("public_host requires sessions.max_turns")
         return self
 
     @property
