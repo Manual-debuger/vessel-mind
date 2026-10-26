@@ -5,6 +5,7 @@ generate their types from it. Regenerate it with `task schema:export`; a test fa
 when the committed file differs.
 """
 
+import datetime
 import json
 import sys
 from pathlib import Path
@@ -48,6 +49,22 @@ class ToolResultEvent(_Event):
     is_error: bool
 
 
+class ProposalEvent(_Event):
+    """A write or irreversible call waits for a human approval; it has not run.
+
+    It comes between the call's tool_start and tool_result. Resolve it with
+    POST /proposals/{proposal_id}/approve or /reject before expires_at.
+    """
+
+    type: Literal["proposal"] = "proposal"
+    proposal_id: str
+    call_id: str
+    name: str
+    input: dict[str, Any]
+    effect: Literal["write", "irreversible"]
+    expires_at: datetime.datetime
+
+
 class DoneEvent(_Event):
     """The turn ended. Sent once, last, unless the turn ended with an error event."""
 
@@ -69,7 +86,7 @@ class ErrorEvent(_Event):
 
 
 AgentEvent = Annotated[
-    TextEvent | ToolStartEvent | ToolResultEvent | DoneEvent | ErrorEvent,
+    TextEvent | ToolStartEvent | ProposalEvent | ToolResultEvent | DoneEvent | ErrorEvent,
     Field(discriminator="type"),
 ]
 

@@ -1,6 +1,6 @@
 // The operator console. It uses only the event protocol: POST /turns,
-// GET /turns/{id}/events (through the htmx SSE extension) and
-// POST /turns/{id}/cancel.
+// GET /turns/{id}/events (through the htmx SSE extension),
+// POST /turns/{id}/cancel and POST /proposals/{id}/approve or /reject.
 (function () {
   "use strict";
 
@@ -56,6 +56,64 @@
     card.state.textContent = event.is_error ? " error" : " done";
     card.root.classList.toggle("tool-error", event.is_error);
     card.result.textContent = pretty(event.result);
+  }
+
+  // A proposal: a write the model asked for, which runs only on Approve.
+  function proposalCard(card, event) {
+    card.state.textContent = " awaiting approval";
+    card.root.classList.add("tool-proposal");
+    card.root.open = true;
+    const box = element("div", "proposal");
+    const expires = new Date(event.expires_at).toLocaleTimeString();
+    const note = element("p", "proposal-note",
+      `${event.effect}: runs only if you approve it, before ${expires}.`);
+    const approve = element("button", "approve", "Approve");
+    const reject = element("button", "reject", "Reject");
+    approve.type = "button";
+    reject.type = "button";
+    const outcome = element("pre", "proposal-outcome", "");
+    box.append(note, approve, reject, outcome);
+    card.root.append(box);
+    const proposal = { id: event.proposal_id, card, note, approve, reject, outcome, open: true };
+    approve.addEventListener("click", () => decide(proposal, "approve"));
+    reject.addEventListener("click", () => decide(proposal, "reject"));
+    return proposal;
+  }
+
+  function closeProposal(proposal, stateText) {
+    proposal.open = false;
+    proposal.approve.disabled = true;
+    proposal.reject.disabled = true;
+    proposal.card.state.textContent = ` ${stateText}`;
+  }
+
+  async function decide(proposal, decision) {
+    const proposalId = proposal.id;
+    proposal.approve.disabled = true;
+    proposal.reject.disabled = true;
+    const response = await fetch(
+      `/proposals/${encodeURIComponent(proposalId)}/${decision}`, { method: "POST" });
+    const body = await response.json().catch(() => null);
+    if (response.ok) {
+      closeProposal(proposal, body.status);
+      if (body.status === "approved") {
+        proposal.card.root.classList.toggle("tool-error", body.is_error === true);
+        proposal.outcome.textContent = pretty(body.result);
+      }
+      return;
+    }
+    const detail = body && body.detail;
+    const message = (detail && detail.message) || `HTTP ${response.status}`;
+    proposal.outcome.textContent = message;
+    if (detail && detail.code === "demo_mode") {
+      // Demo mode refuses approvals; the proposal is still pending and can be rejected.
+      proposal.reject.disabled = false;
+    } else if (detail && detail.code && response.status === 409) {
+      closeProposal(proposal, detail.code);
+    } else {
+      proposal.approve.disabled = false;
+      proposal.reject.disabled = false;
+    }
   }
 
   function describeDone(event) {
@@ -114,13 +172,14 @@
     // text, never as HTML.
     article.setAttribute("hx-ext", "sse");
     article.setAttribute("sse-connect", `/turns/${encodeURIComponent(turnId)}/events`);
-    answer.setAttribute("sse-swap", "text,tool_start,tool_result,done,error");
+    answer.setAttribute("sse-swap", "text,tool_start,proposal,tool_result,done,error");
     article.addEventListener("htmx:sseOpen", (open) => {
       turn.source = open.detail.source;
     });
     // One card per tool call, keyed by call_id; text after a tool call goes
     // into a new paragraph below its card.
     const cards = new Map();
+    const proposals = [];
     let paragraph = answer;
     answer.addEventListener("htmx:sseBeforeMessage", (message) => {
       message.preventDefault();
@@ -133,10 +192,22 @@
         answer.append(card.root);
         paragraph = element("span", "answer-part");
         answer.append(paragraph);
+      } else if (event.type === "proposal") {
+        const card = cards.get(event.call_id);
+        if (card) {
+          card.proposed = true;
+          proposals.push(proposalCard(card, event));
+        }
       } else if (event.type === "tool_result") {
         const card = cards.get(event.call_id);
-        if (card) showResult(card, event);
+        // A proposal's result only says it awaits approval; the card keeps its state.
+        if (card && card.proposed) card.result.textContent = pretty(event.result);
+        else if (card) showResult(card, event);
       } else if (event.type === "done") {
+        if (event.reason === "cancelled") {
+          // The server withdraws the proposals of a cancelled turn.
+          for (const p of proposals) if (p.open) closeProposal(p, "withdrawn");
+        }
         finish(turn, status, describeDone(event));
       } else if (event.type === "error") {
         finish(turn, status, `error (${event.code}): ${event.message}`);
