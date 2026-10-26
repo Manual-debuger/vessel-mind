@@ -17,6 +17,10 @@
   </header>
   <p class="notice">Messages are sent to Google Gemini's free tier, which may use them to improve
     its models. Do not enter personal data.</p>
+  {% if demo_mode %}
+  <p class="notice" id="demo-mode">Demo mode: the agent can propose changes, but approvals are
+    turned off here, so nothing is written.</p>
+  {% endif %}
   <main id="turns"></main>
   <form id="ask">
     <textarea id="question" name="text" rows="3" maxlength="8000" required

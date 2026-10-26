@@ -36,7 +36,16 @@ def test_the_console_listens_for_every_protocol_event_it_renders():
     with TestClient(create_app(SilentModel())) as client:
         script = client.get("/static/console.js").text
 
-    assert 'sse-swap", "text,tool_start,tool_result,done,error"' in script
+    assert 'sse-swap", "text,tool_start,proposal,tool_result,done,error"' in script
+
+
+def test_the_console_resolves_proposals_only_through_the_protocol():
+    with TestClient(create_app(SilentModel())) as client:
+        script = client.get("/static/console.js").text
+
+    assert "/proposals/${encodeURIComponent(proposalId)}/${decision}" in script
+    assert '"approve"' in script
+    assert '"reject"' in script
 
 
 def test_the_console_scripts_are_served_from_the_app_not_a_cdn():

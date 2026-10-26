@@ -67,3 +67,9 @@ retrieval:
   embedding_model: jinaai/jina-embeddings-v2-base-zh
   model_cache: .cache/fastembed
   tarball_cache: .cache/corpus
+
+# Demo mode (ADR 0002) is for the public hostname. The loop still makes a
+# proposal for each write or irreversible call and the console shows it, but
+# the server refuses every approval (HTTP 403, code demo_mode), so no write
+# tool runs. Keep it false on localhost.
+demo_mode: false

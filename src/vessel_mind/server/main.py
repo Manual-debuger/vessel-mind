@@ -75,5 +75,6 @@ def app_from_config(
         max_tokens=config.agent.max_tokens,
         state_path=config.state.path,
         max_turns_per_session=config.sessions.max_turns,
+        demo_mode=config.demo_mode,
         services=[retrieval],
     )

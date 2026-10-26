@@ -75,6 +75,18 @@ def test_the_app_keeps_sessions_in_the_configured_state_file(tmp_path, monkeypat
     assert loaded.sessions.max_turns == 1
 
 
+def test_demo_mode_is_off_in_the_example_and_on_when_the_config_says_so(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert load_config(EXAMPLE).demo_mode is False
+    config = config_with(tmp_path, "demo_mode: false", "demo_mode: true")
+
+    app = app_from_config(config, environ={"GEMINI_API_KEY": "test-key"}, **offline())
+    with TestClient(app) as client:
+        page = client.get("/").text
+
+    assert 'id="demo-mode"' in page
+
+
 def test_the_example_config_bounds_turns_per_session_and_names_a_state_file():
     config = load_config(EXAMPLE)
 

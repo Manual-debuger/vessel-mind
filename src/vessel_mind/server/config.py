@@ -96,6 +96,8 @@ class AgentConfig(_Config):
     state: State = State()
     sessions: Sessions = Sessions()
     retrieval: Retrieval = Retrieval()
+    # ADR 0002: on the public host, proposals are shown but every approval is refused.
+    demo_mode: bool = False
 
     @model_validator(mode="after")
     def _references_resolve(self) -> "AgentConfig":

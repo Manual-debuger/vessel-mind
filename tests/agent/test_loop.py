@@ -1,11 +1,14 @@
 """The agent loop with tools, driven by a scripted fake ChatModel. No live API."""
 
 import asyncio
+import datetime
 import json
 
 import pytest
+from pydantic import JsonValue
 
 from vessel_mind.agent.loop import MAX_STEPS, TurnTally, run_turn
+from vessel_mind.agent.proposals import Proposal
 from vessel_mind.core.capabilities import CapabilityRegistry, Tool, ToolError
 from vessel_mind.core.chat import (
     AssistantMessage,
@@ -18,7 +21,13 @@ from vessel_mind.core.chat import (
     Usage,
     UserMessage,
 )
-from vessel_mind.core.events import DoneEvent, TextEvent, ToolResultEvent, ToolStartEvent
+from vessel_mind.core.events import (
+    DoneEvent,
+    ProposalEvent,
+    TextEvent,
+    ToolResultEvent,
+    ToolStartEvent,
+)
 
 
 class ScriptedModel:
@@ -118,8 +127,61 @@ async def test_a_turn_calling_two_read_tools_emits_events_in_order_and_ends_done
     ]
 
 
+class FakeProposals:
+    """Records each proposal and hands out ids p1, p2, ..."""
+
+    def __init__(self) -> None:
+        self.made: list[tuple[ToolCall, str]] = []
+
+    def propose(self, call: ToolCall, effect) -> Proposal:
+        self.made.append((call, effect))
+        return Proposal(
+            id=f"p{len(self.made)}",
+            expires_at=datetime.datetime(2026, 10, 26, 9, 10, tzinfo=datetime.UTC),
+        )
+
+
 @pytest.mark.asyncio
-async def test_a_write_tool_is_never_executed_and_the_model_is_told_so():
+async def test_a_write_tool_becomes_a_proposal_and_is_never_executed():
+    notion_create = FakeTool("notion_create", result="created")
+    write_call = call("c1", "notion_create", title="x")
+    model = ScriptedModel(
+        [write_call, Stop(reason="tool_use", usage=Usage())],
+        [TextDelta(delta="Approve it to create the page."), Stop(reason="end", usage=Usage())],
+    )
+    proposals = FakeProposals()
+    tally = TurnTally()
+
+    events = await collect(
+        model,
+        [],
+        "Make a page.",
+        tools=registry((notion_create, WRITE)),
+        proposals=proposals,
+        tally=tally,
+    )
+
+    assert notion_create.calls == []
+    assert proposals.made == [(write_call, "write")]
+    awaiting: dict[str, JsonValue] = {"status": "awaiting_approval", "proposal_id": "p1"}
+    assert events[:3] == [
+        ToolStartEvent(call_id="c1", name="notion_create", input={"title": "x"}),
+        ProposalEvent(
+            proposal_id="p1",
+            call_id="c1",
+            name="notion_create",
+            input={"title": "x"},
+            effect="write",
+            expires_at=datetime.datetime(2026, 10, 26, 9, 10, tzinfo=datetime.UTC),
+        ),
+        ToolResultEvent(call_id="c1", name="notion_create", result=awaiting, is_error=False),
+    ]
+    assert tally.messages[2] == ToolMessage(tool_call_id="c1", content=json.dumps(awaiting))
+    assert isinstance(events[-1], DoneEvent)
+
+
+@pytest.mark.asyncio
+async def test_without_a_proposal_store_a_write_tool_is_refused_and_never_executed():
     notion_create = FakeTool("notion_create", result="created")
     model = ScriptedModel(
         [call("c1", "notion_create", title="x"), Stop(reason="tool_use", usage=Usage())],

@@ -17,7 +17,8 @@ from vessel_mind.agent.loop import TurnTally, run_turn
 from vessel_mind.core.capabilities import CapabilityRegistry
 from vessel_mind.core.chat import ChatMessage, ChatModel
 from vessel_mind.core.events import AgentEvent, DoneEvent, ErrorEvent
-from vessel_mind.server.state import SessionStore, TurnLimitReached, TurnStatus
+from vessel_mind.server.proposals import TurnProposals, proposal_routes
+from vessel_mind.server.state import Clock, SessionStore, TurnLimitReached, TurnStatus
 
 log = logging.getLogger(__name__)
 
@@ -80,6 +81,8 @@ def create_app(
     max_tokens: int | None = None,
     state_path: Path | str = ":memory:",
     max_turns_per_session: int | None = None,
+    demo_mode: bool = False,
+    clock: Clock | None = None,
     services: Sequence[AbstractAsyncContextManager[object]] = (),
 ) -> FastAPI:
     """The app over one model. tools is the capability registry the loop may call;
@@ -90,7 +93,11 @@ def create_app(
 
     max_turns_per_session bounds the turns one session may start, to protect the
     provider's free quota; None means no bound.
+
+    demo_mode (ADR 0002) still makes and shows proposals but refuses every
+    approval. clock gives the current time for proposal expiry; tests fake it.
     """
+    registry = tools if tools is not None else CapabilityRegistry()
     # Turns in this process, for streaming. The state file outlives them.
     turns: dict[str, Turn] = {}
     # The latest turn of each session, and a lock so a session starts one turn at a time.
@@ -116,7 +123,8 @@ def create_app(
                 model,
                 history,
                 text,
-                tools=tools,
+                tools=registry,
+                proposals=TurnProposals(store(), turn_id),
                 system=system,
                 max_tokens=max_tokens,
                 tally=tally,
@@ -140,7 +148,7 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        stores.append(SessionStore.open(state_path))
+        stores.append(SessionStore.open(state_path, clock=clock))
         try:
             async with AsyncExitStack() as stack:
                 for service in services:
@@ -159,7 +167,9 @@ def create_app(
 
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     async def console(request: Request) -> HTMLResponse:
-        return _templates.TemplateResponse(request, "console.html", {"model_id": model.id})
+        return _templates.TemplateResponse(
+            request, "console.html", {"model_id": model.id, "demo_mode": demo_mode}
+        )
 
     @app.get("/health")
     async def health() -> dict[str, Any]:
@@ -226,4 +236,5 @@ def create_app(
             turn.task.cancel()
         return {"turn_id": turn_id}
 
+    app.include_router(proposal_routes(store, registry, demo_mode=demo_mode))
     return app
