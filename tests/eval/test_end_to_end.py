@@ -415,14 +415,23 @@ EXAMPLE = REPO / "config" / "agent.example.yaml"
 def test_a_configuration_marked_not_run_is_refused_and_listed_with_its_reason(tmp_path, capsys):
     from vessel_mind.eval.run import main
 
+    config = tmp_path / "agent.yaml"
+    config.write_text(
+        EXAMPLE.read_text(encoding="utf-8").replace(
+            "not_run: {}",
+            "not_run:\n    local: The local model server is off.\n"
+            "    routed: Its fast path is the local model server.",
+        ),
+        encoding="utf-8",
+    )
     results = tmp_path / "results"
-    code = main(["--config", "local", "--config-file", str(EXAMPLE), "--results-dir", str(results)])
+    code = main(["--config", "local", "--config-file", str(config), "--results-dir", str(results)])
 
     assert code == 2
     assert "not run" in capsys.readouterr().err
     text = (results / "results.md").read_text(encoding="utf-8")
-    assert "| local | local-small / local-large | *not run* |" in text
-    assert "| routed | local-small / gemini-3.6-flash | *not run* |" in text
+    assert "| local | qwen3:8b / qwen3.6:35b-a3b | *not run* |" in text
+    assert "| routed | qwen3:8b / gemini-3.6-flash | *not run* |" in text
     assert "- **local** was not run: " in text
     assert "| hosted | — | *not run* |" in text
 
@@ -465,7 +474,7 @@ def test_the_example_config_names_the_judge_and_dated_list_prices():
         price = settings.prices[model]
         assert price.source.startswith("https://ai.google.dev/")
         assert price.as_of == date(2026, 10, 26)
-    assert set(settings.not_run) == {"local", "routed"}
+    assert settings.not_run == {}
     assert settings.self_hosted_providers == ["local"]
 
 

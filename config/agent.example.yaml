@@ -17,10 +17,9 @@ providers:
     # env var, in upper snake case; a pasted key fails validation.
     auth: {scheme: bearer, key_env: GEMINI_API_KEY}
   local:
-    # A local OpenAI-compatible server (llama-server or Ollama; both serve
-    # /v1/chat/completions). PLACEHOLDER: the server is not set up yet, so this
-    # URL and the local model ids below are not chosen.
-    base_url: http://127.0.0.1:8080/v1
+    # A local OpenAI-compatible server: Ollama on its default port. Any
+    # server that serves /v1/chat/completions works (llama-server: port 8080).
+    base_url: http://127.0.0.1:11434/v1
     auth: {scheme: none}
 
 # Each configuration is a fixed pair of models: the fast path and the slow
@@ -32,14 +31,14 @@ configurations:
     fast: {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-26}
     # gemini-3.6-flash: Google's deprecations page says gemini-3.5-flash routes every request to it.
     slow: {provider: gemini, model: gemini-3.6-flash, chosen: 2026-10-26}
-  # Both paths on the local server. PLACEHOLDER model ids: not yet chosen;
-  # replace them and their `chosen` dates when the server is set up.
+  # Both paths on the local server, Ollama tags (Q4_K_M). qwen3.6:35b-a3b is
+  # a mixture of experts (3B active); the pair needs about 28 GB of VRAM.
   local:
-    fast: {provider: local, model: local-small, chosen: 2026-10-26}  # not yet chosen
-    slow: {provider: local, model: local-large, chosen: 2026-10-26}  # not yet chosen
+    fast: {provider: local, model: "qwen3:8b", chosen: 2026-10-26}
+    slow: {provider: local, model: "qwen3.6:35b-a3b", chosen: 2026-10-26}
   # The local small model routes and answers fast turns; Gemini answers slow ones.
   routed:
-    fast: {provider: local, model: local-small, chosen: 2026-10-26}  # not yet chosen
+    fast: {provider: local, model: "qwen3:8b", chosen: 2026-10-26}
     # gemini-3.6-flash: Google's deprecations page says gemini-3.5-flash routes every request to it.
     slow: {provider: gemini, model: gemini-3.6-flash, chosen: 2026-10-26}
 
@@ -138,15 +137,7 @@ eval:
   # Providers on the author's hardware: $0, GPU electricity not measured.
   self_hosted_providers: [local]
   # Configurations that are not run, with the reason results.md shows.
-  not_run:
-    local: >-
-      The local model server (llama-server or Ollama) is not set up and the
-      local model ids are placeholders; the author chose not to run the local
-      configurations in this sprint.
-    routed: >-
-      Its fast path is the local model server, which is not set up (the local
-      model ids are placeholders); the author chose not to run it in this
-      sprint.
+  not_run: {}
 
 # Demo mode (ADR 0002) is for the public hostname. The loop still makes a
 # proposal for each write or irreversible call and the console shows it, but
