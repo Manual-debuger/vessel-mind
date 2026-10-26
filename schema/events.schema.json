@@ -8,6 +8,7 @@
           "enum": [
             "end",
             "max_tokens",
+            "max_steps",
             "cancelled"
           ],
           "title": "Reason",
@@ -67,6 +68,7 @@
       "title": "ErrorEvent",
       "type": "object"
     },
+    "JsonValue": {},
     "TextEvent": {
       "additionalProperties": false,
       "description": "A piece of the answer, in order. Concatenate them to get the text.",
@@ -87,6 +89,75 @@
         "text"
       ],
       "title": "TextEvent",
+      "type": "object"
+    },
+    "ToolResultEvent": {
+      "additionalProperties": false,
+      "description": "The result of one tool call, as the model receives it.",
+      "properties": {
+        "call_id": {
+          "title": "Call Id",
+          "type": "string"
+        },
+        "is_error": {
+          "title": "Is Error",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "result": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "type": {
+          "const": "tool_result",
+          "default": "tool_result",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "call_id",
+        "name",
+        "result",
+        "is_error"
+      ],
+      "title": "ToolResultEvent",
+      "type": "object"
+    },
+    "ToolStartEvent": {
+      "additionalProperties": false,
+      "description": "The loop is about to run one tool call. A tool_result with the same call_id follows.",
+      "properties": {
+        "call_id": {
+          "title": "Call Id",
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": true,
+          "title": "Input",
+          "type": "object"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "const": "tool_start",
+          "default": "tool_start",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "call_id",
+        "name",
+        "input"
+      ],
+      "title": "ToolStartEvent",
       "type": "object"
     },
     "Usage": {
@@ -122,13 +193,21 @@
     "mapping": {
       "done": "#/$defs/DoneEvent",
       "error": "#/$defs/ErrorEvent",
-      "text": "#/$defs/TextEvent"
+      "text": "#/$defs/TextEvent",
+      "tool_result": "#/$defs/ToolResultEvent",
+      "tool_start": "#/$defs/ToolStartEvent"
     },
     "propertyName": "type"
   },
   "oneOf": [
     {
       "$ref": "#/$defs/TextEvent"
+    },
+    {
+      "$ref": "#/$defs/ToolStartEvent"
+    },
+    {
+      "$ref": "#/$defs/ToolResultEvent"
     },
     {
       "$ref": "#/$defs/DoneEvent"

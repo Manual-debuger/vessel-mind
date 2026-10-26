@@ -1,0 +1,8 @@
+data: {"choices":[{"delta":{"role":"assistant","tool_calls":[{"extra_content":{"google":{"thought_signature":"EpADCo0DAWkUfRPoXPZapE8Eclqk9NJ6qKjL7J5ZrpCTBQTuKgFf3rsMInHKB4+HrRm/kz2ICXRok5FIcq0qvapz26X8dWzZi+cmmsEXEHiK20g3txRq6phhosPZhsDuvdFkUCurFCi9A95Ihbmt6ek4oFr6R5JQuxSu47cgsLaOdw2w+y10jCPJjwZ3APPos2um6DuBvCju8dHmCKiyaCUShIbave19b5Y+J+1UvnpMhNmgI7CI7Lgek8QZVMjiiAAYifEy2kPPUgwTXOT2c9meUxVfWfVjnJISinipgN1qFdHZCjC6QU91nJkfiDSRBVMxjL2Pf1T8Nhm+dBJnKBP12eCwbxsSsML0++/Gb8ljddN+3vDSODnZvp+r31wuj/5Zzr/XlGquXqx6aOB/UUUBi3bK0po9RC9wTN1DHfd9B/5mM89Msll/YwPpZmRxubKYO3FThrKtkt0C1h0A7OjLRNGFjr+ky1oNm6R+xINxO1dAavuZSaLHV/SI3apU7NscAo+MCuqnAg7xzeDcr6suJg=="}},"function":{"arguments":"{\"city\":\"Paris\"}","name":"get_weather"},"id":"call_2266557","type":"function"}]},"index":0}],"created":1793005564,"id":"-xffavaaC-Xs2roPrPGJWA","model":"gemini-3.5-flash","object":"chat.completion.chunk","usage":{"completion_tokens":16,"prompt_tokens":70,"total_tokens":147}}
+
+data: {"choices":[{"delta":{"role":"assistant","tool_calls":[{"function":{"arguments":"{\"city\":\"Tokyo\"}","name":"get_weather"},"id":"call_2266560","type":"function"}]},"index":0}],"created":1793005564,"id":"-xffavaaC-Xs2roPrPGJWA","model":"gemini-3.5-flash","object":"chat.completion.chunk","usage":{"completion_tokens":32,"prompt_tokens":70,"total_tokens":163}}
+
+data: {"choices":[{"delta":{"role":"assistant"},"finish_reason":"stop","index":0}],"created":1793005564,"id":"-xffavaaC-Xs2roPrPGJWA","model":"gemini-3.5-flash","object":"chat.completion.chunk","usage":{"completion_tokens":32,"prompt_tokens":70,"total_tokens":163}}
+
+data: [DONE]
+

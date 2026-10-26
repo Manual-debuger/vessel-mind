@@ -6,7 +6,17 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from vessel_mind.core.chat import ChatModelError, ChatRequest, Stop, TextDelta, Usage
+from vessel_mind.core.capabilities import CapabilityRegistry
+from vessel_mind.core.chat import (
+    ChatModelError,
+    ChatRequest,
+    Stop,
+    TextDelta,
+    ToolCall,
+    ToolSpec,
+    Usage,
+    UserMessage,
+)
 from vessel_mind.server.app import create_app
 
 
@@ -68,7 +78,64 @@ def test_a_turn_streams_text_then_done_with_usage_and_step_count():
             },
         ),
     ]
-    assert model.requests[0].messages[-1].text == "Why is the sky blue?"
+    assert model.requests[0].messages[-1] == UserMessage(text="Why is the sky blue?")
+
+
+class StepModel:
+    """Replays one scripted list of events per model step."""
+
+    id = "steps"
+
+    def __init__(self, *steps) -> None:
+        self.steps = list(steps)
+        self.requests: list[ChatRequest] = []
+
+    async def stream(self, req: ChatRequest):
+        self.requests.append(req)
+        for event in self.steps[len(self.requests) - 1]:
+            yield event
+
+
+class SearchTool:
+    spec = ToolSpec(name="search_docs", description="Search the corpus.", parameters={})
+
+    async def execute(self, input):
+        return {"hits": [f"GLOSSARY.md#{input['query']}"]}
+
+
+def test_a_turn_streams_tool_start_and_tool_result_events_then_done():
+    tools = CapabilityRegistry()
+    tools.register(
+        SearchTool(),
+        {"resource": "public_corpus", "effect": "read", "exfil": False, "taints_context": False},
+    )
+    model = StepModel(
+        [
+            ToolCall(id="c1", name="search_docs", input={"query": "proposal"}),
+            Stop(reason="tool_use", usage=Usage(input_tokens=5)),
+        ],
+        [TextDelta(delta="It waits."), Stop(reason="end", usage=Usage(input_tokens=9))],
+    )
+    with TestClient(create_app(model, tools=tools)) as client:
+        started = client.post("/turns", json={"text": "What is a proposal?"}).json()
+        events = read_events(client, started["turn_id"])
+
+    assert [name for name, _ in events] == ["tool_start", "tool_result", "text", "done"]
+    assert events[0][1] == {
+        "type": "tool_start",
+        "call_id": "c1",
+        "name": "search_docs",
+        "input": {"query": "proposal"},
+    }
+    assert events[1][1] == {
+        "type": "tool_result",
+        "call_id": "c1",
+        "name": "search_docs",
+        "result": {"hits": ["GLOSSARY.md#proposal"]},
+        "is_error": False,
+    }
+    assert events[-1][1]["steps"] == 2
+    assert [t.name for t in model.requests[0].tools] == ["search_docs"]
 
 
 class HangingModel:

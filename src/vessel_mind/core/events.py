@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
 from vessel_mind.core.chat import Usage
 
@@ -28,11 +28,32 @@ class TextEvent(_Event):
     text: str
 
 
+class ToolStartEvent(_Event):
+    """The loop is about to run one tool call. A tool_result with the same call_id follows."""
+
+    type: Literal["tool_start"] = "tool_start"
+    call_id: str
+    name: str
+    input: dict[str, Any]
+
+
+class ToolResultEvent(_Event):
+    """The result of one tool call, as the model receives it."""
+
+    type: Literal["tool_result"] = "tool_result"
+    call_id: str
+    name: str
+    # Any JSON value. When is_error is true it is {"error": <message>}.
+    result: JsonValue
+    is_error: bool
+
+
 class DoneEvent(_Event):
     """The turn ended. Sent once, last, unless the turn ended with an error event."""
 
     type: Literal["done"] = "done"
-    reason: Literal["end", "max_tokens", "cancelled"]
+    # max_steps: the model still called tools on the turn's last allowed step.
+    reason: Literal["end", "max_tokens", "max_steps", "cancelled"]
     # Summed over the turn's model steps. A step cancelled mid-stream adds nothing,
     # because the provider reports usage only when a step ends.
     usage: Usage
@@ -47,7 +68,10 @@ class ErrorEvent(_Event):
     message: str
 
 
-AgentEvent = Annotated[TextEvent | DoneEvent | ErrorEvent, Field(discriminator="type")]
+AgentEvent = Annotated[
+    TextEvent | ToolStartEvent | ToolResultEvent | DoneEvent | ErrorEvent,
+    Field(discriminator="type"),
+]
 
 _adapter: TypeAdapter[Any] = TypeAdapter(AgentEvent)
 
