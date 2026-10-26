@@ -33,12 +33,14 @@ configurations:
     slow: {provider: gemini, model: gemini-3.6-flash, chosen: 2026-10-26}
   # Both paths on the local server, Ollama tags (Q4_K_M). qwen3.6:35b-a3b is
   # a mixture of experts (3B active); the pair needs about 28 GB of VRAM.
+  # The fast model does not think: with thinking, qwen3:8b takes about 10 s to
+  # classify a turn, the router's timeout.
   local:
-    fast: {provider: local, model: "qwen3:8b", chosen: 2026-10-26}
+    fast: {provider: local, model: "qwen3:8b", chosen: 2026-10-26, reasoning_effort: none}
     slow: {provider: local, model: "qwen3.6:35b-a3b", chosen: 2026-10-26}
   # The local small model routes and answers fast turns; Gemini answers slow ones.
   routed:
-    fast: {provider: local, model: "qwen3:8b", chosen: 2026-10-26}
+    fast: {provider: local, model: "qwen3:8b", chosen: 2026-10-26, reasoning_effort: none}
     # gemini-3.6-flash: Google's deprecations page says gemini-3.5-flash routes every request to it.
     slow: {provider: gemini, model: gemini-3.6-flash, chosen: 2026-10-26}
 
@@ -107,11 +109,10 @@ retrieval:
 
 # The end-to-end eval (task eval -- --config NAME). Only the eval reads it.
 eval:
-  # The judge: any model from `providers`. Gemini Flash by default; a
-  # self-hosted model works too. It is the slow model of hosted and routed,
-  # so results.md says that it shares their model family.
-  # gemini-3.6-flash: Google's deprecations page says gemini-3.5-flash routes every request to it.
-  judge: {provider: gemini, model: gemini-3.6-flash, chosen: 2026-10-26}
+  # The judge: any model from `providers`. The local slow model: the free tier
+  # allows 20 gemini-3.6-flash requests a day, and a row needs about 100. It is
+  # the slow model of local, so results.md says that it shares its model family.
+  judge: {provider: local, model: "qwen3.6:35b-a3b", chosen: 2026-10-26}
   # Seconds between the starts of two requests (judge included). The free
   # tier's per-minute limits are shown only in AI Studio; 7 s is about 8.5
   # requests a minute.
@@ -137,7 +138,14 @@ eval:
   # Providers on the author's hardware: $0, GPU electricity not measured.
   self_hosted_providers: [local]
   # Configurations that are not run, with the reason results.md shows.
-  not_run: {}
+  not_run:
+    hosted: >-
+      Its slow model gemini-3.6-flash allows 20 free-tier requests a day, and
+      a row needs about 100 (answers and tool steps); the author chose to run
+      the eval on free models within three days.
+    routed: >-
+      Its slow model gemini-3.6-flash allows 20 free-tier requests a day; the
+      author chose to run the eval on free models within three days.
 
 # Demo mode (ADR 0002) is for the public hostname. The loop still makes a
 # proposal for each write or irreversible call and the console shows it, but

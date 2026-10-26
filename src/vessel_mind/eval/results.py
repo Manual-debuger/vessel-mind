@@ -26,6 +26,7 @@ from vessel_mind.eval.records import (
     load_rows,
     ordered,
     row_command,
+    row_name,
 )
 from vessel_mind.eval.retrieval import LANGS, RetrievalAblation
 
@@ -34,9 +35,9 @@ RESULTS_FILE = "results.md"
 
 LANG_NAMES = {"en": "English", "zh-Hant": "Traditional Chinese"}
 
-# A costly misroute: a fast-path answer this far below the slow-only answer.
+# A costly misroute: a fast-path answer this far below the slow-only answer of the
+# same configuration.
 MISROUTE_MARGIN = 0.25
-BASELINE_ROW = "slow-only"
 _DASH = "—"
 
 
@@ -92,7 +93,8 @@ def _end_to_end_section(rows: Mapping[str, RowResults | NotRun]) -> Iterable[str
             "Each row asks every golden question once, as a new turn through the router, the "
             f"way the server answers it. Golden set `{first.golden_path}` (SHA-256 "
             f"`{first.golden_sha256[:12]}`). The `slow-only` row is `hosted` with the router "
-            "off: every turn takes the slow path."
+            "off, and a `NAME-slow-only` row is configuration NAME with the router off: every "
+            "turn takes the slow path."
         )
         yield ""
     k = run[0].top_k if run else 5
@@ -116,7 +118,8 @@ def _end_to_end_section(rows: Mapping[str, RowResults | NotRun]) -> Iterable[str
                 )
             continue
         if isinstance(row, NotRun):
-            models, reason = f"{row.fast_model} / {row.slow_model}", row.reason
+            fast = row.fast_model if row.router else "router off"
+            models, reason = f"{fast} / {row.slow_model}", row.reason
         else:
             models = _DASH
             reason = f"no results are stored; run `{row_command(name)}`."
@@ -145,7 +148,7 @@ def _end_to_end_section(rows: Mapping[str, RowResults | NotRun]) -> Iterable[str
     for row in run:
         if row.router:
             yield ""
-            yield from _router_lines(row, rows.get(BASELINE_ROW))
+            yield from _router_lines(row, rows.get(row_name(row.configuration, False)))
     yield from _judge_lines(run)
 
 

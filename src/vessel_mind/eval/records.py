@@ -131,6 +131,7 @@ class NotRun(_Model):
     fast_model: str
     slow_model: str
     reason: str
+    router: bool = True
 
 
 StoredRow = Annotated[RowResults | NotRun, Field(discriminator="status")]

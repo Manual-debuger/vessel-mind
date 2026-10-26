@@ -33,7 +33,14 @@ from vessel_mind.eval.golden import GoldenSet, GoldenSetError, load_golden
 from vessel_mind.eval.grades import grade
 from vessel_mind.eval.judge import DEFAULT_RUBRIC, Judge, load_rubric
 from vessel_mind.eval.pacing import PacedModel, Pacer
-from vessel_mind.eval.records import NotRun, RowResults, read_row, row_name, row_path
+from vessel_mind.eval.records import (
+    ROW_ORDER,
+    NotRun,
+    RowResults,
+    read_row,
+    row_name,
+    row_path,
+)
 from vessel_mind.eval.results import store_retrieval, write_results
 from vessel_mind.eval.retrieval import Pin, RetrievalAblation, run_rows
 from vessel_mind.rag.corpus import CorpusPinError, Document
@@ -213,22 +220,28 @@ def _documents(args: argparse.Namespace, config: AgentConfig) -> Callable[[], It
 
 def _record_not_run(config: AgentConfig, settings: EvalSettings, results_dir: Path) -> None:
     """Stores each configuration marked not_run as not run, with its reason, unless
-    the row has measured results."""
+    the row has measured results. Its slow-only row is stored too when table 2
+    lists it (`slow-only`, for hosted)."""
     for name, reason in settings.not_run.items():
-        path = row_path(results_dir, name)
-        if path.exists() and isinstance(read_row(path), RowResults):
-            continue
         pair = config.select(name)
-        store_not_run(
-            results_dir,
-            NotRun(
-                row=name,
-                configuration=name,
-                fast_model=pair.fast.model,
-                slow_model=pair.slow.model,
-                reason=reason,
-            ),
-        )
+        for router in (True, False):
+            row = row_name(name, router)
+            if not router and row not in ROW_ORDER:
+                continue
+            path = row_path(results_dir, row)
+            if path.exists() and isinstance(read_row(path), RowResults):
+                continue
+            store_not_run(
+                results_dir,
+                NotRun(
+                    row=row,
+                    configuration=name,
+                    fast_model=pair.fast.model,
+                    slow_model=pair.slow.model,
+                    reason=reason,
+                    router=router,
+                ),
+            )
 
 
 def _end_to_end(

@@ -11,6 +11,7 @@ import yaml
 from fastapi.testclient import TestClient
 
 from vessel_mind.agent.loop import run_tool
+from vessel_mind.agent.models.openai_compatible import OpenAICompatibleModel
 from vessel_mind.core.capabilities import CapabilityRegistry
 from vessel_mind.core.credentials import BearerAuth
 from vessel_mind.rag.corpus import Document
@@ -336,6 +337,23 @@ def test_the_local_configuration_needs_no_key():
     router = build_router(load_config(EXAMPLE), {}, configuration="local")
 
     assert (router.fast.id, router.slow.id) == ("qwen3:8b", "qwen3.6:35b-a3b")
+
+
+def test_the_local_fast_model_answers_without_thinking():
+    # Thinking makes qwen3:8b classify in about 10 s, the router's timeout.
+    router = build_router(load_config(EXAMPLE), {}, configuration="local")
+
+    assert isinstance(router.fast, OpenAICompatibleModel)
+    assert isinstance(router.slow, OpenAICompatibleModel)
+    assert router.fast.reasoning_effort == "none"
+    assert router.slow.reasoning_effort is None
+
+
+def test_an_unknown_reasoning_effort_is_a_config_error(tmp_path):
+    config = config_with(tmp_path, "reasoning_effort: none", "reasoning_effort: off")
+
+    with pytest.raises(ConfigError, match="reasoning_effort"):
+        load_config(config)
 
 
 def test_the_router_can_be_turned_off_for_the_slow_only_baseline(tmp_path):

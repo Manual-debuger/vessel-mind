@@ -7,7 +7,7 @@ llama-server. No provider SDK.
 import asyncio
 import json
 from collections.abc import AsyncIterator, Awaitable, Callable
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import httpx
 
@@ -35,6 +35,9 @@ _FINISH_REASONS: dict[str, StopReason] = {
 # Rate limited, or overloaded: worth asking again after a pause.
 _RETRYABLE = {429, 503}
 
+# The request's reasoning_effort, as Gemini's and Ollama's endpoints accept it.
+ReasoningEffort = Literal["none", "low", "medium", "high"]
+
 
 class OpenAICompatibleModel:
     def __init__(
@@ -48,8 +51,10 @@ class OpenAICompatibleModel:
         backoff_base: float = 1.0,
         backoff_max: float = 30.0,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        reasoning_effort: ReasoningEffort | None = None,
     ) -> None:
         self.id = id
+        self.reasoning_effort = reasoning_effort
         self._max_retries = max_retries
         self._backoff_base = backoff_base
         self._backoff_max = backoff_max
@@ -163,6 +168,8 @@ class OpenAICompatibleModel:
             ]
         if req.max_tokens is not None:
             body["max_tokens"] = req.max_tokens
+        if self.reasoning_effort is not None:
+            body["reasoning_effort"] = self.reasoning_effort
         return body
 
 
