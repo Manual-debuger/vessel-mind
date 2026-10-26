@@ -53,6 +53,16 @@ class Configuration(_Config):
     slow: ModelChoice
 
 
+class RouterSettings(_Config):
+    """The router (§5.7). enabled: false sends every turn to the slow path."""
+
+    enabled: bool = True
+    # Seconds the fast model may take to classify a turn before it goes slow.
+    timeout: float = Field(default=10.0, gt=0)
+    # The classification's token budget. Gemini counts thinking tokens in it.
+    max_tokens: int | None = Field(default=None, gt=0)
+
+
 class Retry(_Config):
     max_retries: int = Field(default=3, ge=0)
     backoff_base: float = Field(default=1.0, gt=0)
@@ -135,6 +145,7 @@ class AgentConfig(_Config):
     configuration: Literal["hosted", "local", "routed"]
     providers: dict[str, Provider]
     configurations: dict[str, Configuration]
+    router: RouterSettings = RouterSettings()
     retry: Retry = Retry()
     agent: Agent = Agent()
     state: State = State()
@@ -160,6 +171,13 @@ class AgentConfig(_Config):
     @property
     def active(self) -> Configuration:
         return self.configurations[self.configuration]
+
+    def select(self, name: str | None = None) -> Configuration:
+        """The named configuration, or the active one when name is None."""
+        name = self.configuration if name is None else name
+        if name not in self.configurations:
+            raise ConfigError(f"configuration {name!r} is not defined")
+        return self.configurations[name]
 
 
 def load_config(path: Path) -> AgentConfig:

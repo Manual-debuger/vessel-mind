@@ -8,7 +8,9 @@ from fastapi import FastAPI
 
 from vessel_mind.agent.mcp_client import McpServer
 from vessel_mind.agent.models.openai_compatible import OpenAICompatibleModel
+from vessel_mind.agent.router import Router
 from vessel_mind.core.capabilities import CapabilityRegistry
+from vessel_mind.core.chat import ChatModel
 from vessel_mind.core.credentials import CredentialError, resolve_credential
 from vessel_mind.rag.corpus import Document
 from vessel_mind.rag.embed import Embedder, FastEmbedEmbedder
@@ -27,27 +29,13 @@ def _config_path(environ: Mapping[str, str]) -> Path:
     return DEFAULT_CONFIG if DEFAULT_CONFIG.exists() else EXAMPLE_CONFIG
 
 
-def app_from_config(
-    path: Path | None = None,
-    environ: Mapping[str, str] | None = None,
-    *,
-    embedder: Embedder | None = None,
-    load_documents: Callable[[], Iterable[Document]] | None = None,
-) -> FastAPI:
-    """embedder and load_documents replace the configured embedding model and the
-    pinned corpus; tests pass fakes, so no model loads and nothing is fetched."""
-    environ = os.environ if environ is None else environ
-    config = load_config(path or _config_path(environ))
-
-    # The tracer answers every turn on the slow path; the router comes later.
-    choice: ModelChoice = config.active.slow
+def _model(config: AgentConfig, choice: ModelChoice, environ: Mapping[str, str]) -> ChatModel:
     provider = config.providers[choice.provider]
     try:
         credential = resolve_credential(provider.auth, environ)
     except CredentialError as error:
         raise ConfigError(f"provider {choice.provider!r}: {error}") from None
-
-    model = OpenAICompatibleModel(
+    return OpenAICompatibleModel(
         id=choice.model,
         base_url=provider.base_url,
         credential=credential,
@@ -55,6 +43,49 @@ def app_from_config(
         backoff_base=config.retry.backoff_base,
         backoff_max=config.retry.backoff_max,
     )
+
+
+def build_router(
+    config: AgentConfig,
+    environ: Mapping[str, str],
+    *,
+    configuration: str | None = None,
+    enabled: bool | None = None,
+) -> Router:
+    """The router over one configuration's models: the active one unless named.
+
+    enabled overrides router.enabled; False is the eval's slow-only baseline.
+    Raises ConfigError for an undefined configuration or an unset key.
+    """
+    pair = config.select(configuration)
+    settings = config.router
+    return Router(
+        _model(config, pair.fast, environ),
+        _model(config, pair.slow, environ),
+        enabled=settings.enabled if enabled is None else enabled,
+        timeout=settings.timeout,
+        max_tokens=settings.max_tokens,
+    )
+
+
+def app_from_config(
+    path: Path | None = None,
+    environ: Mapping[str, str] | None = None,
+    *,
+    configuration: str | None = None,
+    router: bool | None = None,
+    embedder: Embedder | None = None,
+    load_documents: Callable[[], Iterable[Document]] | None = None,
+) -> FastAPI:
+    """configuration and router override the config file's `configuration` and
+    `router.enabled`, as build_router does.
+
+    embedder and load_documents replace the configured embedding model and the
+    pinned corpus; tests pass fakes, so no model loads and nothing is fetched."""
+    environ = os.environ if environ is None else environ
+    config = load_config(path or _config_path(environ))
+    turn_router = build_router(config, environ, configuration=configuration, enabled=router)
+
     settings = config.retrieval
     if embedder is None:
         try:
@@ -74,7 +105,8 @@ def app_from_config(
     # The MCP servers register their tools in the same registry when they start.
     mcp_servers = mcp_servers_from_config(config, registry, environ)
     return create_app(
-        model,
+        turn_router.slow,
+        router=turn_router,
         tools=registry,
         system=config.agent.system,
         max_tokens=config.agent.max_tokens,
