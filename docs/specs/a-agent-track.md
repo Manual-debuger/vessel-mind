@@ -173,7 +173,7 @@ repositories (CodeQL, Dependency Review) must be gated on
 ```python
 ChatEvent = Annotated[TextDelta | ToolCall | Stop, Field(discriminator="type")]  # pydantic
 #   TextDelta(delta: str)
-#   ToolCall(id: str, name: str, input: dict)
+#   ToolCall(id: str, name: str, input: dict, provider_data: dict | None)
 #   Stop(reason: Literal["end", "tool_use", "max_tokens", "aborted"], usage: Usage)
 
 class ChatModel(Protocol):
@@ -183,18 +183,36 @@ class ChatModel(Protocol):
     # cancellation = cancelling the consuming task
 ```
 
-Tool-call arguments arrive in fragments in the OpenAI dialect; the adapter emits **one** `ToolCall`
-with fully parsed input. The adapter reports input and output tokens.
+The adapter emits **one** `ToolCall` per call, with fully parsed input. Fragments are keyed by
+`index` when present; otherwise a new `id` starts a new call, and a fragment with neither
+continues the last call (Gemini sends no `index` and each call whole). Fixtures cover both
+dialects.
 
-On HTTP 429 the adapter retries with exponential backoff and honours `Retry-After`, up to a
-configured limit, then raises. The eval spaces its requests to stay inside free-tier limits.
+`provider_data` is opaque: the adapter writes it back unchanged on the next request, and session
+history stores it. Gemini 3 needs this for its thought signature
+(`extra_content.google.thought_signature`); a request without it can be refused with 400.
+
+`Stop.reason` is `tool_use` whenever the step produced a tool call, whatever `finish_reason`
+says (Gemini sends `stop`). Usage is the last `usage` seen, never a sum (Gemini repeats it,
+cumulative, on every chunk); thinking tokens are recorded as total − prompt − completion when the
+provider reports them only in `total_tokens`. Fixtures are recorded from decoded (un-gzipped)
+bytes.
+
+On HTTP 429, HTTP 503 or a first-byte timeout, the adapter retries with exponential backoff,
+honouring `Retry-After` when present, up to a configured limit. Each path then has an ordered
+**fallback list** of models in config (for example `gemini-3.8-flash` → `gemini-3.5-flash`): when
+retries are exhausted, the next model is tried, and the `route` event names the model that
+actually answered. The eval spaces its requests to stay inside free-tier limits; a question that
+still fails is reported as *failed*, never dropped.
 
 **Acceptance:** per adapter, a recorded fixture with text plus two tool calls yields the exact
 event sequence; cancelling the consuming task mid-stream ends within 100 ms and closes the
 underlying HTTP response (assert the mock stream was closed).
 
-**Most likely to be done wrong:** fragment assembly in the OpenAI dialect — arguments are split
-across chunks by `index`, and parallel calls interleave. Test two parallel calls.
+**Most likely to be done wrong:** fragment assembly — keying only on `index` merges Gemini's
+parallel calls into one call with concatenated arguments, and keying only on `id` breaks the
+dialects that split arguments across chunks by `index`. Test two parallel calls in each dialect.
+Dropping `provider_data` breaks Gemini's second step.
 
 ### 5.2 The loop (A1)
 
