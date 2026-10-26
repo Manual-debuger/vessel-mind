@@ -89,7 +89,8 @@ def create_app(
     None offers no tools. state_path is the SQLite state file, opened at startup.
 
     services are entered in order at startup, after the state file opens, and
-    exited in reverse at shutdown: for example the retrieval index its tools read.
+    exited in reverse at shutdown: for example the retrieval index its tools read,
+    or an MCP server, which registers its tools in the registry when it starts.
 
     max_turns_per_session bounds the turns one session may start, to protect the
     provider's free quota; None means no bound.

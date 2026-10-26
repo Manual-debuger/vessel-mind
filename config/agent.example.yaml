@@ -73,3 +73,34 @@ retrieval:
 # the server refuses every approval (HTTP 403, code demo_mode), so no write
 # tool runs. Keep it false on localhost.
 demo_mode: false
+
+# MCP servers, started over stdio when the app starts. The model sees each
+# tool as <server>_<tool>, for example notion_API-post-search.
+mcp_servers:
+  notion:
+    # The Notion MCP server pinned by deploy/notion-mcp/package-lock.json.
+    # Install it once with `npm ci --ignore-scripts` in deploy/notion-mcp.
+    # It runs with node, never npx: npx would fetch whatever is newest. A
+    # relative path is relative to the directory the server runs in.
+    command: node
+    args: [deploy/notion-mcp/node_modules/@notionhq/notion-mcp-server/bin/cli.mjs]
+    # Set it to true to start the server. It then needs NOTION_TOKEN.
+    enabled: false
+    # The integration's token. Share the integration with ONE demo page only,
+    # never a personal page. The public host uses a read-only integration
+    # (ADR 0002), so Notion itself refuses a write there.
+    auth: {scheme: bearer, key_env: NOTION_TOKEN}
+    # The server process gets the credential as this JSON object of headers.
+    # It inherits no other secret from the app (only PATH, HOME and the like).
+    headers_env: OPENAPI_MCP_HEADERS
+    # Only the tools named here are registered; any other tool the server
+    # lists is refused with a warning. Labels are never defaulted. Page
+    # content is text other people can write, so every tool taints the
+    # context. A write tool only makes a proposal; it runs on Approve.
+    tools:
+      API-post-search: {resource: workspace, effect: read, exfil: false, taints_context: true}
+      API-retrieve-a-page: {resource: workspace, effect: read, exfil: false, taints_context: true}
+      API-get-block-children: {resource: workspace, effect: read, exfil: false, taints_context: true}
+      API-post-page: {resource: workspace, effect: write, exfil: true, taints_context: true}
+      API-patch-page: {resource: workspace, effect: write, exfil: true, taints_context: true}
+      API-patch-block-children: {resource: workspace, effect: write, exfil: true, taints_context: true}
