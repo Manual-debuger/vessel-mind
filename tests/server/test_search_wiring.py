@@ -5,11 +5,13 @@ The embedder and the corpus are fakes: no test loads a model or reads the networ
 
 import json
 from collections.abc import Sequence
+from dataclasses import replace
 
 from fastapi.testclient import TestClient
 
 from vessel_mind.core.chat import ChatRequest, Stop, TextDelta, ToolCall, ToolMessage, Usage
 from vessel_mind.rag.corpus import Document
+from vessel_mind.rag.search import SearchResult
 from vessel_mind.rag.store import IndexStore
 from vessel_mind.server.app import create_app
 from vessel_mind.server.retrieval import RetrievalService, search_docs_registry
@@ -141,6 +143,31 @@ def test_a_restart_on_a_complete_index_reads_no_corpus_and_embeds_no_document(tm
         pass
 
     assert restarted.embedded == []
+
+
+class Reversing:
+    """A fake reranker: reverses the candidates and scores them by position."""
+
+    model_id = "fake/reversing"
+
+    def rerank(self, query: str, candidates: Sequence[SearchResult]) -> list[SearchResult]:
+        n = len(candidates)
+        return [replace(c, rerank_score=float(n - i)) for i, c in enumerate(reversed(candidates))]
+
+
+def test_the_service_runs_its_reranker_after_the_candidate_stage(tmp_path):
+    index = tmp_path / "index.sqlite"
+    plain = service(index, candidates="keyword")
+    with TestClient(create_app(StepModel(), services=[plain])):
+        fused = plain.search("proposal router")
+
+    reranked = service(index, candidates="keyword", reranker=Reversing())
+    with TestClient(create_app(StepModel(), services=[reranked])):
+        results = reranked.search("proposal router")
+
+    assert all(r.rerank_score is None for r in fused)
+    assert [r.source for r in results] == [r.source for r in reversed(fused)]
+    assert [r.rerank_score for r in results] == [2.0, 1.0]
 
 
 def test_the_configured_candidate_stage_is_the_one_that_runs(tmp_path):

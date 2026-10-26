@@ -20,6 +20,7 @@ from vessel_mind.rag.search import (
     CANDIDATE_K,
     TOP_K,
     CandidateStage,
+    Reranker,
     SearchPipeline,
     SearchResult,
 )
@@ -48,11 +49,15 @@ class RetrievalService:
         candidates: CandidateStage = "hybrid",
         candidate_k: int = CANDIDATE_K,
         top_k: int = TOP_K,
+        reranker: Reranker | None = None,
     ) -> None:
         self._index_path = index_path
         self._load_documents = load_documents
         self._embedder = embedder
-        self._settings = {"candidates": candidates, "candidate_k": candidate_k, "top_k": top_k}
+        self._candidates: CandidateStage = candidates
+        self._candidate_k = candidate_k
+        self._top_k = top_k
+        self._reranker = reranker
         self._store: IndexStore | None = None
         self._pipeline: SearchPipeline | None = None
         # One search at a time: the store's connection and the embedder are shared.
@@ -67,7 +72,14 @@ class RetrievalService:
         if report is not None:
             log.info("retrieval index %s: %s", self._index_path, report)
         self._store = IndexStore.open(self._index_path, self._embedder)
-        self._pipeline = SearchPipeline(self._store, self._embedder, **self._settings)
+        self._pipeline = SearchPipeline(
+            self._store,
+            self._embedder,
+            candidates=self._candidates,
+            candidate_k=self._candidate_k,
+            top_k=self._top_k,
+            reranker=self._reranker,
+        )
         return self
 
     async def __aexit__(

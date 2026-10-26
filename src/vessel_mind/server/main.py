@@ -11,6 +11,8 @@ from vessel_mind.core.credentials import CredentialError, resolve_credential
 from vessel_mind.rag.corpus import Document
 from vessel_mind.rag.embed import Embedder, FastEmbedEmbedder
 from vessel_mind.rag.ingest import corpus_loader
+from vessel_mind.rag.rerank import make_reranker
+from vessel_mind.rag.search import Reranker
 from vessel_mind.server.app import create_app
 from vessel_mind.server.config import ConfigError, ModelChoice, load_config
 from vessel_mind.server.retrieval import RetrievalService, search_docs_registry
@@ -31,9 +33,11 @@ def app_from_config(
     *,
     embedder: Embedder | None = None,
     load_documents: Callable[[], Iterable[Document]] | None = None,
+    reranker: Reranker | None = None,
 ) -> FastAPI:
-    """embedder and load_documents replace the configured embedding model and the
-    pinned corpus; tests pass fakes, so no model loads and nothing is fetched."""
+    """embedder, load_documents and reranker replace the configured embedding
+    model, the pinned corpus and the configured reranker; tests pass fakes, so no
+    model loads and nothing is fetched."""
     environ = os.environ if environ is None else environ
     config = load_config(path or _config_path(environ))
 
@@ -59,6 +63,13 @@ def app_from_config(
             embedder = FastEmbedEmbedder(settings.embedding_model, cache_dir=settings.model_cache)
         except ValueError as error:
             raise ConfigError(f"retrieval.embedding_model: {error}") from None
+    if reranker is None:
+        try:
+            reranker = make_reranker(
+                settings.reranker, settings.reranker_model, cache_dir=settings.model_cache
+            )
+        except ValueError as error:
+            raise ConfigError(f"retrieval.reranker_model: {error}") from None
     retrieval = RetrievalService(
         index_path=settings.index,
         load_documents=load_documents
@@ -67,6 +78,7 @@ def app_from_config(
         candidates=settings.candidates,
         candidate_k=settings.candidate_k,
         top_k=settings.top_k,
+        reranker=reranker,
     )
     return create_app(
         model,

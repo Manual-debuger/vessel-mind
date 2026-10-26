@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 
 from vessel_mind.core.credentials import ProviderAuth
 from vessel_mind.rag.embed import DEFAULT_MODEL
+from vessel_mind.rag.rerank import DEFAULT_RERANK_MODEL, RerankerProvider
 from vessel_mind.rag.search import CANDIDATE_K, TOP_K, CandidateStage
 
 
@@ -77,6 +78,9 @@ class Retrieval(_Config):
     candidate_k: int = Field(default=CANDIDATE_K, gt=0)
     top_k: int = Field(default=TOP_K, gt=0)
     embedding_model: str = DEFAULT_MODEL
+    # cpu: a fastembed cross-encoder reorders the candidates; none: no rerank stage.
+    reranker: RerankerProvider = "cpu"
+    reranker_model: str = DEFAULT_RERANK_MODEL
     model_cache: Path = Path(".cache/fastembed")
     tarball_cache: Path = Path(".cache/corpus")
 
