@@ -1,0 +1,28 @@
+# The corpus (GLOSSARY.md): public sources, each pinned to one commit.
+# A corpus change is a commit to this file plus an eval re-run.
+#
+# fetch: git-archive  reads the commit from this clone with `git archive`,
+#                     so it needs no token while the repository is private.
+# fetch: tarball      downloads https://github.com/<repo>/archive/<commit>.tar.gz,
+#                     refuses it unless its SHA-256 matches, and caches it
+#                     (default .cache/corpus/, git-ignored).
+# Quote commit and sha256: YAML reads an all-digit hex string as a number.
+# include: globs on paths relative to the source's root; `**` spans directories.
+sources:
+  - name: vessel-mind
+    repo: Manual-debuger/vessel-mind
+    commit: "09a08904555f6208dab548a8837a24ac78eb54e5"
+    fetch: git-archive
+    include:
+      - docs/adr/*.md
+      - docs/specs/*.md
+      - GLOSSARY.md
+
+  - name: vibeconform
+    repo: Manual-debuger/VibeConform  # public, Apache-2.0
+    commit: "384d89efc764edbabb6475a1644c4a934be64e82"
+    fetch: tarball
+    sha256: "285b56832061ea31daaa7076301ee7df9264fed026bbe32f7a1e2d3d2ca1043e"
+    include:
+      - README.md
+      - docs/**/*.md
