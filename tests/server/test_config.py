@@ -2,6 +2,7 @@
 
 import json
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,7 @@ from fastapi.testclient import TestClient
 from vessel_mind.agent.loop import run_tool
 from vessel_mind.core.capabilities import CapabilityRegistry
 from vessel_mind.core.credentials import BearerAuth
+from vessel_mind.rag.corpus import Document
 from vessel_mind.server.config import ConfigError, load_config
 from vessel_mind.server.main import app_from_config, mcp_servers_from_config
 
@@ -18,10 +20,41 @@ REPO = Path(__file__).resolve().parent.parent.parent
 EXAMPLE = REPO / "config" / "agent.example.yaml"
 
 
+class FakeEmbedder:
+    model_id = "fake/constant"
+    dim = 2
+
+    def __init__(self) -> None:
+        self.embedded: list[str] = []
+
+    def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
+        self.embedded.extend(texts)
+        return [[1.0, 0.0] for _ in texts]
+
+    def embed_query(self, text: str) -> list[float]:
+        return [1.0, 0.0]
+
+
+DOCS = [
+    Document(
+        source_name="fixture",
+        repo="example/fixture",
+        commit="c" * 40,
+        path="README.md",
+        text="# Fixture\n\nA document.\n",
+    )
+]
+
+
+def offline(embedder: FakeEmbedder | None = None) -> dict:
+    """The startup-ingest seams, faked: no model loads and no corpus is fetched."""
+    return {"embedder": embedder or FakeEmbedder(), "load_documents": lambda: DOCS}
+
+
 def test_the_example_config_serves_the_hosted_slow_path_model(tmp_path, monkeypatch):
-    # The example's state file is relative to the working directory.
+    # The example's state file and index are relative to the working directory.
     monkeypatch.chdir(tmp_path)
-    app = app_from_config(EXAMPLE, environ={"GEMINI_API_KEY": "test-key"})
+    app = app_from_config(EXAMPLE, environ={"GEMINI_API_KEY": "test-key"}, **offline())
 
     with TestClient(app) as client:
         health = client.get("/health").json()
@@ -30,7 +63,8 @@ def test_the_example_config_serves_the_hosted_slow_path_model(tmp_path, monkeypa
     assert health == {"status": "ok", "model": "gemini-3.5-flash"}
 
 
-def test_the_app_keeps_sessions_in_the_configured_state_file(tmp_path):
+def test_the_app_keeps_sessions_in_the_configured_state_file(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     config = tmp_path / "agent.yaml"
     state = tmp_path / "state" / "sessions.db"
     config.write_text(
@@ -38,7 +72,7 @@ def test_the_app_keeps_sessions_in_the_configured_state_file(tmp_path):
         + f"\nstate:\n  path: {state.as_posix()}\nsessions:\n  max_turns: 1\n",
         encoding="utf-8",
     )
-    app = app_from_config(config, environ={"GEMINI_API_KEY": "test-key"})
+    app = app_from_config(config, environ={"GEMINI_API_KEY": "test-key"}, **offline())
 
     with TestClient(app) as client:
         assert client.get("/health").status_code == 200
@@ -53,7 +87,8 @@ def test_demo_mode_is_off_in_the_example_and_on_when_the_config_says_so(tmp_path
     assert load_config(EXAMPLE).demo_mode is False
     config = config_with(tmp_path, "demo_mode: false", "demo_mode: true")
 
-    with TestClient(app_from_config(config, environ={"GEMINI_API_KEY": "test-key"})) as client:
+    app = app_from_config(config, environ={"GEMINI_API_KEY": "test-key"}, **offline())
+    with TestClient(app) as client:
         page = client.get("/").text
 
     assert 'id="demo-mode"' in page
@@ -64,6 +99,48 @@ def test_the_example_config_bounds_turns_per_session_and_names_a_state_file():
 
     assert config.sessions.max_turns is not None
     assert config.state.path.name.endswith(".db")
+
+
+def test_the_example_config_runs_hybrid_candidates_top_30_then_top_5():
+    retrieval = load_config(EXAMPLE).retrieval
+
+    assert (retrieval.candidates, retrieval.candidate_k, retrieval.top_k) == ("hybrid", 30, 5)
+    assert retrieval.index == Path("data/index.sqlite")
+    assert retrieval.index != load_config(EXAMPLE).state.path
+
+
+@pytest.mark.parametrize("stage", ["vector", "keyword", "hybrid"])
+def test_the_candidate_stage_is_selectable_in_config(tmp_path, stage):
+    config = config_with(tmp_path, "candidates: hybrid", f"candidates: {stage}")
+
+    assert load_config(config).retrieval.candidates == stage
+
+
+def test_an_unknown_candidate_stage_is_refused(tmp_path):
+    config = config_with(tmp_path, "candidates: hybrid", "candidates: bm25")
+
+    with pytest.raises(ConfigError, match=r"retrieval\.candidates"):
+        load_config(config)
+
+
+def test_top_k_may_not_exceed_the_candidates(tmp_path):
+    config = config_with(tmp_path, "top_k: 5", "top_k: 31")
+
+    with pytest.raises(ConfigError, match="top_k"):
+        load_config(config)
+
+
+def test_the_app_ingests_the_corpus_into_the_configured_index_at_startup(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    index = tmp_path / "idx" / "index.sqlite"
+    config = config_with(tmp_path, "index: data/index.sqlite", f"index: {index.as_posix()}")
+    embedder = FakeEmbedder()
+
+    with TestClient(app_from_config(config, environ={"GEMINI_API_KEY": "k"}, **offline(embedder))):
+        pass
+
+    assert index.exists()
+    assert len(embedder.embedded) == 1  # the one chunk of the fake corpus
 
 
 def test_a_missing_key_names_the_env_var_and_nothing_else():
@@ -178,7 +255,7 @@ def test_an_enabled_server_without_its_token_names_the_env_var(tmp_path, monkeyp
     config = config_with(tmp_path, NOTION_ENABLED, "    enabled: true")
 
     with pytest.raises(ConfigError, match="mcp server 'notion': NOTION_TOKEN is unset or empty"):
-        app_from_config(config, environ={"GEMINI_API_KEY": "test-key"})
+        app_from_config(config, environ={"GEMINI_API_KEY": "test-key"}, **offline())
 
 
 FAKE = REPO / "tests" / "fixtures" / "fake_mcp_server.py"

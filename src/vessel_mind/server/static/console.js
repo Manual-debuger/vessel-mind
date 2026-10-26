@@ -58,6 +58,18 @@
     card.result.textContent = pretty(event.result);
   }
 
+  // A string stays text; a citation becomes a link to its section on GitHub.
+  // citations.js links only https://github.com/ URLs.
+  function citationNode(part) {
+    if (typeof part === "string") return document.createTextNode(part);
+    const link = element("a", "citation", `[${part.n}]`);
+    link.href = part.url;
+    link.title = part.source;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    return link;
+  }
+
   // A proposal: a write the model asked for, which runs only on Approve.
   function proposalCard(card, event) {
     card.state.textContent = " awaiting approval";
@@ -177,21 +189,29 @@
       turn.source = open.detail.source;
     });
     // One card per tool call, keyed by call_id; text after a tool call goes
-    // into a new paragraph below its card.
+    // into a new part below its card.
     const cards = new Map();
     const proposals = [];
-    let paragraph = answer;
+    // [n] in the text cites result n of the latest search_docs call before it.
+    let citations = new Map();
+    const newPart = () => {
+      const part = { node: element("span", "answer-part"), text: "" };
+      answer.append(part.node);
+      return part;
+    };
+    let part = newPart();
     answer.addEventListener("htmx:sseBeforeMessage", (message) => {
       message.preventDefault();
       const event = JSON.parse(message.detail.data);
       if (event.type === "text") {
-        paragraph.append(document.createTextNode(event.text));
+        // Re-rendered whole: a citation may arrive split across two deltas.
+        part.text += event.text;
+        part.node.replaceChildren(...VesselCitations.split(part.text, citations).map(citationNode));
       } else if (event.type === "tool_start") {
         const card = toolCard(event);
         cards.set(event.call_id, card);
         answer.append(card.root);
-        paragraph = element("span", "answer-part");
-        answer.append(paragraph);
+        part = newPart();
       } else if (event.type === "proposal") {
         const card = cards.get(event.call_id);
         if (card) {
@@ -203,6 +223,9 @@
         // A proposal's result only says it awaits approval; the card keeps its state.
         if (card && card.proposed) card.result.textContent = pretty(event.result);
         else if (card) showResult(card, event);
+        if (event.name === "search_docs" && !event.is_error && event.result) {
+          citations = VesselCitations.fromResults(event.result.results);
+        }
       } else if (event.type === "done") {
         if (event.reason === "cancelled") {
           // The server withdraws the proposals of a cancelled turn.

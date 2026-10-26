@@ -19,6 +19,8 @@ from pydantic import (
 
 from vessel_mind.core.capabilities import CapabilityLabels
 from vessel_mind.core.credentials import EnvVarName, NoAuth, ProviderAuth
+from vessel_mind.rag.embed import DEFAULT_MODEL
+from vessel_mind.rag.search import CANDIDATE_K, TOP_K, CandidateStage
 
 
 class ConfigError(Exception):
@@ -109,6 +111,26 @@ class McpServerConfig(_Config):
         return self
 
 
+class Retrieval(_Config):
+    """The search_docs pipeline (§5.6) and the index it reads. Relative paths are
+    relative to the server's working directory."""
+
+    index: Path = Path("data/index.sqlite")
+    corpus: Path = Path("eval/corpus.yaml")
+    candidates: CandidateStage = "hybrid"
+    candidate_k: int = Field(default=CANDIDATE_K, gt=0)
+    top_k: int = Field(default=TOP_K, gt=0)
+    embedding_model: str = DEFAULT_MODEL
+    model_cache: Path = Path(".cache/fastembed")
+    tarball_cache: Path = Path(".cache/corpus")
+
+    @model_validator(mode="after")
+    def _top_k_within_candidates(self) -> "Retrieval":
+        if self.top_k > self.candidate_k:
+            raise ValueError(f"top_k {self.top_k} exceeds candidate_k {self.candidate_k}")
+        return self
+
+
 class AgentConfig(_Config):
     configuration: Literal["hosted", "local", "routed"]
     providers: dict[str, Provider]
@@ -117,6 +139,7 @@ class AgentConfig(_Config):
     agent: Agent = Agent()
     state: State = State()
     sessions: Sessions = Sessions()
+    retrieval: Retrieval = Retrieval()
     # ADR 0002: on the public host, proposals are shown but every approval is refused.
     demo_mode: bool = False
     # MCP servers by name; the model sees each tool as '<name>_<tool>'.
