@@ -66,8 +66,11 @@ tasks:
       - uv run python -m vessel_mind.rag.ingest {{.CLI_ARGS}}
 
   # The eval (spec §5.8). --retrieval-only writes table 1 (no LLM calls) to
-  # eval/results/, and results.md is regenerated from the stored results.
-  # Refuses (exit 2) when a corpus source cannot be pinned.
+  # eval/results/; --config hosted|local|routed [--no-router] runs one row
+  # of table 2 (resumable: the same command continues a stopped run);
+  # --grade asks the author to grade sampled answers; --render regenerates
+  # results.md from the stored results. Refuses (exit 2) when a corpus
+  # source cannot be pinned.
   eval:
     desc: Run the eval and regenerate eval/results/results.md.
     env:

@@ -145,6 +145,41 @@ class Retrieval(_Config):
         return self
 
 
+class ModelPrice(_Config):
+    """A model's paid list price on a date (spec §5.8). Nobody paid it: the eval
+    multiplies tokens by it so configurations can be compared on cost."""
+
+    input_usd_per_mtok: float = Field(ge=0)
+    # Thinking tokens are billed as output tokens.
+    output_usd_per_mtok: float = Field(ge=0)
+    # The date the price was read from the source.
+    as_of: datetime.date
+    source: str = Field(pattern=r"^https://")
+
+
+class EvalSettings(_Config):
+    """The end-to-end eval (`task eval -- --config NAME`)."""
+
+    # Any OpenAI-compatible model from `providers`: changing it is a config change.
+    judge: ModelChoice
+    # The judge's token budget per answer; None leaves it to the provider.
+    judge_max_tokens: int | None = Field(default=None, gt=0)
+    # Seconds between the starts of two requests, judge included, to stay inside
+    # the free tier's requests-per-minute limit.
+    request_interval: float = Field(default=7.0, ge=0)
+    # A run stops after this many questions fail in a row (a daily quota is
+    # spent); the next run resumes where it stopped.
+    max_consecutive_failures: int = Field(default=3, gt=0)
+    # Paid list prices by model id. A model with no price is reported as such,
+    # never estimated.
+    prices: dict[str, ModelPrice] = {}
+    # Providers that run on the author's own hardware: their models cost $0,
+    # and the results say that GPU electricity is not measured.
+    self_hosted_providers: list[str] = []
+    # Configurations that are not run, with the reason the results show.
+    not_run: dict[str, str] = {}
+
+
 class AgentConfig(_Config):
     configuration: Literal["hosted", "local", "routed"]
     providers: dict[str, Provider]
@@ -161,6 +196,8 @@ class AgentConfig(_Config):
     mcp_servers: dict[
         Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]{0,19}$")], McpServerConfig
     ] = {}
+    # The end-to-end eval's judge, prices and pacing. Only the eval reads it.
+    eval: EvalSettings | None = None
 
     @model_validator(mode="after")
     def _references_resolve(self) -> "AgentConfig":
@@ -170,6 +207,15 @@ class AgentConfig(_Config):
             for path in (configuration.fast, configuration.slow):
                 if path.provider not in self.providers:
                     raise ValueError(f"{name}: unknown provider {path.provider!r}")
+        if self.eval is not None:
+            if self.eval.judge.provider not in self.providers:
+                raise ValueError(f"eval.judge: unknown provider {self.eval.judge.provider!r}")
+            for name in self.eval.self_hosted_providers:
+                if name not in self.providers:
+                    raise ValueError(f"eval.self_hosted_providers: unknown provider {name!r}")
+            for name in self.eval.not_run:
+                if name not in self.configurations:
+                    raise ValueError(f"eval.not_run: configuration {name!r} is not defined")
         return self
 
     @property

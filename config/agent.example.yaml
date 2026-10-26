@@ -100,6 +100,49 @@ retrieval:
   model_cache: .cache/fastembed
   tarball_cache: .cache/corpus
 
+# The end-to-end eval (task eval -- --config NAME). Only the eval reads it.
+eval:
+  # The judge: any model from `providers`. Gemini Flash by default; a
+  # self-hosted model works too. It is the slow model of hosted and routed,
+  # so results.md says that it shares their model family.
+  judge: {provider: gemini, model: gemini-3.5-flash, chosen: 2026-10-26}
+  # Seconds between the starts of two requests (judge included). The free
+  # tier's per-minute limits are shown only in AI Studio; 7 s is about 8.5
+  # requests a minute.
+  request_interval: 7.0
+  # After this many questions fail in a row (a daily quota is spent), the run
+  # stops; the same command resumes it.
+  max_consecutive_failures: 3
+  # Google's paid list prices, USD per 1M tokens (output includes thinking).
+  # Nobody pays them: the eval runs on the free tier. A model without a price
+  # here is reported as unpriced, never estimated.
+  prices:
+    gemini-3.5-flash-lite:
+      input_usd_per_mtok: 0.30
+      output_usd_per_mtok: 2.50
+      as_of: 2026-10-26
+      source: https://ai.google.dev/gemini-api/docs/pricing
+    # The pricing page no longer lists gemini-3.5-flash: the deprecations page
+    # says the endpoint now routes every request to gemini-3.6-flash, so this
+    # is gemini-3.6-flash's price (it rises to 1.50 / 7.50 on 2027-01-01).
+    gemini-3.5-flash:
+      input_usd_per_mtok: 0.75
+      output_usd_per_mtok: 3.75
+      as_of: 2026-10-26
+      source: https://ai.google.dev/gemini-api/docs/pricing
+  # Providers on the author's hardware: $0, GPU electricity not measured.
+  self_hosted_providers: [local]
+  # Configurations that are not run, with the reason results.md shows.
+  not_run:
+    local: >-
+      The local model server (llama-server or Ollama) is not set up and the
+      local model ids are placeholders; the author chose not to run the local
+      configurations in this sprint.
+    routed: >-
+      Its fast path is the local model server, which is not set up (the local
+      model ids are placeholders); the author chose not to run it in this
+      sprint.
+
 # Demo mode (ADR 0002) is for the public hostname. The loop still makes a
 # proposal for each write or irreversible call and the console shows it, but
 # the server refuses every approval (HTTP 403, code demo_mode), so no write
