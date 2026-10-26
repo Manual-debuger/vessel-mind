@@ -321,7 +321,7 @@ def test_the_router_is_on_in_the_example_with_a_classification_timeout():
     ("configuration", "fast", "slow"),
     [
         ("hosted", "gemini-3.5-flash-lite", "gemini-3.6-flash"),
-        ("routed", "local-small", "gemini-3.6-flash"),
+        ("routed", "qwen3:8b", "gemini-3.6-flash"),
     ],
 )
 def test_the_router_pairs_the_selected_configurations_models(configuration, fast, slow):
@@ -335,7 +335,7 @@ def test_the_router_pairs_the_selected_configurations_models(configuration, fast
 def test_the_local_configuration_needs_no_key():
     router = build_router(load_config(EXAMPLE), {}, configuration="local")
 
-    assert (router.fast.id, router.slow.id) == ("local-small", "local-large")
+    assert (router.fast.id, router.slow.id) == ("qwen3:8b", "qwen3.6:35b-a3b")
 
 
 def test_the_router_can_be_turned_off_for_the_slow_only_baseline(tmp_path):
@@ -358,7 +358,7 @@ def test_app_from_config_serves_the_configuration_it_is_given(tmp_path, monkeypa
     with TestClient(app) as client:
         health = client.get("/health").json()
 
-    assert health == {"status": "ok", "model": "local-large"}
+    assert health == {"status": "ok", "model": "qwen3.6:35b-a3b"}
 
 
 def test_a_provider_must_state_its_auth_scheme(tmp_path):
