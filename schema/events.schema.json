@@ -122,6 +122,65 @@
       "title": "ProposalEvent",
       "type": "object"
     },
+    "RouteEvent": {
+      "additionalProperties": false,
+      "description": "The router's decision for this turn (\u00a75.7). Sent first, before any other event,\nwhen the server routes turns.\n\nreason says how the route was reached: `classified` (the fast model chose it),\n`timeout`, `invalid` (the classification was not the expected JSON) or\n`model_error` (each of these three falls back to the slow path), or `router_off`\n(every turn takes the slow path).",
+      "properties": {
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "reason": {
+          "enum": [
+            "classified",
+            "timeout",
+            "invalid",
+            "model_error",
+            "router_off"
+          ],
+          "title": "Reason",
+          "type": "string"
+        },
+        "route": {
+          "enum": [
+            "fast",
+            "slow"
+          ],
+          "title": "Route",
+          "type": "string"
+        },
+        "router_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Router Model"
+        },
+        "router_usage": {
+          "$ref": "#/$defs/Usage"
+        },
+        "type": {
+          "const": "route",
+          "default": "route",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "route",
+        "reason",
+        "router_model",
+        "router_usage",
+        "model"
+      ],
+      "title": "RouteEvent",
+      "type": "object"
+    },
     "TextEvent": {
       "additionalProperties": false,
       "description": "A piece of the answer, in order. Concatenate them to get the text.",
@@ -247,6 +306,7 @@
       "done": "#/$defs/DoneEvent",
       "error": "#/$defs/ErrorEvent",
       "proposal": "#/$defs/ProposalEvent",
+      "route": "#/$defs/RouteEvent",
       "text": "#/$defs/TextEvent",
       "tool_result": "#/$defs/ToolResultEvent",
       "tool_start": "#/$defs/ToolStartEvent"
@@ -254,6 +314,9 @@
     "propertyName": "type"
   },
   "oneOf": [
+    {
+      "$ref": "#/$defs/RouteEvent"
+    },
     {
       "$ref": "#/$defs/TextEvent"
     },

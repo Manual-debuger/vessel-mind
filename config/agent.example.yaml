@@ -16,14 +16,41 @@ providers:
     # key_env: NAME} sends the key in that header. key_env is the NAME of the
     # env var, in upper snake case; a pasted key fails validation.
     auth: {scheme: bearer, key_env: GEMINI_API_KEY}
+  local:
+    # A local OpenAI-compatible server (llama-server or Ollama; both serve
+    # /v1/chat/completions). PLACEHOLDER: the server is not set up yet, so this
+    # URL and the local model ids below are not chosen.
+    base_url: http://127.0.0.1:8080/v1
+    auth: {scheme: none}
 
-# Each configuration is a fixed pair of models. `chosen` is the date the
-# model id was pinned. The slow path uses gemini-3.5-flash, not 3.8: 3.8
-# allows only 20 free requests a day.
+# Each configuration is a fixed pair of models: the fast path and the slow
+# path. `chosen` is the date the model id was pinned. The slow path uses
+# gemini-3.5-flash, not 3.8: 3.8 allows only 20 free requests a day.
 configurations:
+  # The default: needs only GEMINI_API_KEY.
   hosted:
     fast: {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-26}
     slow: {provider: gemini, model: gemini-3.5-flash, chosen: 2026-10-26}
+  # Both paths on the local server. PLACEHOLDER model ids: not yet chosen;
+  # replace them and their `chosen` dates when the server is set up.
+  local:
+    fast: {provider: local, model: local-small, chosen: 2026-10-26}  # not yet chosen
+    slow: {provider: local, model: local-large, chosen: 2026-10-26}  # not yet chosen
+  # The local small model routes and answers fast turns; Gemini answers slow ones.
+  routed:
+    fast: {provider: local, model: local-small, chosen: 2026-10-26}  # not yet chosen
+    slow: {provider: gemini, model: gemini-3.5-flash, chosen: 2026-10-26}
+
+# The router: the fast model classifies each turn as fast or slow. A fast
+# turn is retrieved first and answered by the fast model; a slow turn runs the
+# tool loop on the slow model. A classification slower than `timeout` seconds,
+# or one that is not the expected JSON, goes slow. `enabled: false` sends
+# every turn to the slow path (the eval's slow-only baseline).
+router:
+  enabled: true
+  timeout: 10.0
+  # The classification's token budget; Gemini counts thinking tokens in it.
+  max_tokens: 1024
 
 # HTTP 429 and 503: exponential backoff from backoff_base seconds, honouring
 # Retry-After. A wait longer than backoff_max seconds (Gemini's daily limit
@@ -78,3 +105,34 @@ retrieval:
 # the server refuses every approval (HTTP 403, code demo_mode), so no write
 # tool runs. Keep it false on localhost.
 demo_mode: false
+
+# MCP servers, started over stdio when the app starts. The model sees each
+# tool as <server>_<tool>, for example notion_API-post-search.
+mcp_servers:
+  notion:
+    # The Notion MCP server pinned by deploy/notion-mcp/package-lock.json.
+    # Install it once with `npm ci --ignore-scripts` in deploy/notion-mcp.
+    # It runs with node, never npx: npx would fetch whatever is newest. A
+    # relative path is relative to the directory the server runs in.
+    command: node
+    args: [deploy/notion-mcp/node_modules/@notionhq/notion-mcp-server/bin/cli.mjs]
+    # Set it to true to start the server. It then needs NOTION_TOKEN.
+    enabled: false
+    # The integration's token. Share the integration with ONE demo page only,
+    # never a personal page. The public host uses a read-only integration
+    # (ADR 0002), so Notion itself refuses a write there.
+    auth: {scheme: bearer, key_env: NOTION_TOKEN}
+    # The server process gets the credential as this JSON object of headers.
+    # It inherits no other secret from the app (only PATH, HOME and the like).
+    headers_env: OPENAPI_MCP_HEADERS
+    # Only the tools named here are registered; any other tool the server
+    # lists is refused with a warning. Labels are never defaulted. Page
+    # content is text other people can write, so every tool taints the
+    # context. A write tool only makes a proposal; it runs on Approve.
+    tools:
+      API-post-search: {resource: workspace, effect: read, exfil: false, taints_context: true}
+      API-retrieve-a-page: {resource: workspace, effect: read, exfil: false, taints_context: true}
+      API-get-block-children: {resource: workspace, effect: read, exfil: false, taints_context: true}
+      API-post-page: {resource: workspace, effect: write, exfil: true, taints_context: true}
+      API-patch-page: {resource: workspace, effect: write, exfil: true, taints_context: true}
+      API-patch-block-children: {resource: workspace, effect: write, exfil: true, taints_context: true}

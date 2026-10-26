@@ -1,0 +1,12 @@
+{
+  "name": "vessel-mind-notion-mcp",
+  "private": true,
+  "description": "Pins the Notion MCP server that vessel-mind starts with node over stdio. Install with npm ci --ignore-scripts.",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@notionhq/notion-mcp-server": "2.5.2"
+  }
+}

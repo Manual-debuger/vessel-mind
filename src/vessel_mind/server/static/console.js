@@ -163,7 +163,10 @@
     article.append(element("p", "question", text));
     const answer = element("p", "answer");
     const status = element("p", "status", "starting…");
-    article.append(answer, status);
+    // Filled by the route event: the route, the models and their token usage.
+    const badge = element("p", "route-badge");
+    badge.hidden = true;
+    article.append(badge, answer, status);
     turns.append(article);
     question.value = "";
     running(true);
@@ -184,7 +187,7 @@
     // text, never as HTML.
     article.setAttribute("hx-ext", "sse");
     article.setAttribute("sse-connect", `/turns/${encodeURIComponent(turnId)}/events`);
-    answer.setAttribute("sse-swap", "text,tool_start,proposal,tool_result,done,error");
+    answer.setAttribute("sse-swap", "route,text,tool_start,proposal,tool_result,done,error");
     article.addEventListener("htmx:sseOpen", (open) => {
       turn.source = open.detail.source;
     });
@@ -200,10 +203,16 @@
       return part;
     };
     let part = newPart();
+    let route = null;
     answer.addEventListener("htmx:sseBeforeMessage", (message) => {
       message.preventDefault();
       const event = JSON.parse(message.detail.data);
-      if (event.type === "text") {
+      if (event.type === "route") {
+        route = event;
+        badge.className = `route-badge route-${event.route}`;
+        badge.textContent = VesselRoute.describe(route, null);
+        badge.hidden = false;
+      } else if (event.type === "text") {
         // Re-rendered whole: a citation may arrive split across two deltas.
         part.text += event.text;
         part.node.replaceChildren(...VesselCitations.split(part.text, citations).map(citationNode));
@@ -231,6 +240,7 @@
           // The server withdraws the proposals of a cancelled turn.
           for (const p of proposals) if (p.open) closeProposal(p, "withdrawn");
         }
+        if (route) badge.textContent = VesselRoute.describe(route, event);
         finish(turn, status, describeDone(event));
       } else if (event.type === "error") {
         finish(turn, status, `error (${event.code}): ${event.message}`);

@@ -22,6 +22,31 @@ class _Event(BaseModel):
     )
 
 
+RouteReason = Literal["classified", "timeout", "invalid", "model_error", "router_off"]
+
+
+class RouteEvent(_Event):
+    """The router's decision for this turn (§5.7). Sent first, before any other event,
+    when the server routes turns.
+
+    reason says how the route was reached: `classified` (the fast model chose it),
+    `timeout`, `invalid` (the classification was not the expected JSON) or
+    `model_error` (each of these three falls back to the slow path), or `router_off`
+    (every turn takes the slow path).
+    """
+
+    type: Literal["route"] = "route"
+    route: Literal["fast", "slow"]
+    reason: RouteReason
+    # The model that classified the turn; null when the router is off.
+    router_model: str | None
+    # The classification's own usage. done.usage counts only the answering model's
+    # steps, so a turn's tokens are router_usage plus done.usage.
+    router_usage: Usage
+    # The model that answers the turn.
+    model: str
+
+
 class TextEvent(_Event):
     """A piece of the answer, in order. Concatenate them to get the text."""
 
@@ -86,7 +111,13 @@ class ErrorEvent(_Event):
 
 
 AgentEvent = Annotated[
-    TextEvent | ToolStartEvent | ProposalEvent | ToolResultEvent | DoneEvent | ErrorEvent,
+    RouteEvent
+    | TextEvent
+    | ToolStartEvent
+    | ProposalEvent
+    | ToolResultEvent
+    | DoneEvent
+    | ErrorEvent,
     Field(discriminator="type"),
 ]
 

@@ -16,3 +16,7 @@ config/agent.yaml
 # downloaded corpus tarballs and embedding models.
 data/
 .cache/
+
+# The Notion MCP server, installed from deploy/notion-mcp/package-lock.json
+# with npm ci; only the two package files are committed.
+deploy/notion-mcp/node_modules/

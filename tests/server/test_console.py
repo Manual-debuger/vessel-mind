@@ -36,7 +36,8 @@ def test_the_console_listens_for_every_protocol_event_it_renders():
     with TestClient(create_app(SilentModel())) as client:
         script = client.get("/static/console.js").text
 
-    assert 'sse-swap", "text,tool_start,proposal,tool_result,done,error"' in script
+    assert 'sse-swap", "route,text,tool_start,proposal,tool_result,done,error"' in script
+    assert 'event.type === "route"' in script
 
 
 def test_the_console_resolves_proposals_only_through_the_protocol():
@@ -55,6 +56,7 @@ def test_the_console_scripts_are_served_from_the_app_not_a_cdn():
             "/static/vendor/htmx-2.0.11.min.js",
             "/static/vendor/htmx-ext-sse-2.2.4.min.js",
             "/static/citations.js",
+            "/static/route.js",
             "/static/console.js",
         ]
         for src in scripts:
@@ -115,3 +117,62 @@ def test_a_url_that_is_not_github_is_never_a_link():
     parts = split_citations("See [1].", [{"n": 1, "source": "x", "url": "javascript:alert(1)"}])
 
     assert parts == ["See [1]."]
+
+
+ROUTE_JS = CITATIONS_JS.with_name("route.js")
+
+
+def route_badge(route: dict, done: dict | None) -> str:
+    """Runs route.js's describe in node: the console's own badge text."""
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed")
+    program = (
+        "const vm = require('vm'); const fs = require('fs');"
+        "const window = {}; vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), {window});"
+        "const [route, done] = JSON.parse(process.argv[2]);"
+        "console.log(JSON.stringify(window.VesselRoute.describe(route, done)));"
+    )
+    out = subprocess.run(  # noqa: S603 -- fixed program, arguments are data
+        [node, "-e", program, str(ROUTE_JS), json.dumps([route, done])],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return json.loads(out.stdout)
+
+
+USAGE = {"input_tokens": 200, "output_tokens": 12, "thinking_tokens": 0}
+
+
+def test_the_route_badge_names_the_route_the_models_and_both_usages():
+    route = {
+        "type": "route",
+        "route": "fast",
+        "reason": "classified",
+        "router_model": "small",
+        "router_usage": {"input_tokens": 50, "output_tokens": 6, "thinking_tokens": 0},
+        "model": "small",
+    }
+
+    badge = route_badge(route, {"type": "done", "reason": "end", "usage": USAGE, "steps": 1})
+
+    assert badge == (
+        "fast path (classified) · router small: in 50, out 6, thinking 0"
+        " · answer small: in 200, out 12, thinking 0"
+    )
+
+
+def test_the_route_badge_with_the_router_off_names_only_the_answering_model():
+    route = {
+        "type": "route",
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": None,
+        "router_usage": {"input_tokens": 0, "output_tokens": 0, "thinking_tokens": 0},
+        "model": "large",
+    }
+
+    badge = route_badge(route, None)
+
+    assert badge == "slow path (router_off) · answer large"

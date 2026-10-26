@@ -4,13 +4,21 @@ Config names the env var that holds a key; it never holds the key itself.
 """
 
 import datetime
-from pathlib import Path
-from typing import Literal
+from pathlib import Path, PurePath
+from typing import Annotated, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
-from vessel_mind.core.credentials import ProviderAuth
+from vessel_mind.core.capabilities import CapabilityLabels
+from vessel_mind.core.credentials import EnvVarName, NoAuth, ProviderAuth
 from vessel_mind.rag.embed import DEFAULT_MODEL
 from vessel_mind.rag.rerank import DEFAULT_RERANK_MODEL, RerankerProvider
 from vessel_mind.rag.search import CANDIDATE_K, TOP_K, CandidateStage
@@ -46,6 +54,16 @@ class Configuration(_Config):
     slow: ModelChoice
 
 
+class RouterSettings(_Config):
+    """The router (§5.7). enabled: false sends every turn to the slow path."""
+
+    enabled: bool = True
+    # Seconds the fast model may take to classify a turn before it goes slow.
+    timeout: float = Field(default=10.0, gt=0)
+    # The classification's token budget. Gemini counts thinking tokens in it.
+    max_tokens: int | None = Field(default=None, gt=0)
+
+
 class Retry(_Config):
     max_retries: int = Field(default=3, ge=0)
     backoff_base: float = Field(default=1.0, gt=0)
@@ -66,6 +84,42 @@ class State(_Config):
 class Sessions(_Config):
     # The turns one session may start, to protect the free quota. None: no limit.
     max_turns: int | None = Field(default=None, gt=0)
+
+
+# Commands that fetch a package at start instead of running a pinned one.
+_PACKAGE_RUNNERS = frozenset({"npx", "npm", "pnpm", "pnpx", "yarn", "bunx", "uvx"})
+
+
+class McpServerConfig(_Config):
+    """An MCP server the runtime starts over stdio, and the labels of its tools."""
+
+    # Started as `command args...`, never through a package runner: the package is
+    # pinned by a committed lockfile (deploy/notion-mcp/) and run with node.
+    command: str = Field(min_length=1)
+    args: list[str] = []
+    # False keeps the server in the file without starting it.
+    enabled: bool = True
+    # Required and never defaulted, as for providers.
+    auth: ProviderAuth
+    # The env var that carries the credential's headers, as a JSON object, to the
+    # server process. Required unless auth is {scheme: none}.
+    headers_env: EnvVarName | None = None
+    # The server's own tool names and their labels. A tool not named here is not
+    # registered: labels are never defaulted.
+    tools: dict[str, CapabilityLabels] = {}
+
+    @field_validator("command")
+    @classmethod
+    def _no_package_runner(cls, command: str) -> str:
+        if PurePath(command).name.removesuffix(".cmd").lower() in _PACKAGE_RUNNERS:
+            raise ValueError("start the pinned package with node, never a package runner")
+        return command
+
+    @model_validator(mode="after")
+    def _credential_has_a_carrier(self) -> "McpServerConfig":
+        if isinstance(self.auth, NoAuth) != (self.headers_env is None):
+            raise ValueError("headers_env is required with a credential, and only with one")
+        return self
 
 
 class Retrieval(_Config):
@@ -95,6 +149,7 @@ class AgentConfig(_Config):
     configuration: Literal["hosted", "local", "routed"]
     providers: dict[str, Provider]
     configurations: dict[str, Configuration]
+    router: RouterSettings = RouterSettings()
     retry: Retry = Retry()
     agent: Agent = Agent()
     state: State = State()
@@ -102,6 +157,10 @@ class AgentConfig(_Config):
     retrieval: Retrieval = Retrieval()
     # ADR 0002: on the public host, proposals are shown but every approval is refused.
     demo_mode: bool = False
+    # MCP servers by name; the model sees each tool as '<name>_<tool>'.
+    mcp_servers: dict[
+        Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]{0,19}$")], McpServerConfig
+    ] = {}
 
     @model_validator(mode="after")
     def _references_resolve(self) -> "AgentConfig":
@@ -116,6 +175,13 @@ class AgentConfig(_Config):
     @property
     def active(self) -> Configuration:
         return self.configurations[self.configuration]
+
+    def select(self, name: str | None = None) -> Configuration:
+        """The named configuration, or the active one when name is None."""
+        name = self.configuration if name is None else name
+        if name not in self.configurations:
+            raise ConfigError(f"configuration {name!r} is not defined")
+        return self.configurations[name]
 
 
 def load_config(path: Path) -> AgentConfig:

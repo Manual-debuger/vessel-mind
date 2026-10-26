@@ -6,7 +6,11 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
+from vessel_mind.agent.mcp_client import McpServer
 from vessel_mind.agent.models.openai_compatible import OpenAICompatibleModel
+from vessel_mind.agent.router import Router
+from vessel_mind.core.capabilities import CapabilityRegistry
+from vessel_mind.core.chat import ChatModel
 from vessel_mind.core.credentials import CredentialError, resolve_credential
 from vessel_mind.rag.corpus import Document
 from vessel_mind.rag.embed import Embedder, FastEmbedEmbedder
@@ -14,7 +18,7 @@ from vessel_mind.rag.ingest import corpus_loader
 from vessel_mind.rag.rerank import make_reranker
 from vessel_mind.rag.search import Reranker
 from vessel_mind.server.app import create_app
-from vessel_mind.server.config import ConfigError, ModelChoice, load_config
+from vessel_mind.server.config import AgentConfig, ConfigError, ModelChoice, load_config
 from vessel_mind.server.retrieval import RetrievalService, search_docs_registry
 
 DEFAULT_CONFIG = Path("config/agent.yaml")
@@ -27,29 +31,13 @@ def _config_path(environ: Mapping[str, str]) -> Path:
     return DEFAULT_CONFIG if DEFAULT_CONFIG.exists() else EXAMPLE_CONFIG
 
 
-def app_from_config(
-    path: Path | None = None,
-    environ: Mapping[str, str] | None = None,
-    *,
-    embedder: Embedder | None = None,
-    load_documents: Callable[[], Iterable[Document]] | None = None,
-    reranker: Reranker | None = None,
-) -> FastAPI:
-    """embedder, load_documents and reranker replace the configured embedding
-    model, the pinned corpus and the configured reranker; tests pass fakes, so no
-    model loads and nothing is fetched."""
-    environ = os.environ if environ is None else environ
-    config = load_config(path or _config_path(environ))
-
-    # The tracer answers every turn on the slow path; the router comes later.
-    choice: ModelChoice = config.active.slow
+def _model(config: AgentConfig, choice: ModelChoice, environ: Mapping[str, str]) -> ChatModel:
     provider = config.providers[choice.provider]
     try:
         credential = resolve_credential(provider.auth, environ)
     except CredentialError as error:
         raise ConfigError(f"provider {choice.provider!r}: {error}") from None
-
-    model = OpenAICompatibleModel(
+    return OpenAICompatibleModel(
         id=choice.model,
         base_url=provider.base_url,
         credential=credential,
@@ -57,6 +45,51 @@ def app_from_config(
         backoff_base=config.retry.backoff_base,
         backoff_max=config.retry.backoff_max,
     )
+
+
+def build_router(
+    config: AgentConfig,
+    environ: Mapping[str, str],
+    *,
+    configuration: str | None = None,
+    enabled: bool | None = None,
+) -> Router:
+    """The router over one configuration's models: the active one unless named.
+
+    enabled overrides router.enabled; False is the eval's slow-only baseline.
+    Raises ConfigError for an undefined configuration or an unset key.
+    """
+    pair = config.select(configuration)
+    settings = config.router
+    return Router(
+        _model(config, pair.fast, environ),
+        _model(config, pair.slow, environ),
+        enabled=settings.enabled if enabled is None else enabled,
+        timeout=settings.timeout,
+        max_tokens=settings.max_tokens,
+    )
+
+
+def app_from_config(
+    path: Path | None = None,
+    environ: Mapping[str, str] | None = None,
+    *,
+    configuration: str | None = None,
+    router: bool | None = None,
+    embedder: Embedder | None = None,
+    load_documents: Callable[[], Iterable[Document]] | None = None,
+    reranker: Reranker | None = None,
+) -> FastAPI:
+    """configuration and router override the config file's `configuration` and
+    `router.enabled`, as build_router does.
+
+    embedder, load_documents and reranker replace the configured embedding
+    model, the pinned corpus and the configured reranker; tests pass fakes, so no
+    model loads and nothing is fetched."""
+    environ = os.environ if environ is None else environ
+    config = load_config(path or _config_path(environ))
+    turn_router = build_router(config, environ, configuration=configuration, enabled=router)
+
     settings = config.retrieval
     if embedder is None:
         try:
@@ -80,13 +113,44 @@ def app_from_config(
         top_k=settings.top_k,
         reranker=reranker,
     )
+    registry = search_docs_registry(retrieval)
+    # The MCP servers register their tools in the same registry when they start.
+    mcp_servers = mcp_servers_from_config(config, registry, environ)
     return create_app(
-        model,
-        tools=search_docs_registry(retrieval),
+        turn_router.slow,
+        router=turn_router,
+        tools=registry,
         system=config.agent.system,
         max_tokens=config.agent.max_tokens,
         state_path=config.state.path,
         max_turns_per_session=config.sessions.max_turns,
         demo_mode=config.demo_mode,
-        services=[retrieval],
+        services=[retrieval, *mcp_servers],
     )
+
+
+def mcp_servers_from_config(
+    config: AgentConfig, registry: CapabilityRegistry, environ: Mapping[str, str]
+) -> list[McpServer]:
+    """The enabled MCP servers, not yet started. Each registers its labelled tools
+    in the registry when the app starts it."""
+    servers: list[McpServer] = []
+    for name, server in config.mcp_servers.items():
+        if not server.enabled:
+            continue
+        try:
+            credential = resolve_credential(server.auth, environ)
+        except CredentialError as error:
+            raise ConfigError(f"mcp server {name!r}: {error}") from None
+        servers.append(
+            McpServer(
+                name,
+                command=server.command,
+                args=server.args,
+                labels=server.tools,
+                registry=registry,
+                credential=credential,
+                headers_env=server.headers_env if credential is not None else None,
+            )
+        )
+    return servers

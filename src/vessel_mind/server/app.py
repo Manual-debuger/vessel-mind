@@ -14,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict, Field
 
 from vessel_mind.agent.loop import TurnTally, run_turn
+from vessel_mind.agent.router import Router
 from vessel_mind.core.capabilities import CapabilityRegistry
 from vessel_mind.core.chat import ChatMessage, ChatModel
 from vessel_mind.core.events import AgentEvent, DoneEvent, ErrorEvent
@@ -76,6 +77,7 @@ def _sse(event: AgentEvent) -> str:
 def create_app(
     model: ChatModel,
     *,
+    router: Router | None = None,
     tools: CapabilityRegistry | None = None,
     system: str | None = None,
     max_tokens: int | None = None,
@@ -88,8 +90,14 @@ def create_app(
     """The app over one model. tools is the capability registry the loop may call;
     None offers no tools. state_path is the SQLite state file, opened at startup.
 
+    router, when given, routes every turn between its fast and slow models, and each
+    turn's stream starts with a route event; model is then its slow model, which
+    /health names. Without a router, model answers every turn and no route event is
+    sent.
+
     services are entered in order at startup, after the state file opens, and
-    exited in reverse at shutdown: for example the retrieval index its tools read.
+    exited in reverse at shutdown: for example the retrieval index its tools read,
+    or an MCP server, which registers its tools in the registry when it starts.
 
     max_turns_per_session bounds the turns one session may start, to protect the
     provider's free quota; None means no bound.
@@ -118,17 +126,20 @@ def create_app(
                 finished = True
                 store().finish_turn(turn_id, status, messages or [])
 
+        options: dict[str, Any] = {
+            "tools": registry,
+            "proposals": TurnProposals(store(), turn_id),
+            "system": system,
+            "max_tokens": max_tokens,
+            "tally": tally,
+        }
+        events = (
+            router.run(history, text, **options)
+            if router is not None
+            else run_turn(model, history, text, **options)
+        )
         try:
-            async for event in run_turn(
-                model,
-                history,
-                text,
-                tools=registry,
-                proposals=TurnProposals(store(), turn_id),
-                system=system,
-                max_tokens=max_tokens,
-                tally=tally,
-            ):
+            async for event in events:
                 # History is saved before the client is told the turn ended, so a
                 # client that starts the next turn on `done` always sees it.
                 if isinstance(event, DoneEvent):
@@ -168,7 +179,13 @@ def create_app(
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     async def console(request: Request) -> HTMLResponse:
         return _templates.TemplateResponse(
-            request, "console.html", {"model_id": model.id, "demo_mode": demo_mode}
+            request,
+            "console.html",
+            {
+                "model_id": model.id,
+                "fast_model_id": router.fast.id if router is not None else None,
+                "demo_mode": demo_mode,
+            },
         )
 
     @app.get("/health")
