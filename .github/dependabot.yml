@@ -17,3 +17,19 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+
+  # The base images in deploy/Dockerfile and the cloudflared image in
+  # compose.yaml, each pinned by tag and digest.
+  - package-ecosystem: docker
+    directory: "/deploy"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker-compose
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
