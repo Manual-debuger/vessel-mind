@@ -1,0 +1,66 @@
+name: CI
+
+# .github/workflows/ci.yml for a Python repository managed with uv. CI
+# calls the verify entrypoint (`task verify`) on Linux and Windows, on pull
+# requests and on pushes to the default branch. No Go toolchain: Task comes
+# from its own setup action. Every `uses:` is pinned to a full commit SHA,
+# and every tool to an exact version. Change main if the default branch has
+# another name.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  verify:
+    name: verify (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install task
+        uses: go-task/setup-task@a00fbb05ce67b35648be3c78cbc9fd85354c757e # v2.2.0
+        with:
+          version: 3.53.1
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: task verify
+        run: task verify
+
+  # The vulnerability scan: pip-audit checks the locked dependencies, not
+  # the project itself.
+  security:
+    name: security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install pip-audit
+        run: uv tool install pip-audit==2.9.0
+      - name: Export the locked requirements
+        run: uv export --frozen --no-hashes --no-emit-project --format requirements-txt -o "$RUNNER_TEMP/requirements.txt"
+      - name: pip-audit
+        run: pip-audit -r "$RUNNER_TEMP/requirements.txt"

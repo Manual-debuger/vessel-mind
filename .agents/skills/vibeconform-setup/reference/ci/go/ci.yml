@@ -1,0 +1,71 @@
+name: CI
+
+# .github/workflows/ci.yml for a Go repository. CI calls the verify
+# entrypoint (`task verify`) on Linux and Windows, on pull requests and on
+# pushes to the default branch. Every `uses:` is pinned to a full commit
+# SHA, and every tool to an exact version. Change main if the default
+# branch has another name.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.27.0"
+  TASK_VERSION: "v3.53.1"
+  GOLANGCI_LINT_VERSION: "v2.13.2"
+  # setup-go caches GOCACHE, which also holds test results: run the tests
+  # rather than replay a cached pass. Commands other than go test ignore
+  # the flag.
+  GOFLAGS: "-count=1"
+
+jobs:
+  verify:
+    name: verify (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Install task and the Go tools verify calls
+        shell: bash
+        run: |
+          go install github.com/go-task/task/v3/cmd/task@${{ env.TASK_VERSION }}
+          go install golang.org/x/tools/cmd/goimports@v0.51.0
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${{ env.GOLANGCI_LINT_VERSION }}
+          go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+      - name: task verify
+        run: task verify
+
+  # The vulnerability scan as a step of its own, so that it shows as a
+  # separate check.
+  security:
+    name: security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+      - name: govulncheck
+        run: govulncheck ./...

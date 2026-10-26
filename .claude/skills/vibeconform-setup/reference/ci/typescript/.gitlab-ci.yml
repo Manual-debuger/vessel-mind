@@ -1,0 +1,98 @@
+# .gitlab-ci.yml for a TypeScript repository managed with pnpm. CI calls
+# the verify entrypoint (`task verify`) on a Linux and a Windows runner, in
+# merge request pipelines and on pushes to the default branch; a job of
+# its own scans for known vulnerabilities, and conformance:audit runs the
+# contract audit. No Go toolchain: Task comes from npm (@go-task/cli), and
+# corepack installs the pnpm of package.json's packageManager field. Every
+# image is pinned by digest (keep the tag for readers), and every tool to
+# an exact version.
+
+# Pipelines run for merge requests and for pushes to the default branch.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Every job extends .pipelines. A job with no rules: runs in branch
+# pipelines only, never in a merge request pipeline.
+.pipelines:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+default:
+  interruptible: true
+
+variables:
+  # An exact release of the Node major the GitHub reference names, as
+  # Chocolatey and nodejs.org need one.
+  NODE_RELEASE: "22.23.3"
+  TASK_VERSION: "v3.53.1"
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+
+# Node and pnpm on Linux. No tags and an image: GitLab's shared Linux
+# runners take the job.
+.linux:
+  extends: .pipelines
+  image: node:22.23.3-bookworm@sha256:0e5f906573693feaa1e21057ebdcfdb5bd5021f050b2dc7c9deceb629c7da2a8
+  before_script:
+    - corepack enable
+    - npm install --global @go-task/cli@${TASK_VERSION#v}
+    - pnpm install --frozen-lockfile
+
+verify:linux:
+  extends: .linux
+  script:
+    - task verify
+
+# GitLab.com's Windows runners: the tag names the platform (C-05). The
+# shell is PowerShell, and there is no image: Chocolatey installs Node.
+# On a self-managed instance, use the tags of your Windows runners.
+verify:windows:
+  extends: .pipelines
+  tags: [saas-windows-medium-amd64]
+  before_script:
+    - choco install nodejs-lts --version=$env:NODE_RELEASE --yes --no-progress
+    - $env:Path = "C:\Program Files\nodejs;$env:APPDATA\npm;$env:Path"
+    - corepack enable
+    - npm install --global @go-task/cli@$($env:TASK_VERSION.TrimStart('v'))
+    - pnpm install --frozen-lockfile
+  script:
+    - task verify
+
+# The vulnerability scan of the locked dependencies (D-03).
+security:
+  extends: .pipelines
+  image: node:22.23.3-bookworm@sha256:0e5f906573693feaa1e21057ebdcfdb5bd5021f050b2dc7c9deceb629c7da2a8
+  script:
+    - corepack enable
+    - pnpm audit --audit-level high
+
+# The contract audit in a job of its own. It is the only job that runs
+# vibe; removing VibeConform is deleting this job. It does not call verify
+# itself: vibe audit runs verify and verify-fast in a probe copy, and the
+# guard probes through the hooks in .claude/settings.json. So it sets up
+# every tool the entrypoints call, then installs vibe and vibe-guard
+# v0.14.0-alpha.1 from the release, checked against its checksums.txt.
+# VIBE_VERSION must be an exact release such as v0.12.0-alpha.1, never
+# latest. Where this file says latest (it came from a vibe built from
+# source), use the newest release tag; list them with
+#   git ls-remote --tags https://github.com/Manual-debuger/VibeConform
+conformance:audit:
+  extends: .linux
+  timeout: 60m
+  variables:
+    VIBE_VERSION: "v0.14.0-alpha.1"
+  script:
+    - |
+      base="https://github.com/Manual-debuger/VibeConform/releases/download/$VIBE_VERSION"
+      dl=$(mktemp -d) && mkdir -p "$HOME/.local/bin"
+      curl -fsSL -o "$dl/checksums.txt" "$base/checksums.txt"
+      for tool in vibe vibe-guard; do
+        archive="${tool}_${VIBE_VERSION#v}_linux_amd64.tar.gz"
+        curl -fsSL -o "$dl/$archive" "$base/$archive"
+        (cd "$dl" && grep " $archive\$" checksums.txt | sha256sum -c -)
+        tar -xzf "$dl/$archive" -C "$HOME/.local/bin" "$tool"
+      done
+    - export PATH="$HOME/.local/bin:$PATH"
+    - vibe audit

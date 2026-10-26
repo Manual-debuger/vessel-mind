@@ -1,0 +1,56 @@
+version: "3"
+
+# A TypeScript component of a monorepo, with its own package.json and
+# pnpm-lock.yaml; copy it to <component path>/Taskfile.yml. The root
+# Taskfile.yml includes this file under the component's id, so
+# "task <id>:test" at the root runs "task test" here; "task verify" works
+# from this directory too. Every cache below lives under this component's
+# node_modules, which a Node project already ignores.
+
+tasks:
+  setup:
+    desc: Install the locked dependencies.
+    cmds:
+      - pnpm install --frozen-lockfile
+
+  fmt:
+    desc: Apply Prettier formatting.
+    cmds:
+      - pnpm exec prettier --write --cache "**/*.{js,jsx,ts,tsx,json,css,md}"
+
+  fmt:check:
+    desc: Fail if any file is not Prettier-formatted (CI-safe, no writes).
+    cmds:
+      - pnpm exec prettier --check --cache "**/*.{js,jsx,ts,tsx,json,css,md}"
+
+  lint:
+    desc: Run eslint.
+    cmds:
+      - pnpm exec eslint . --cache --cache-location node_modules/.cache/eslint/
+
+  typecheck:
+    desc: Type-check with tsc, emitting nothing.
+    cmds:
+      - pnpm exec tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/tsc/tsbuildinfo
+
+  test:
+    desc: Run the test suite.
+    cmds:
+      - pnpm test
+
+  verify:
+    desc: Verification gate for this component.
+    cmds:
+      - task: fmt:check
+      - task: lint
+      - task: typecheck
+      - task: test
+
+  verify:fast:
+    desc: Fast incremental verification; same steps as verify, made
+      incremental by the caches above.
+    cmds:
+      - task: fmt:check
+      - task: lint
+      - task: typecheck
+      - task: test

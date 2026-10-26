@@ -1,0 +1,20 @@
+[project]
+name = "vessel-mind"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+# package = false above means this project is never installed, editable or
+# otherwise, so pytest needs telling where the src layout lives.
+pythonpath = ["src"]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.414",
+    "pytest>=9.1.1",
+    "ruff>=0.17.2",
+]

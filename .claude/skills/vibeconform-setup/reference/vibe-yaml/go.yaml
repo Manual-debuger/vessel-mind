@@ -1,0 +1,12 @@
+# vibe.yaml version 2 for a Go repository with one component at the root.
+# Write the entrypoints the repository already has; these are the Task
+# targets of reference/taskrunner/go/Taskfile.yml.
+contract: 1.1.0
+platforms: [linux, windows]
+agents: [claude]
+# No components: one component at the root, found from go.mod.
+entrypoints:
+  verify: task verify
+  verify-fast: task verify:fast
+  fmt: task fmt
+  fmt-check: task fmt:check

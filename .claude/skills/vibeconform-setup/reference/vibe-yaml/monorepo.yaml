@@ -1,0 +1,22 @@
+# vibe.yaml version 2 for a monorepo. Every component is listed with its
+# path and language; the entrypoints are repository-wide.
+contract: 1.1.0
+platforms: [linux, windows]
+agents: [claude]
+components:
+  - path: services/api
+    language: go
+  - path: apps/web
+    language: typescript
+  - path: services/worker
+    language: python
+entrypoints:
+  # Installs each component's dependencies in the audit's probe copy.
+  setup: task setup
+  # When CI verifies each component in a job of its own, list the
+  # commands those jobs call instead:
+  #   verify: [task api:verify, task web:verify, task worker:verify]
+  verify: task verify
+  verify-fast: task verify:fast
+  fmt: task fmt
+  fmt-check: task fmt:check

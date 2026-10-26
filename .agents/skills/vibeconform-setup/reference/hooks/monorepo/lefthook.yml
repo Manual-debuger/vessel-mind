@@ -1,0 +1,25 @@
+# Lefthook: the format check at commit time, fast verification at push time.
+# CI is the full gate; these hooks are a fast local first line of defense.
+# Install once per clone with "lefthook install".
+#
+# The root's fmt:check covers every component (services/api, apps/web,
+# services/worker), so a commit checks the formatting of all of them.
+
+pre-commit:
+  commands:
+    fmt-check:
+      glob: "*.{go,py,js,jsx,ts,tsx,json,css,md}"
+      run: task fmt:check
+      fail_text: "Run 'task fmt' to format every component."
+
+# verify:fast runs every component's own verify:fast, Go tests in short
+# mode; the full suite is CI's, and "task test" runs it by hand.
+#
+# A pre-push hook started from a linked worktree exports GIT_DIR, so a
+# test that runs git would act on the real repository instead of its
+# fixture. unset clears Git's repository variables first; lefthook runs
+# run: with sh on every platform.
+pre-push:
+  commands:
+    verify-fast:
+      run: unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR; task verify:fast

@@ -1,0 +1,35 @@
+# .github/dependabot.yml: one entry per component, with the component's
+# path and ecosystem, and one for github-actions, so the pinned action
+# SHAs are updated too.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: "/services/api"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    # No auto-merge: dependency PRs are reviewed like any other change.
+
+  - package-ecosystem: npm
+    directory: "/apps/web"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    # No auto-merge: dependency PRs are reviewed like any other change.
+
+  - package-ecosystem: pip
+    directory: "/services/worker"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    # No auto-merge: dependency PRs are reviewed like any other change.
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5

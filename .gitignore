@@ -1,0 +1,9 @@
+# The virtual environment and bytecode.
+.venv/
+__pycache__/
+*.pyc
+
+# Claude Code: personal settings, and agent worktrees, each a full
+# checkout.
+.claude/settings.local.json
+.claude/worktrees/

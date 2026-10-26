@@ -1,0 +1,279 @@
+version: "3"
+
+# The verification entrypoints of a Go repository, for Task v3.39.0 or
+# newer. The repository's own tasks (build, run, deploy) go in this file
+# too. Task's built-in shell interprets POSIX syntax the same way on
+# Windows, Linux and macOS, so no command needs a per-OS branch.
+
+tasks:
+  fmt:
+    desc: Apply gofmt/goimports formatting.
+    cmds:
+      - gofmt -l -w .
+      - goimports -l -w .
+
+  fmt:check:
+    desc: Fail if any file is not gofmt/goimports formatted (CI-safe, no writes).
+    cmds:
+      - test -z "$(gofmt -l .)"
+      - test -z "$(goimports -l .)"
+
+  lint:
+    desc: Run go vet and golangci-lint.
+    cmds:
+      - go vet ./...
+      - golangci-lint run
+
+  typecheck:
+    desc: Type-check by building all packages (Go has no separate typechecker).
+    cmds:
+      - go build ./...
+
+  # Every test. go test's own timeout is ten minutes, which a slow suite
+  # outgrows; 30 minutes means nobody needs GOFLAGS to run it or push.
+  test:
+    desc: Run the test suite.
+    cmds:
+      - go test -timeout 30m ./...
+
+  test:race:
+    desc: Run the test suite with the race detector.
+    cmds:
+      - go test -race -timeout 30m ./...
+
+  # What verify:fast and the agents' background check run: go test -short
+  # skips the tests that check testing.Short() and run only in task test.
+  # It prints only what an agent needs: go test's "ok" and "[no test
+  # files]" lines are dropped, every other line is kept, and the exit code
+  # is go test's. The filter is Task's own shell, not grep, which a Windows
+  # machine can lack. Silent, so Task does not echo the script.
+  test:short:
+    desc: Run the test suite in short mode (go test -short); "task test"
+      runs every test.
+    silent: true
+    cmds:
+      - |
+        rc=0
+        out=$(go test -short ./... 2>&1) || rc=$?
+        printf '%s\n' "$out" | while IFS= read -r l; do
+          case "$l" in 'ok '*|'? '*) ;; *) printf '%s\n' "$l" ;; esac
+        done
+        exit $rc
+
+  mod:verify:
+    desc: Ensure go.mod/go.sum are tidy and modules are verified.
+    cmds:
+      - go mod tidy
+      - go mod verify
+      - git diff --exit-code -- go.mod go.sum
+
+  security:
+    desc: Run vulnerability scanning.
+    cmds:
+      - govulncheck ./...
+
+  # Skipped (Task's status: holds) where there is no .github/workflows, as
+  # on GitLab CI, whose reference CI does not install actionlint.
+  workflows:lint:
+    desc: Validate GitHub Actions workflow files.
+    status:
+      - test ! -d .github/workflows
+    cmds:
+      - actionlint
+
+  # The agent hooks. .claude/settings.json calls them as
+  # "task -x hook:<name>": without -x, Task reports a script's exit 2 as
+  # 201, and Claude Code shows the model only exit 2. No desc, so they
+  # stay out of task --list. Task runs each cmd with errexit, so every
+  # command that can fail on a healthy machine ends in "|| true" or
+  # "|| echo missing".
+  #
+  # Session start: a few lines of facts for the agent's context. It never
+  # installs, builds, tests or starts anything, and changes no file.
+  hook:context:
+    silent: true
+    cmds:
+      - |
+        if git rev-parse --git-dir >/dev/null 2>&1; then
+          echo "Repo: {{base .ROOT_DIR}}"
+        else
+          echo "Repo: {{base .ROOT_DIR}} (not a git repository)"
+        fi
+        echo "Platform: {{OS}}/{{ARCH}}"
+        runtime=native
+        if test -e /proc/sys/fs/binfmt_misc/WSLInterop; then
+          runtime=wsl
+        elif test -e /.dockerenv || test -e /run/.containerenv; then
+          runtime=container
+        fi
+        echo "Runtime: $runtime"
+        git rev-parse --git-dir >/dev/null 2>&1 || exit 0
+        gitdir="$(git rev-parse --path-format=absolute --git-dir 2>/dev/null || true)"
+        common="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+        [ "$gitdir" = "$common" ] || echo "Worktree: linked (main checkout at ${common%/.git})"
+        b="$(git branch --show-current 2>/dev/null || true)"
+        [ -n "$b" ] || b="detached at $(git rev-parse --short HEAD 2>/dev/null || echo "an unborn branch")"
+        echo "Branch: $b"
+        status="$(git status --short 2>/dev/null || true)"
+        state=clean
+        [ -z "$status" ] || state=dirty
+        for p in rebase-merge:rebase rebase-apply:rebase MERGE_HEAD:merge CHERRY_PICK_HEAD:cherry-pick REVERT_HEAD:revert BISECT_LOG:bisect; do
+          if [ -e "$(git rev-parse --git-path "${p%%:*}")" ]; then state="$state, ${p#*:} in progress"; fi
+        done
+        echo "State: $state"
+        echo "Go: $(go env GOVERSION 2>/dev/null || echo missing)"
+        echo "Task: {{.TASK_VERSION}}"
+        n=0
+        while IFS= read -r line; do
+          [ -n "$line" ] || continue
+          n=$((n+1))
+          [ "$n" -le 20 ] && list="$list$line
+        "
+        done <<EOF
+        $status
+        EOF
+        echo "Dirty files: $n"
+        printf '%s' "$list"
+        [ "$n" -le 20 ] || echo "… and $((n-20)) more"
+
+  # After each file edit, in the background: the typecheck and the lint,
+  # no tests and no fmt:check. An edit in the middle of a
+  # change rarely passes the tests; the Stop gate's verify:fast runs them,
+  # and checks formatting, at the end of the turn. Agents run all of an
+  # event's hooks in parallel, so a format check here would race
+  # hook:format. The tools' output goes to stderr, which is what the agent
+  # is shown.
+  # A payload with a non-empty agent_id comes from a sub-agent, and runs
+  # nothing: asyncRewake would wake the parent session with the sub-agent's
+  # failures, and a test-first red phase fails on purpose.
+  # An edit outside the repository (the agent's memory, its scratchpad) or
+  # of a file git ignores cannot change the checks' result, so it runs
+  # nothing. The path comes from the payload's file_path or notebook_path,
+  # JSON-escaped; git reads doubled backslashes as one. git check-ignore
+  # exits 0 for an ignored path, 1 for any other path in the repository
+  # and 128 outside it. Without a path (a malformed payload, a tool with no
+  # path) or a repository, the checks run.
+  hook:check:
+    silent: true
+    cmds:
+      - |
+        in="$(cat)"
+        case "$in" in
+          *'"agent_id":""'*|*'"agent_id": ""'*) ;;
+          *'"agent_id":"'*|*'"agent_id": "'*) exit 0 ;;
+        esac
+        p=""
+        case "$in" in
+          *'"file_path":"'*) p="${in#*\"file_path\":\"}" ;;
+          *'"file_path": "'*) p="${in#*\"file_path\": \"}" ;;
+          *'"notebook_path":"'*) p="${in#*\"notebook_path\":\"}" ;;
+          *'"notebook_path": "'*) p="${in#*\"notebook_path\": \"}" ;;
+        esac
+        case "$p" in
+          *'"'*) p="${p%%\"*}" ;;
+          *) p="" ;;
+        esac
+        if [ -n "$p" ] && git rev-parse --git-dir >/dev/null 2>&1; then
+          rc=0
+          git check-ignore -q -- "$p" 2>/dev/null || rc=$?
+          [ "$rc" -eq 1 ] || exit 0
+        fi
+        task -s typecheck lint 1>&2 || exit 2
+
+  # The green stamp (spec 0057): the Stop hook skips verify:fast when the
+  # tree is the one its last green run saw. hook:stamp:check exits 0 when
+  # the tree's hash equals the stamp and 1 otherwise: outside a Git
+  # repository, before the first commit, with no stamp, or when a git call
+  # fails, so a doubt always runs the checks. hook:stamp:save records the
+  # hash after a green verify:fast and always exits 0. The hash covers
+  # HEAD, the binary diff against HEAD (staged or not), and the untracked
+  # files git does not ignore, names and contents: a copy of the index
+  # marks them intent-to-add, so the diff shows them and git stores no
+  # object. The stamp sits in the worktree's own Git directory, so it never
+  # shows in git status and each linked worktree has its own. A project at
+  # the root of its repository keeps green-stamp; one in a subdirectory
+  # (git rev-parse --show-prefix, such as "examples/app/") gets
+  # green-stamp-examples-app, so the two never stand for each other
+  # (spec 0059). Neither task reads stdin, which the Stop hook keeps for
+  # hook:done.
+  hook:stamp:check:
+    silent: true
+    cmds:
+      - |
+        n=green-stamp
+        p="$(git rev-parse --show-prefix 2>/dev/null)" || exit 1
+        p="${p%/}"
+        [ -z "$p" ] || n="$n-${p//\//-}"
+        stamp="$(git rev-parse --path-format=absolute --git-path "$n" 2>/dev/null)" || exit 1
+        [ -f "$stamp" ] || exit 1
+        w="$stamp.$$"
+        h=""
+        cp "$(git rev-parse --path-format=absolute --git-path index)" "$w.index" 2>/dev/null || true
+        if GIT_INDEX_FILE="$w.index" git add --intent-to-add -- :/ >/dev/null 2>&1 &&
+          { git rev-parse --verify HEAD && GIT_INDEX_FILE="$w.index" git diff --binary --no-ext-diff --no-textconv --no-color HEAD; } >"$w" 2>/dev/null; then
+          h="$(git hash-object --no-filters -- "$w" 2>/dev/null || true)"
+        fi
+        rm -f "$w" "$w.index"
+        [ -n "$h" ] && [ "$h" = "$(cat "$stamp")" ]
+
+  hook:stamp:save:
+    silent: true
+    cmds:
+      - |
+        n=green-stamp
+        p="$(git rev-parse --show-prefix 2>/dev/null)" || exit 0
+        p="${p%/}"
+        [ -z "$p" ] || n="$n-${p//\//-}"
+        stamp="$(git rev-parse --path-format=absolute --git-path "$n" 2>/dev/null)" || exit 0
+        w="$stamp.$$"
+        h=""
+        cp "$(git rev-parse --path-format=absolute --git-path index)" "$w.index" 2>/dev/null || true
+        if GIT_INDEX_FILE="$w.index" git add --intent-to-add -- :/ >/dev/null 2>&1 &&
+          { git rev-parse --verify HEAD && GIT_INDEX_FILE="$w.index" git diff --binary --no-ext-diff --no-textconv --no-color HEAD; } >"$w" 2>/dev/null; then
+          h="$(git hash-object --no-filters -- "$w" 2>/dev/null || true)"
+        fi
+        rm -f "$w" "$w.index"
+        [ -z "$h" ] || printf '%s\n' "$h" >"$stamp" || true
+
+  # Runs only when the Stop hook's verify:fast fails:
+  # "task verify:fast 1>&2 </dev/null || task -x hook:done". It blocks the
+  # stop once. If the agent stops again with the checks still failing
+  # (stop_hook_active), the stop goes through, so the agent cannot loop
+  # forever on something it cannot fix.
+  hook:done:
+    silent: true
+    cmds:
+      - |
+        case "$(cat)" in
+          *'"stop_hook_active":true'*|*'"stop_hook_active": true'*)
+            echo "hook:done: verify:fast still fails; this stop was already blocked once, so it goes through." >&2
+            exit 0
+            ;;
+        esac
+        echo "hook:done: verify:fast fails; fix it before ending the turn." >&2
+        exit 2
+
+  verify:
+    desc: Full verification gate. Race detection needs a C compiler (CGO);
+      run "task test:race" separately if you have one.
+    cmds:
+      - task: fmt:check
+      - task: typecheck
+      - task: lint
+      - task: test
+      - task: mod:verify
+      - task: security
+      - task: workflows:lint
+
+  # What the agents' Stop hook and pre-push run: only the cheap,
+  # incremental checks. go test and golangci-lint cache their results,
+  # and short mode skips the slow tests. security (network), mod:verify,
+  # workflows:lint and the tests short mode skips stay in verify.
+  verify:fast:
+    desc: Fast incremental subset of verify (format, build, lint, tests in
+      short mode).
+    cmds:
+      - task: fmt:check
+      - task: typecheck
+      - task: lint
+      - task: test:short

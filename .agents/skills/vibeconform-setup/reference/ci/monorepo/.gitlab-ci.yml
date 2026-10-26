@@ -1,0 +1,159 @@
+# .gitlab-ci.yml for a monorepo with a Go component (services/api), a
+# TypeScript component managed with pnpm (apps/web) and a Python component
+# managed with uv (services/worker). CI calls the root verify entrypoint
+# (`task verify`), which runs every component's verify, on a Linux and a
+# Windows runner, in merge request pipelines and on pushes to the default
+# branch; a job of its own scans for known vulnerabilities, and
+# conformance:audit runs the contract audit. Every image is pinned by
+# digest (keep the tag for readers), and every tool to an exact version.
+# Change the paths to the repository's components.
+#
+# A child pipeline per component area can stay, instead of moving its jobs
+# here, when the parent waits for it: strategy: depend makes the trigger
+# job mirror the child's status, and the audit reads the child's jobs with
+# the trigger job's rules (C-01). A child the parent does not wait for
+# cannot block a merge request, and its jobs do not count. For example,
+# with the verify jobs in ci/verify.gitlab-ci.yml:
+#
+#   verify:
+#     extends: .pipelines
+#     trigger:
+#       include: ci/verify.gitlab-ci.yml
+#       strategy: depend
+#
+# The child file then needs workflow: rules that let it run, such as
+#   - if: $CI_PIPELINE_SOURCE == "parent_pipeline"
+
+# Pipelines run for merge requests and for pushes to the default branch.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Every job extends .pipelines. A job with no rules: runs in branch
+# pipelines only, never in a merge request pipeline.
+.pipelines:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+default:
+  interruptible: true
+
+variables:
+  GO_VERSION: "1.27.0"
+  TASK_VERSION: "v3.53.1"
+  GOLANGCI_LINT_VERSION: "v2.13.2"
+  # An exact release of the Node major the GitHub reference names, as
+  # Chocolatey and nodejs.org need one.
+  NODE_RELEASE: "22.23.3"
+  PYTHON_VERSION: "3.12"
+  UV_VERSION: "0.13.1"
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+
+# Every component's toolchain on Linux: the Go image, Node and uv from
+# their releases, checked against their published checksums, and Python
+# through uv. No tags and an image: GitLab's shared Linux runners take the
+# job.
+.linux:
+  extends: .pipelines
+  image: golang:1.27.0-bookworm@sha256:ded31c68586d2e49e760acc2e65a884b23d032e9bbbed0ae0c55abd3fcaf4452
+  before_script:
+    - |
+      node="node-v${NODE_RELEASE}-linux-x64"
+      curl -fsSLO "https://nodejs.org/dist/v${NODE_RELEASE}/${node}.tar.gz"
+      curl -fsSL "https://nodejs.org/dist/v${NODE_RELEASE}/SHASUMS256.txt" | grep " ${node}.tar.gz\$" | sha256sum -c -
+      tar -xzf "${node}.tar.gz" -C /usr/local --strip-components=1
+      rm "${node}.tar.gz"
+    - |
+      uv="uv-x86_64-unknown-linux-gnu"
+      curl -fsSLO "https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/${uv}.tar.gz"
+      curl -fsSL "https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/${uv}.tar.gz.sha256" | sha256sum -c -
+      tar -xzf "${uv}.tar.gz" -C /usr/local/bin --strip-components=1
+      rm "${uv}.tar.gz"
+    - uv python install ${PYTHON_VERSION}
+    - corepack enable
+    - go install github.com/go-task/task/v3/cmd/task@${TASK_VERSION}
+    - go install golang.org/x/tools/cmd/goimports@v0.51.0
+    - go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}
+    - go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+    - export PATH="$(go env GOPATH)/bin:$PATH"
+    - (cd apps/web && pnpm install --frozen-lockfile)
+    - (cd services/worker && uv sync --frozen)
+
+verify:linux:
+  extends: .linux
+  script:
+    - task verify
+
+# GitLab.com's Windows runners: the tag names the platform (C-05). The
+# shell is PowerShell, and there is no image: Chocolatey installs Go, Node
+# and Python, pip installs uv. On a self-managed instance, use the tags of
+# your Windows runners.
+verify:windows:
+  extends: .pipelines
+  tags: [saas-windows-medium-amd64]
+  before_script:
+    - choco install golang --version=$env:GO_VERSION --yes --no-progress
+    - choco install nodejs-lts --version=$env:NODE_RELEASE --yes --no-progress
+    - choco install python312 --version=3.12.10 --yes --no-progress
+    - $env:Path = "C:\Program Files\Go\bin;$env:USERPROFILE\go\bin;C:\Program Files\nodejs;C:\Python312;C:\Python312\Scripts;$env:Path"
+    - python -m pip install uv==$env:UV_VERSION
+    - corepack enable
+    - go install github.com/go-task/task/v3/cmd/task@$env:TASK_VERSION
+    - go install golang.org/x/tools/cmd/goimports@v0.51.0
+    - go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$env:GOLANGCI_LINT_VERSION
+    - go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+    # From the component's directory, not with --dir: Corepack reads the
+    # pnpm version from the packageManager field of the directory it
+    # starts in, and the root has no package.json.
+    - Push-Location apps/web
+    - pnpm install --frozen-lockfile
+    - Pop-Location
+    - Push-Location services/worker
+    - uv sync --frozen
+    - Pop-Location
+  script:
+    - task verify
+
+# The vulnerability scans, one per ecosystem, in a job of their own
+# (D-03).
+security:
+  extends: .linux
+  script:
+    - (cd services/api && govulncheck ./...)
+    - (cd apps/web && pnpm audit --audit-level high)
+    - uv tool install pip-audit==2.9.0
+    - export PATH="$HOME/.local/bin:$PATH"
+    - (cd services/worker && uv export --frozen --no-hashes --no-emit-project --format requirements-txt -o "$CI_PROJECT_DIR/requirements.txt")
+    - pip-audit -r requirements.txt
+
+# The contract audit in a job of its own. It is the only job that runs
+# vibe; removing VibeConform is deleting this job. It does not call verify
+# itself: vibe audit runs verify and verify-fast in a probe copy (after the
+# setup entrypoint, which installs each component's dependencies), and the
+# guard probes through the hooks in .claude/settings.json. So it sets up
+# every component's toolchain and every tool the entrypoints call, then
+# installs vibe and vibe-guard v0.14.0-alpha.1 from the release, checked
+# against its checksums.txt. VIBE_VERSION must be an exact release such as
+# v0.12.0-alpha.1, never latest. Where this file says latest (it came from
+# a vibe built from source), use the newest release tag; list them with
+#   git ls-remote --tags https://github.com/Manual-debuger/VibeConform
+conformance:audit:
+  extends: .linux
+  timeout: 60m
+  variables:
+    VIBE_VERSION: "v0.14.0-alpha.1"
+  script:
+    - |
+      base="https://github.com/Manual-debuger/VibeConform/releases/download/$VIBE_VERSION"
+      dl=$(mktemp -d) && mkdir -p "$HOME/.local/bin"
+      curl -fsSL -o "$dl/checksums.txt" "$base/checksums.txt"
+      for tool in vibe vibe-guard; do
+        archive="${tool}_${VIBE_VERSION#v}_linux_amd64.tar.gz"
+        curl -fsSL -o "$dl/$archive" "$base/$archive"
+        (cd "$dl" && grep " $archive\$" checksums.txt | sha256sum -c -)
+        tar -xzf "$dl/$archive" -C "$HOME/.local/bin" "$tool"
+      done
+    - export PATH="$HOME/.local/bin:$PATH"
+    - vibe audit

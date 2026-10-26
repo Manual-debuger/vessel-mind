@@ -1,0 +1,54 @@
+version: "3"
+
+# A Python component of a monorepo, with its own pyproject.toml and
+# uv.lock; copy it to <component path>/Taskfile.yml. The root Taskfile.yml
+# includes this file under the component's id, so "task <id>:test" at the
+# root runs "task test" here; "task verify" works from this directory too.
+
+tasks:
+  setup:
+    desc: Install the locked dependencies.
+    cmds:
+      - uv sync --frozen
+
+  fmt:
+    desc: Apply Ruff formatting.
+    cmds:
+      - uv run ruff format .
+
+  fmt:check:
+    desc: Fail if any file is not Ruff-formatted (CI-safe, no writes).
+    cmds:
+      - uv run ruff format --check .
+
+  lint:
+    desc: Run Ruff lint checks.
+    cmds:
+      - uv run ruff check .
+
+  typecheck:
+    desc: Type-check with pyright.
+    cmds:
+      - uv run pyright
+
+  test:
+    desc: Run the test suite.
+    cmds:
+      - uv run pytest
+
+  verify:
+    desc: Verification gate for this component.
+    cmds:
+      - task: fmt:check
+      - task: lint
+      - task: typecheck
+      - task: test
+
+  verify:fast:
+    desc: Fast verification; same steps as verify (Ruff caches, pyright and
+      pytest run whole).
+    cmds:
+      - task: fmt:check
+      - task: lint
+      - task: typecheck
+      - task: test
