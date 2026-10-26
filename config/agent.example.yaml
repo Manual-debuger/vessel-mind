@@ -34,7 +34,10 @@ retry:
   backoff_max: 30.0
 
 agent:
-  system: You are vessel-mind, a concise assistant. Answer in plain text.
+  system: >-
+    You are vessel-mind, a concise assistant. Answer in plain text. For a
+    question about vessel-mind or VibeConform, call search_docs first, answer
+    only from its results, and cite each claim as [n].
   # Gemini counts thinking tokens against this budget.
   max_tokens: 4096
 
@@ -48,3 +51,19 @@ state:
 # so one visitor cannot spend the whole free quota. Omit it for no limit.
 sessions:
   max_turns: 30
+
+# search_docs: the retrieval pipeline. At startup, the server ingests the
+# pinned corpus into the index when the index is missing or unfinished (the
+# first start downloads the embedding model and may fetch a tarball); a
+# complete index is opened as it is. Rebuild it with `task ingest`.
+retrieval:
+  index: data/index.sqlite
+  corpus: eval/corpus.yaml
+  # vector | keyword | hybrid (reciprocal rank fusion, k = 60).
+  candidates: hybrid
+  candidate_k: 30
+  # The results search_docs returns; at most candidate_k.
+  top_k: 5
+  embedding_model: jinaai/jina-embeddings-v2-base-zh
+  model_cache: .cache/fastembed
+  tarball_cache: .cache/corpus

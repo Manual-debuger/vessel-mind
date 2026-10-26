@@ -37,6 +37,7 @@ h1 { font-size: 1.25rem; margin: 0; }
 .tool-label { margin: 0.25rem 0 0; }
 .tool pre { margin: 0; overflow-x: auto; font-size: 0.8125rem; white-space: pre-wrap; word-break: break-word; }
 .tool-error { border-color: #c33; }
+.citation { font-size: 0.8125rem; vertical-align: super; text-decoration: none; }
 form { position: sticky; bottom: 0; background: var(--bg); padding: 0.5rem 0; }
 textarea { width: 100%; box-sizing: border-box; font: inherit; }
 .actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.25rem; }

@@ -2,8 +2,8 @@
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator, Sequence
+from contextlib import AbstractAsyncContextManager, AsyncExitStack, asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -80,9 +80,13 @@ def create_app(
     max_tokens: int | None = None,
     state_path: Path | str = ":memory:",
     max_turns_per_session: int | None = None,
+    services: Sequence[AbstractAsyncContextManager[object]] = (),
 ) -> FastAPI:
     """The app over one model. tools is the capability registry the loop may call;
     None offers no tools. state_path is the SQLite state file, opened at startup.
+
+    services are entered in order at startup, after the state file opens, and
+    exited in reverse at shutdown: for example the retrieval index its tools read.
 
     max_turns_per_session bounds the turns one session may start, to protect the
     provider's free quota; None means no bound.
@@ -138,11 +142,15 @@ def create_app(
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         stores.append(SessionStore.open(state_path))
         try:
-            yield
-            running = [t.task for t in turns.values() if t.task and not t.task.done()]
-            for task in running:
-                task.cancel()
-            await asyncio.gather(*running, return_exceptions=True)
+            async with AsyncExitStack() as stack:
+                for service in services:
+                    await stack.enter_async_context(service)
+                yield
+                # Turns end before the services their tools use close.
+                running = [t.task for t in turns.values() if t.task and not t.task.done()]
+                for task in running:
+                    task.cancel()
+                await asyncio.gather(*running, return_exceptions=True)
         finally:
             stores.pop().close()
 
