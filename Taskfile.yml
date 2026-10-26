@@ -39,6 +39,17 @@ tasks:
     cmds:
       - uv run pytest
 
+  # Reads eval/corpus.yaml at its pins and updates data/index.sqlite.
+  # Unchanged files are a no-op. Refuses (exit 2) when a source cannot be
+  # pinned. The project is not installed (pyproject [tool.uv] package =
+  # false), so PYTHONPATH points at the src layout.
+  ingest:
+    desc: Ingest the pinned corpus into the retrieval index.
+    env:
+      PYTHONPATH: src
+    cmds:
+      - uv run python -m vessel_mind.rag.ingest {{.CLI_ARGS}}
+
   # The agent hooks. .claude/settings.json calls them as
   # "task -x hook:<name>": without -x, Task reports a script's exit 2 as
   # 201, and Claude Code shows the model only exit 2. No desc, so they

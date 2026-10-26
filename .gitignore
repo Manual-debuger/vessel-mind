@@ -7,3 +7,8 @@ __pycache__/
 # checkout.
 .claude/settings.local.json
 .claude/worktrees/
+
+# The retrieval index (task ingest; rebuilt from the corpus) and the
+# downloaded corpus tarballs and embedding models.
+data/
+.cache/
