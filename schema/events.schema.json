@@ -69,6 +69,59 @@
       "type": "object"
     },
     "JsonValue": {},
+    "ProposalEvent": {
+      "additionalProperties": false,
+      "description": "A write or irreversible call waits for a human approval; it has not run.\n\nIt comes between the call's tool_start and tool_result. Resolve it with\nPOST /proposals/{proposal_id}/approve or /reject before expires_at.",
+      "properties": {
+        "call_id": {
+          "title": "Call Id",
+          "type": "string"
+        },
+        "effect": {
+          "enum": [
+            "write",
+            "irreversible"
+          ],
+          "title": "Effect",
+          "type": "string"
+        },
+        "expires_at": {
+          "format": "date-time",
+          "title": "Expires At",
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": true,
+          "title": "Input",
+          "type": "object"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "proposal_id": {
+          "title": "Proposal Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "proposal",
+          "default": "proposal",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "proposal_id",
+        "call_id",
+        "name",
+        "input",
+        "effect",
+        "expires_at"
+      ],
+      "title": "ProposalEvent",
+      "type": "object"
+    },
     "TextEvent": {
       "additionalProperties": false,
       "description": "A piece of the answer, in order. Concatenate them to get the text.",
@@ -193,6 +246,7 @@
     "mapping": {
       "done": "#/$defs/DoneEvent",
       "error": "#/$defs/ErrorEvent",
+      "proposal": "#/$defs/ProposalEvent",
       "text": "#/$defs/TextEvent",
       "tool_result": "#/$defs/ToolResultEvent",
       "tool_start": "#/$defs/ToolStartEvent"
@@ -205,6 +259,9 @@
     },
     {
       "$ref": "#/$defs/ToolStartEvent"
+    },
+    {
+      "$ref": "#/$defs/ProposalEvent"
     },
     {
       "$ref": "#/$defs/ToolResultEvent"

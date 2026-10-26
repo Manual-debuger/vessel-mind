@@ -9,15 +9,19 @@ ChatMessage union.
 """
 
 import datetime
+import json
 import sqlite3
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import TypeAdapter
+from pydantic import JsonValue, TypeAdapter
 
-from vessel_mind.core.chat import ChatMessage
+from vessel_mind.core.chat import ChatMessage, ToolCall
+
+Clock = Callable[[], datetime.datetime]
 
 # A turn's status. "running" is the only status that is not final. A turn still
 # running when the state file is opened was cut off by a crash: it becomes
@@ -50,9 +54,56 @@ MIGRATIONS: list[str] = [
         PRIMARY KEY (session_id, seq)
     );
     """,
+    # 2: proposals. Times are ISO-8601 UTC with microseconds, so they compare as text.
+    """
+    CREATE TABLE proposals (
+        id TEXT PRIMARY KEY,
+        turn_id TEXT NOT NULL REFERENCES turns(id),
+        call_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        input TEXT NOT NULL,
+        effect TEXT NOT NULL CHECK (effect IN ('write', 'irreversible')),
+        status TEXT NOT NULL
+            CHECK (status IN ('pending', 'approved', 'rejected', 'expired', 'withdrawn')),
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        resolved_at TEXT,
+        result TEXT,
+        is_error INTEGER
+    );
+    CREATE INDEX proposals_by_turn ON proposals(turn_id);
+    """,
 ]
 
+# A proposal's status. "pending" is the only status that is not final.
+#   approved:  an approval claimed it; it executes once. result is set when it has run.
+#   rejected:  a human rejected it; it never runs.
+#   expired:   nobody decided in time, or the server restarted while it was pending.
+#   withdrawn: its turn was cancelled or failed, so the conversation never kept the call.
+ProposalStatus = Literal["pending", "approved", "rejected", "expired", "withdrawn"]
+ProposalEffect = Literal["write", "irreversible"]
+
 _messages: TypeAdapter[Any] = TypeAdapter(ChatMessage)
+_json: TypeAdapter[JsonValue] = TypeAdapter(JsonValue)
+
+
+@dataclass(frozen=True)
+class StoredProposal:
+    id: str
+    turn_id: str
+    call_id: str
+    name: str
+    input: dict[str, Any]
+    effect: ProposalEffect
+    status: ProposalStatus
+    expires_at: datetime.datetime
+    # Set once an approved proposal has executed.
+    result: JsonValue | None
+    is_error: bool | None
+
+
+class UnknownProposal(Exception):
+    """No proposal has this id."""
 
 
 class StateError(Exception):
@@ -67,21 +118,28 @@ class TurnLimitReached(Exception):
     """The session has started as many turns as it may."""
 
 
-def _now() -> str:
-    return datetime.datetime.now(datetime.UTC).isoformat()
+def _utc_now() -> datetime.datetime:
+    return datetime.datetime.now(datetime.UTC)
+
+
+def _text(when: datetime.datetime) -> str:
+    return when.astimezone(datetime.UTC).isoformat(timespec="microseconds")
 
 
 class SessionStore:
-    """Sessions, turns and history in one SQLite file. Open it with SessionStore.open."""
+    """Sessions, turns, history and proposals in one SQLite file. Open it with SessionStore.open."""
 
-    def __init__(self, db: sqlite3.Connection) -> None:
+    def __init__(self, db: sqlite3.Connection, clock: Clock = _utc_now) -> None:
         self._db = db
+        self._clock = clock
 
     @classmethod
-    def open(cls, path: Path | str) -> "SessionStore":
-        """Opens the file, migrates it, and marks turns left running as interrupted.
+    def open(cls, path: Path | str, *, clock: Clock | None = None) -> "SessionStore":
+        """Opens the file, migrates it, marks turns left running as interrupted and
+        expires every pending proposal.
 
-        ":memory:" gives a store that lasts as long as the process.
+        ":memory:" gives a store that lasts as long as the process. clock gives the
+        current time (an aware datetime); tests pass a fake one.
         """
         if str(path) != ":memory:":
             Path(path).parent.mkdir(parents=True, exist_ok=True)
@@ -90,7 +148,7 @@ class SessionStore:
         db = sqlite3.connect(path, check_same_thread=False, isolation_level=None)
         db.execute("PRAGMA foreign_keys = ON")
         db.execute("PRAGMA journal_mode = WAL")
-        store = cls(db)
+        store = cls(db, clock or _utc_now)
         store._migrate()
         store._recover()
         return store
@@ -113,16 +171,27 @@ class SessionStore:
             # executescript commits first, so the script carries its own transaction.
             self._db.executescript(f"BEGIN;\n{script}\nPRAGMA user_version = {target};\nCOMMIT;")
 
+    def _now(self) -> str:
+        return _text(self._clock())
+
     def _recover(self) -> None:
-        self._db.execute(
-            "UPDATE turns SET status = 'interrupted', ended_at = ? WHERE status = 'running'",
-            (_now(),),
-        )
+        now = self._now()
+        with self._transaction():
+            self._db.execute(
+                "UPDATE turns SET status = 'interrupted', ended_at = ? WHERE status = 'running'",
+                (now,),
+            )
+            # Nobody can have seen a pending proposal's card since the restart, and
+            # the approval would no longer match what the person was shown.
+            self._db.execute(
+                "UPDATE proposals SET status = 'expired', resolved_at = ? WHERE status = 'pending'",
+                (now,),
+            )
 
     def create_session(self) -> str:
         session_id = uuid.uuid4().hex
         self._db.execute(
-            "INSERT INTO sessions (id, created_at) VALUES (?, ?)", (session_id, _now())
+            "INSERT INTO sessions (id, created_at) VALUES (?, ?)", (session_id, self._now())
         )
         return session_id
 
@@ -160,7 +229,7 @@ class SessionStore:
             self._db.execute(
                 "INSERT INTO turns (id, session_id, status, started_at) "
                 "VALUES (?, ?, 'running', ?)",
-                (turn_id, session_id, _now()),
+                (turn_id, session_id, self._now()),
             )
         return turn_id
 
@@ -170,7 +239,11 @@ class SessionStore:
         status: TurnStatus,
         messages: Sequence[ChatMessage] = (),
     ) -> None:
-        """Ends a turn and appends its messages to the session's history, in one transaction."""
+        """Ends a turn and appends its messages to the session's history, in one transaction.
+
+        A turn that ends other than "done" writes no history, so the conversation
+        never kept its calls: its pending proposals are withdrawn.
+        """
         with self._transaction():
             row = self._db.execute(
                 "SELECT session_id FROM turns WHERE id = ?", (turn_id,)
@@ -178,10 +251,17 @@ class SessionStore:
             if row is None:
                 raise KeyError(turn_id)
             session_id = row[0]
+            now = self._now()
             self._db.execute(
                 "UPDATE turns SET status = ?, ended_at = ? WHERE id = ?",
-                (status, _now(), turn_id),
+                (status, now, turn_id),
             )
+            if status != "done":
+                self._db.execute(
+                    "UPDATE proposals SET status = 'withdrawn', resolved_at = ? "
+                    "WHERE turn_id = ? AND status = 'pending'",
+                    (now, turn_id),
+                )
             (seq,) = self._db.execute(
                 "SELECT coalesce(max(seq), 0) FROM messages WHERE session_id = ?",
                 (session_id,),
@@ -198,6 +278,106 @@ class SessionStore:
     def turn_status(self, turn_id: str) -> TurnStatus | None:
         row = self._db.execute("SELECT status FROM turns WHERE id = ?", (turn_id,)).fetchone()
         return None if row is None else row[0]
+
+    def create_proposal(
+        self,
+        turn_id: str,
+        call: ToolCall,
+        effect: ProposalEffect,
+        ttl: datetime.timedelta,
+    ) -> StoredProposal:
+        """Stores a pending proposal for one call of a running turn."""
+        proposal_id = uuid.uuid4().hex
+        now = self._clock()
+        self._db.execute(
+            "INSERT INTO proposals (id, turn_id, call_id, name, input, effect, status, "
+            "created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)",
+            (
+                proposal_id,
+                turn_id,
+                call.id,
+                call.name,
+                json.dumps(call.input),
+                effect,
+                _text(now),
+                _text(now + ttl),
+            ),
+        )
+        return self.proposal(proposal_id)
+
+    def proposal(self, proposal_id: str) -> StoredProposal:
+        """The proposal as it stands now. Raises UnknownProposal."""
+        with self._transaction():
+            self._expire_due(proposal_id)
+            return self._read_proposal(proposal_id)
+
+    def claim_proposal(self, proposal_id: str) -> tuple[StoredProposal, bool]:
+        """Marks a pending, unexpired proposal approved, at most once.
+
+        Returns the proposal and True only to the one caller that claimed it, which
+        must then execute it and record_result. Raises UnknownProposal.
+        """
+        with self._transaction():
+            self._expire_due(proposal_id)
+            claimed = self._db.execute(
+                "UPDATE proposals SET status = 'approved', resolved_at = ? "
+                "WHERE id = ? AND status = 'pending'",
+                (self._now(), proposal_id),
+            ).rowcount
+            return self._read_proposal(proposal_id), claimed == 1
+
+    def record_result(self, proposal_id: str, result: JsonValue, is_error: bool) -> StoredProposal:
+        """Stores what an approved proposal returned when it executed."""
+        with self._transaction():
+            self._db.execute(
+                "UPDATE proposals SET result = ?, is_error = ? WHERE id = ? AND status = 'approved'",
+                (json.dumps(result), int(is_error), proposal_id),
+            )
+            return self._read_proposal(proposal_id)
+
+    def reject_proposal(self, proposal_id: str) -> StoredProposal:
+        """Marks a pending, unexpired proposal rejected. Returns it as it stands.
+
+        Raises UnknownProposal.
+        """
+        with self._transaction():
+            self._expire_due(proposal_id)
+            self._db.execute(
+                "UPDATE proposals SET status = 'rejected', resolved_at = ? "
+                "WHERE id = ? AND status = 'pending'",
+                (self._now(), proposal_id),
+            )
+            return self._read_proposal(proposal_id)
+
+    def _expire_due(self, proposal_id: str) -> None:
+        now = self._now()
+        self._db.execute(
+            "UPDATE proposals SET status = 'expired', resolved_at = ? "
+            "WHERE id = ? AND status = 'pending' AND expires_at <= ?",
+            (now, proposal_id, now),
+        )
+
+    def _read_proposal(self, proposal_id: str) -> StoredProposal:
+        row = self._db.execute(
+            "SELECT id, turn_id, call_id, name, input, effect, status, expires_at, result, "
+            "is_error FROM proposals WHERE id = ?",
+            (proposal_id,),
+        ).fetchone()
+        if row is None:
+            raise UnknownProposal(proposal_id)
+        id_, turn_id, call_id, name, input_, effect, status, expires_at, result, is_error = row
+        return StoredProposal(
+            id=id_,
+            turn_id=turn_id,
+            call_id=call_id,
+            name=name,
+            input=json.loads(input_),
+            effect=effect,
+            status=status,
+            expires_at=datetime.datetime.fromisoformat(expires_at),
+            result=None if result is None else _json.validate_json(result),
+            is_error=None if is_error is None else bool(is_error),
+        )
 
     def _transaction(self) -> "_Transaction":
         return _Transaction(self._db)
