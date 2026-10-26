@@ -10,7 +10,8 @@
 # Stages:
 #   notion-mcp   installs the pinned Notion MCP server with npm ci (never npx)
 #   python-deps  installs the locked Python dependencies with uv
-#   index        ingests the pinned corpus: data/index.sqlite and the embedding model
+#   index        ingests the pinned corpus: data/index.sqlite, the embedding model
+#                and the reranker model
 #   runtime      the app; it starts with a complete index and embeds nothing
 
 FROM node:22.23.4-trixie-slim@sha256:8eb619e402eaede1748a3c8173bffab391592812e85136452f781741c7242ddf AS notion-mcp
@@ -37,6 +38,12 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 COPY src/ src/
 COPY eval/corpus.yaml eval/corpus.yaml
+# The cpu reranker (retrieval.reranker) downloads its model on the first search;
+# score once here so the model is in .cache/fastembed, the runtime's
+# retrieval.model_cache. It uses the default model, as the example configs do.
+RUN PYTHONPATH=src /app/.venv/bin/python -c "from pathlib import Path; \
+from vessel_mind.rag.rerank import FastEmbedCrossEncoder; \
+FastEmbedCrossEncoder(cache_dir=Path('.cache/fastembed')).score('warm up', ['download the model'])"
 # The vessel-mind source comes from .git at its pin; the VibeConform tarball is
 # downloaded and checked against its SHA-256. The embedding model is downloaded
 # into .cache/fastembed, the runtime's retrieval.model_cache.
@@ -64,7 +71,8 @@ COPY --from=python-deps /app/.venv /app/.venv
 COPY src/ src/
 COPY config/ config/
 COPY eval/corpus.yaml eval/corpus.yaml
-# The finished index and the model that embeds queries against it. The state
+# The finished index, the model that embeds queries against it and the
+# reranker's model (both in .cache/fastembed). The state
 # file goes to data/state, a volume in compose.yaml.
 COPY --from=index --chown=app:app /app/data/index.sqlite data/index.sqlite
 COPY --from=index --chown=app:app /app/.cache/fastembed .cache/fastembed

@@ -162,6 +162,12 @@ def test_the_public_example_runs_routed_in_demo_mode_with_a_turn_limit():
     assert "127.0.0.1" not in config.providers["local"].base_url
 
 
+def test_the_public_example_retrieves_like_the_example_the_image_was_built_for():
+    # The image's index and model caches are built for the example's retrieval settings.
+    assert load_config(PUBLIC).retrieval == load_config(EXAMPLE).retrieval
+    assert load_config(PUBLIC).state == load_config(EXAMPLE).state
+
+
 def test_the_public_example_keeps_notions_write_tools_labelled_so_proposals_show():
     public = load_config(PUBLIC).mcp_servers["notion"]
     example = load_config(EXAMPLE).mcp_servers["notion"]

@@ -193,6 +193,8 @@ def test_the_index_stage_ingests_the_pinned_corpus_and_the_runtime_ships_it():
     runtime = " ".join(stages()["runtime"])
 
     assert "vessel_mind.rag.ingest" in index
+    # The cpu reranker downloads its model on first use; the image ships it instead.
+    assert "FastEmbedCrossEncoder" in index
     assert "--from=index" in runtime
     assert "data/index.sqlite" in runtime
     assert ".cache/fastembed" in runtime

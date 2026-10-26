@@ -63,7 +63,9 @@ state:
 sessions:
   max_turns: 20
 
-# The image ships a complete index at data/index.sqlite.
+# The image ships a complete index at data/index.sqlite, built with this
+# embedding model, and both models in .cache/fastembed. A different model
+# here needs a rebuild of the image (deploy/Dockerfile).
 retrieval:
   index: data/index.sqlite
   corpus: eval/corpus.yaml
@@ -71,6 +73,8 @@ retrieval:
   candidate_k: 30
   top_k: 5
   embedding_model: jinaai/jina-embeddings-v2-base-zh
+  reranker: cpu
+  reranker_model: BAAI/bge-reranker-v2-m3-int8
   model_cache: .cache/fastembed
   tarball_cache: .cache/corpus
 
