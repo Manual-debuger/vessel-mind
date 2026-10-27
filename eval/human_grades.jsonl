@@ -1,0 +1,10 @@
+{"row":"local","id":"zh-02","answer_sha256":"b60656ea81847b8993cd639b6a974113a3e7314eba61fc1da2b70ce9c7698419","covered":[true,true,true],"graded":"2026-10-27"}
+{"row":"local","id":"en-02","answer_sha256":"825a691cc721f9b941c54e7d4b9698c072182f314befcbdfa3b02ebc6d28a865","covered":[true,true,true],"graded":"2026-10-27"}
+{"row":"local-slow-only","id":"zh-07","answer_sha256":"83fc4f42f0c33fc2086a3b39fc55f48b7dcacf63a4f5ab8d7db090d2cc03223f","covered":[true,true,true],"graded":"2026-10-27"}
+{"row":"local","id":"en-05","answer_sha256":"59a2b5c54ef71089c6a32fd6854259d14712e0fec7f98904857dfc2ca5bdccbe","covered":[false,true,true,true],"graded":"2026-10-27"}
+{"row":"local","id":"en-21","answer_sha256":"244f530651498be5902d831e8f799cc171f77024dbb24bde93b1651e0de481bc","covered":[true,true,false],"graded":"2026-10-27"}
+{"row":"local","id":"zh-06","answer_sha256":"18747f42607a1878895d7461e36f45158fff183f23b3adb99254484fd75c1ddd","covered":[true,true,true],"graded":"2026-10-27"}
+{"row":"local","id":"en-03","answer_sha256":"cdb5c1cbdb2531f2b1a98cfed4bb4053c683aa86df41ac3164bf088f48149400","covered":[true,false,true],"graded":"2026-10-27"}
+{"row":"local","id":"en-04","answer_sha256":"6e26e845931550b53e4ca2e63a95ae05d08279b27f7b38995e1ae2d187ccf48c","covered":[true,true,true],"graded":"2026-10-27"}
+{"row":"local-slow-only","id":"en-22","answer_sha256":"1ccdd72f718d519027321d528ae3303176e64c873bba4ed6c97482b84402fbf4","covered":[true,true,true,true],"graded":"2026-10-27"}
+{"row":"local-slow-only","id":"en-17","answer_sha256":"4983b5ed7bbf26b82b39a209cc571aa79b12f8f8d7abf0617f0fabad2571efaa","covered":[true,true,true],"graded":"2026-10-27"}

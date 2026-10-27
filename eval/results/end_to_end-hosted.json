@@ -1,0 +1,9 @@
+{
+  "status": "not_run",
+  "row": "hosted",
+  "configuration": "hosted",
+  "fast_model": "gemini-3.5-flash-lite",
+  "slow_model": "gemini-3.6-flash",
+  "reason": "Its slow model gemini-3.6-flash allows 20 free-tier requests a day, and a row needs about 100 (answers and tool steps); the author chose to run the eval on free models within three days.",
+  "router": true
+}

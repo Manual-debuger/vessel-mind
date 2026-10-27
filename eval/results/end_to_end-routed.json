@@ -1,0 +1,9 @@
+{
+  "status": "not_run",
+  "row": "routed",
+  "configuration": "routed",
+  "fast_model": "qwen3:8b",
+  "slow_model": "gemini-3.6-flash",
+  "reason": "Its slow model gemini-3.6-flash allows 20 free-tier requests a day; the author chose to run the eval on free models within three days.",
+  "router": true
+}
