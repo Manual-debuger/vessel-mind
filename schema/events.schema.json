@@ -124,7 +124,7 @@
     },
     "RouteEvent": {
       "additionalProperties": false,
-      "description": "The router's decision for this turn (\u00a75.7). Sent first, before any other event,\nwhen the server routes turns.\n\nreason says how the route was reached: `classified` (the fast model chose it),\n`timeout`, `invalid` (the classification was not the expected JSON) or\n`model_error` (each of these three falls back to the slow path), or `router_off`\n(every turn takes the slow path).",
+      "description": "The router's decision for this turn (\u00a75.7). Sent first, before any other event,\nwhen the server routes turns.\n\nreason says how the route was reached: `classified` (the fast model chose it),\n`timeout`, `invalid` (the classification was not the expected JSON),\n`max_tokens` (the classification was cut off by its token budget) or\n`model_error` (each of these four falls back to the slow path), or `router_off`\n(every turn takes the slow path).",
       "properties": {
         "model": {
           "title": "Model",
@@ -135,6 +135,7 @@
             "classified",
             "timeout",
             "invalid",
+            "max_tokens",
             "model_error",
             "router_off"
           ],

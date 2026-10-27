@@ -26,6 +26,7 @@ from vessel_mind.core.chat import (
     ChatModelError,
     ChatRequest,
     Stop,
+    StopReason,
     TextDelta,
     Usage,
     UserMessage,
@@ -279,14 +280,16 @@ class Router:
         )
         text: list[str] = []
         usage = Usage()
+        stop_reason: StopReason = "end"
         try:
             async with asyncio.timeout(self.timeout):
                 async for event in classifier.stream(request):
                     match event:
                         case TextDelta(delta=delta):
                             text.append(delta)
-                        case Stop(usage=step_usage):
+                        case Stop(reason=reason, usage=step_usage):
                             usage = step_usage
+                            stop_reason = reason
                         case _:
                             pass
         except TimeoutError:
@@ -300,6 +303,15 @@ class Router:
         try:
             decision = RouteDecision.model_validate_json(_unfenced("".join(text)))
         except ValidationError:
+            if stop_reason == "max_tokens":
+                # Cut off, often after spending the whole budget on thinking: the
+                # budget is too small, not the model's answer wrong.
+                log.warning(
+                    "route classification by %s was cut off by max_tokens %s",
+                    classifier.answered,
+                    self.max_tokens,
+                )
+                return "slow", "max_tokens", usage, classifier
             log.warning("route classification by %s was not the expected JSON", classifier.answered)
             return "slow", "invalid", usage, classifier
         return decision.route, "classified", usage, classifier

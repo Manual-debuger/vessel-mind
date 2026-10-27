@@ -239,6 +239,26 @@ async def test_a_classification_that_is_not_the_expected_json_falls_back_to_the_
     ]
 
 
+@pytest.mark.parametrize("reply", ["", '{"rou'])
+@pytest.mark.asyncio
+async def test_a_classification_cut_off_by_its_token_budget_is_reported_as_truncated(reply):
+    # Gemini can spend the whole budget thinking and write no text at all.
+    fast = ScriptedModel(
+        "small", [TextDelta(delta=reply), Stop(reason="max_tokens", usage=ROUTER_USAGE)]
+    )
+    slow = ScriptedModel("large", answer("Slow answer."))
+
+    events = await collect(Router(fast, slow), [], "Hello?")
+
+    assert events[0] == RouteEvent(
+        route="slow",
+        reason="max_tokens",
+        router_model="small",
+        router_usage=ROUTER_USAGE,
+        model="large",
+    )
+
+
 @pytest.mark.asyncio
 async def test_json_in_a_markdown_code_fence_is_still_a_classification():
     fast = ScriptedModel("small", classified('```json\n{"route": "fast"}\n```'), answer("Hi!"))

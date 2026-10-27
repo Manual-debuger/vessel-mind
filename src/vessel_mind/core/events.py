@@ -22,7 +22,7 @@ class _Event(BaseModel):
     )
 
 
-RouteReason = Literal["classified", "timeout", "invalid", "model_error", "router_off"]
+RouteReason = Literal["classified", "timeout", "invalid", "max_tokens", "model_error", "router_off"]
 
 
 class RouteEvent(_Event):
@@ -30,8 +30,9 @@ class RouteEvent(_Event):
     when the server routes turns.
 
     reason says how the route was reached: `classified` (the fast model chose it),
-    `timeout`, `invalid` (the classification was not the expected JSON) or
-    `model_error` (each of these three falls back to the slow path), or `router_off`
+    `timeout`, `invalid` (the classification was not the expected JSON),
+    `max_tokens` (the classification was cut off by its token budget) or
+    `model_error` (each of these four falls back to the slow path), or `router_off`
     (every turn takes the slow path).
     """
 
