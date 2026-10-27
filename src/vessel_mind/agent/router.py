@@ -2,8 +2,9 @@
 
 The fast model classifies the turn as {"route": "fast" | "slow"}. On the fast
 path the router retrieves first, with the registry's search tool, and the fast
-model answers from that context with no tools. On the slow path the slow model
-runs the full tool loop.
+model answers from that context with no tools; the search is kept in the turn's
+messages as a search_docs call and its result, as the slow path keeps one. On
+the slow path the slow model runs the full tool loop.
 """
 
 import asyncio
@@ -28,6 +29,8 @@ from vessel_mind.core.chat import (
     Stop,
     StopReason,
     TextDelta,
+    ToolCall,
+    ToolMessage,
     Usage,
     UserMessage,
 )
@@ -229,6 +232,8 @@ class Router:
         """The turn's events on its path, after the route event."""
         if route == "fast":
             context = None
+            # The search, as the slow path would have stored it.
+            searched: list[ChatMessage] = []
             if registry.get(SEARCH_TOOL) is not None:
                 query = {"query": user_text}
                 yield ToolStartEvent(call_id=FAST_PATH_CALL_ID, name=SEARCH_TOOL, input=query)
@@ -237,26 +242,39 @@ class Router:
                     call_id=FAST_PATH_CALL_ID, name=SEARCH_TOOL, result=result, is_error=is_error
                 )
                 context = FAST_CONTEXT + json.dumps(result, ensure_ascii=False, indent=1)
-            turn = run_turn(
+                call = ToolCall(id=FAST_PATH_CALL_ID, name=SEARCH_TOOL, input=query)
+                searched = [
+                    AssistantMessage(text="", tool_calls=[call]),
+                    ToolMessage(tool_call_id=FAST_PATH_CALL_ID, content=json.dumps(result)),
+                ]
+            # The turn's user message goes here; the search is stored after it.
+            after_user = len(tally.messages) + 1
+            # The fast model is offered no tools, so it gets the session's earlier
+            # tool calls as the text around them, not as calls it cannot make.
+            async for event in run_turn(
                 model,
-                history,
+                _as_text(history),
                 user_text,
                 system="\n\n".join(part for part in (system, context) if part) or None,
                 max_tokens=max_tokens,
                 tally=tally,
-            )
-        else:
-            turn = run_turn(
-                model,
-                history,
-                user_text,
-                tools=registry,
-                proposals=proposals,
-                system=system,
-                max_tokens=max_tokens,
-                tally=tally,
-            )
-        async for event in turn:
+            ):
+                if isinstance(event, DoneEvent):
+                    # Before done, which is when the caller stores the messages: [n]
+                    # in this answer must still resolve in later turns.
+                    tally.messages[after_user:after_user] = searched
+                yield event
+            return
+        async for event in run_turn(
+            model,
+            history,
+            user_text,
+            tools=registry,
+            proposals=proposals,
+            system=system,
+            max_tokens=max_tokens,
+            tally=tally,
+        ):
             yield event
 
     async def _classify(

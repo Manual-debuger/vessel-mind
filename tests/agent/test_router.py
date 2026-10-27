@@ -1,10 +1,12 @@
 """The router (§5.7), driven by scripted fake models. No live API."""
 
 import asyncio
+import json
 
 import pytest
 from pydantic import JsonValue
 
+from vessel_mind.agent.loop import TurnTally
 from vessel_mind.agent.router import Router
 from vessel_mind.core.capabilities import CapabilityRegistry
 from vessel_mind.core.chat import (
@@ -154,6 +156,54 @@ async def test_a_fast_turn_retrieves_first_and_answers_on_the_fast_model_with_th
     assert "A proposal waits for a human decision." in reply.system
     assert '"n": 1' in reply.system
     assert reply.messages == [*history, UserMessage(text="What is a proposal?")]
+
+
+@pytest.mark.asyncio
+async def test_a_fast_turn_keeps_its_search_in_history_so_later_citations_resolve():
+    fast = ScriptedModel("small", classified('{"route": "fast"}'), answer("It waits [1]."))
+    tally = TurnTally()
+
+    await collect(
+        Router(fast, ScriptedModel("large")),
+        [],
+        "What is a proposal?",
+        tools=tools(FakeSearch(RESULTS)),
+        tally=tally,
+    )
+
+    # The same shape as a slow turn's search, so [n] in the answer still points
+    # at its sources in every later turn.
+    search = ToolCall(
+        id="fast-path-search", name="search_docs", input={"query": "What is a proposal?"}
+    )
+    assert tally.messages == [
+        UserMessage(text="What is a proposal?"),
+        AssistantMessage(text="", tool_calls=[search]),
+        ToolMessage(tool_call_id="fast-path-search", content=json.dumps(RESULTS)),
+        AssistantMessage(text="It waits [1]."),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_a_fast_turn_sends_earlier_tool_calls_as_text_since_it_offers_no_tools():
+    fast = ScriptedModel("small", classified('{"route": "fast"}'), answer("Thanks!"))
+    call = ToolCall(id="c1", name="search_docs", input={"query": "x"})
+    history = [
+        UserMessage(text="Find x."),
+        AssistantMessage(text="", tool_calls=[call]),
+        ToolMessage(tool_call_id="c1", content="{}"),
+        AssistantMessage(text="Found x [1]."),
+    ]
+
+    await collect(Router(fast, ScriptedModel("large")), history, "Thanks.")
+
+    reply = fast.requests[1]
+    assert reply.tools == []
+    assert reply.messages == [
+        UserMessage(text="Find x."),
+        AssistantMessage(text="Found x [1]."),
+        UserMessage(text="Thanks."),
+    ]
 
 
 @pytest.mark.asyncio
