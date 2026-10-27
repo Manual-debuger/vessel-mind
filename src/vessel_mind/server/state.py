@@ -118,6 +118,30 @@ class TurnLimitReached(Exception):
     """The session has started as many turns as it may."""
 
 
+_NOT_RUN = {
+    "rejected": "A human rejected it. It was not run.",
+    "expired": "Nobody approved it in time. It was not run.",
+    "withdrawn": "Its turn ended before anyone decided. It was not run.",
+}
+
+
+def _proposal_outcome(
+    proposal_id: str, status: ProposalStatus, result: JsonValue | None, is_error: bool | None
+) -> dict[str, JsonValue]:
+    """A proposed call's result as the model reads it in a later turn."""
+    if status == "pending":
+        return {"status": "awaiting_approval", "proposal_id": proposal_id}
+    if status == "approved":
+        # result is null while the approved call is still running.
+        return {
+            "status": "approved",
+            "proposal_id": proposal_id,
+            "result": result,
+            "is_error": is_error,
+        }
+    return {"status": status, "proposal_id": proposal_id, "note": _NOT_RUN[status]}
+
+
 def _utc_now() -> datetime.datetime:
     return datetime.datetime.now(datetime.UTC)
 
@@ -200,13 +224,39 @@ class SessionStore:
         return row is not None
 
     def history(self, session_id: str) -> list[ChatMessage]:
-        """The session's messages, oldest first."""
+        """The session's messages, oldest first.
+
+        The result of a proposed call says how the proposal stands now (ADR 0001
+        §5): approved with what it returned, rejected, expired, withdrawn, or still
+        awaiting approval. So a later turn knows the outcome and does not propose
+        the call again.
+        """
         if not self.has_session(session_id):
             raise UnknownSession(session_id)
         rows = self._db.execute(
-            "SELECT body FROM messages WHERE session_id = ? ORDER BY seq", (session_id,)
-        )
-        return [_messages.validate_json(body) for (body,) in rows]
+            "SELECT m.body, p.id, p.status, p.expires_at, p.result, p.is_error "
+            "FROM messages AS m LEFT JOIN proposals AS p "
+            "ON m.role = 'tool' AND p.turn_id = m.turn_id "
+            "AND p.call_id = json_extract(m.body, '$.tool_call_id') "
+            "WHERE m.session_id = ? ORDER BY m.seq",
+            (session_id,),
+        ).fetchall()
+        now = self._now()
+        history: list[ChatMessage] = []
+        for body, proposal_id, status, expires_at, result, is_error in rows:
+            message = _messages.validate_json(body)
+            if proposal_id is not None:
+                if status == "pending" and expires_at <= now:
+                    status = "expired"
+                outcome = _proposal_outcome(
+                    proposal_id,
+                    status,
+                    None if result is None else _json.validate_json(result),
+                    None if is_error is None else bool(is_error),
+                )
+                message = message.model_copy(update={"content": json.dumps(outcome)})
+            history.append(message)
+        return history
 
     def turn_count(self, session_id: str) -> int:
         """Every turn the session started, whatever its status."""

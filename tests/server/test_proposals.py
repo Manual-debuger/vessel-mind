@@ -7,7 +7,15 @@ import json
 from fastapi.testclient import TestClient
 
 from vessel_mind.core.capabilities import CapabilityRegistry
-from vessel_mind.core.chat import ChatRequest, Stop, TextDelta, ToolCall, ToolSpec, Usage
+from vessel_mind.core.chat import (
+    ChatRequest,
+    Stop,
+    TextDelta,
+    ToolCall,
+    ToolMessage,
+    ToolSpec,
+    Usage,
+)
 from vessel_mind.server.app import create_app
 
 WRITE = {"resource": "workspace", "effect": "write", "exfil": True, "taints_context": False}
@@ -154,6 +162,61 @@ def test_after_a_restart_every_pending_proposal_is_expired(tmp_path):
     assert again.status_code == 200
     assert again.json()["result"] == {"page": "p-1"}
     assert tool.calls == [{"title": "Demo"}]
+
+
+def next_turn_sees(client: TestClient, model: ProposeOnceModel, session_id: str) -> dict:
+    """Runs a second turn in the session; returns the proposed call's result as the
+    model reads it in that turn."""
+    turn = client.post("/turns", json={"session_id": session_id, "text": "And now?"}).json()
+    read_events(client, turn["turn_id"])
+    request = model.requests[2]  # the second turn's first step
+    result = next(m for m in request.messages if isinstance(m, ToolMessage))
+    return json.loads(result.content)
+
+
+def propose_in_session(client: TestClient) -> tuple[str, str]:
+    turn = client.post("/turns", json={"text": "Make a page."}).json()
+    events = read_events(client, turn["turn_id"])
+    return turn["session_id"], events[1]["proposal_id"]
+
+
+def test_a_later_turn_tells_the_model_the_proposal_was_approved_and_what_it_returned(tmp_path):
+    model = ProposeOnceModel()
+    with TestClient(app_with(WriteTool(), tmp_path, model=model, clock=Clock())) as client:
+        session_id, proposal_id = propose_in_session(client)
+        client.post(f"/proposals/{proposal_id}/approve")
+
+        seen = next_turn_sees(client, model, session_id)
+
+    assert seen == {
+        "status": "approved",
+        "proposal_id": proposal_id,
+        "result": {"page": "p-1"},
+        "is_error": False,
+    }
+
+
+def test_a_later_turn_tells_the_model_the_proposal_was_rejected(tmp_path):
+    model = ProposeOnceModel()
+    with TestClient(app_with(WriteTool(), tmp_path, model=model, clock=Clock())) as client:
+        session_id, proposal_id = propose_in_session(client)
+        client.post(f"/proposals/{proposal_id}/reject")
+
+        seen = next_turn_sees(client, model, session_id)
+
+    assert seen["status"] == "rejected"
+    assert seen["proposal_id"] == proposal_id
+    assert "not run" in seen["note"]
+
+
+def test_a_later_turn_tells_the_model_an_undecided_proposal_still_awaits_approval(tmp_path):
+    model = ProposeOnceModel()
+    with TestClient(app_with(WriteTool(), tmp_path, model=model, clock=Clock())) as client:
+        session_id, proposal_id = propose_in_session(client)
+
+        seen = next_turn_sees(client, model, session_id)
+
+    assert seen == {"status": "awaiting_approval", "proposal_id": proposal_id}
 
 
 class ProposeThenHangModel:
