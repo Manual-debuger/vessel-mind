@@ -5,9 +5,9 @@ import logging
 from collections.abc import AsyncIterator, Sequence
 from contextlib import AbstractAsyncContextManager, AsyncExitStack, asynccontextmanager
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -62,23 +62,35 @@ class Turn:
             self.finished = isinstance(event, DoneEvent | ErrorEvent)
             self._changed.notify_all()
 
-    async def follow(self) -> AsyncIterator[AgentEvent]:
-        """Every event from the first, then each new one, until the turn ends."""
-        sent = 0
+    async def follow(self, start: int = 0) -> AsyncIterator[tuple[int, AgentEvent]]:
+        """Every event from position start, then each new one, until the turn ends,
+        each with its position."""
+        sent = max(start, 0)
         while True:
             async with self._changed:
                 while len(self.events) <= sent:
+                    if self.finished:
+                        return
                     await self._changed.wait()
                 new = self.events[sent:]
-            for event in new:
-                yield event
+            for position, event in enumerate(new, start=sent):
+                yield position, event
             sent += len(new)
             if isinstance(new[-1], DoneEvent | ErrorEvent):
                 return
 
 
-def _sse(event: AgentEvent) -> str:
-    return f"event: {event.type}\ndata: {event.model_dump_json()}\n\n"
+def _sse(position: int, event: AgentEvent) -> str:
+    # The id is the event's position in its turn: a reconnecting EventSource sends
+    # it back as Last-Event-ID, and the stream resumes after it.
+    return f"id: {position}\nevent: {event.type}\ndata: {event.model_dump_json()}\n\n"
+
+
+def _resume_from(last_event_id: str | None) -> int:
+    """The position after Last-Event-ID; 0 without one, or when it is not ours."""
+    if last_event_id is None or not last_event_id.isdigit():
+        return 0
+    return int(last_event_id) + 1
 
 
 def create_app(
@@ -282,12 +294,15 @@ def create_app(
         return turn
 
     @app.get("/turns/{turn_id}/events")
-    async def turn_events(turn_id: str) -> StreamingResponse:
+    async def turn_events(
+        turn_id: str, last_event_id: Annotated[str | None, Header()] = None
+    ) -> StreamingResponse:
         turn = find(turn_id)
+        start = _resume_from(last_event_id)
 
         async def body() -> AsyncIterator[str]:
-            async for event in turn.follow():
-                yield _sse(event)
+            async for position, event in turn.follow(start):
+                yield _sse(position, event)
 
         return StreamingResponse(
             body(),

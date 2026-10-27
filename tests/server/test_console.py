@@ -83,6 +83,7 @@ def test_the_console_scripts_are_served_from_the_app_not_a_cdn():
             "/static/vendor/htmx-ext-sse-2.2.4.min.js",
             "/static/citations.js",
             "/static/route.js",
+            "/static/stream.js",
             "/static/console.js",
         ]
         for src in scripts:
@@ -189,6 +190,63 @@ def test_the_route_badge_names_the_route_the_models_and_both_usages():
         "fast path (classified) · router small: in 50, out 6, thinking 0"
         " · answer small: in 200, out 12, thinking 0"
     )
+
+
+STREAM_JS = CITATIONS_JS.with_name("stream.js")
+
+
+def read_stream(messages: list[dict]) -> list[dict]:
+    """Runs stream.js's read in node over SSE messages ({data?, lastEventId?})."""
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed")
+    program = (
+        "const vm = require('vm'); const fs = require('fs');"
+        "const window = {}; vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), {window});"
+        "const state = window.VesselStream.start();"
+        "const out = JSON.parse(process.argv[2]).map((m) => window.VesselStream.read(m, state));"
+        "console.log(JSON.stringify(out));"
+    )
+    out = subprocess.run(  # noqa: S603 -- fixed program, arguments are data
+        [node, "-e", program, str(STREAM_JS), json.dumps(messages)],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=True,
+    )
+    return json.loads(out.stdout)
+
+
+def test_a_connection_error_without_data_is_a_disconnect_not_a_parse_failure():
+    # A native EventSource `error` event has no data; JSON.parse(undefined) throws.
+    assert read_stream([{}]) == [{"kind": "disconnected"}]
+
+
+def test_an_event_replayed_after_a_reconnect_is_skipped():
+    text = {"type": "text", "text": "one"}
+    done = {"type": "done"}
+    messages = [
+        {"data": json.dumps(text), "lastEventId": "0"},
+        {},  # the connection drops
+        {"data": json.dumps(text), "lastEventId": "0"},  # replayed by a fresh source
+        {"data": json.dumps(done), "lastEventId": "1"},
+    ]
+
+    assert read_stream(messages) == [
+        {"kind": "event", "event": text},
+        {"kind": "disconnected"},
+        {"kind": "duplicate"},
+        {"kind": "event", "event": done},
+    ]
+
+
+def test_the_console_withdraws_open_proposals_when_the_turn_ends_with_an_error():
+    with TestClient(create_app(SilentModel())) as client:
+        script = client.get("/static/console.js").text
+
+    error_branch = script.split('event.type === "error"')[1]
+    assert 'closeProposal(p, "withdrawn")' in error_branch.split("finish(")[0]
+    assert "VesselStream.read" in script
 
 
 def test_the_route_badge_with_the_router_off_names_only_the_answering_model():

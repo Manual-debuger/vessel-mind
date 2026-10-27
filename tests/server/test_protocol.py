@@ -82,6 +82,54 @@ def test_a_turn_streams_text_then_done_with_usage_and_step_count():
     assert model.requests[0].messages[-1] == UserMessage(text="Why is the sky blue?")
 
 
+def raw_stream(client: TestClient, turn_id: str, headers: dict | None = None) -> list[str]:
+    with client.stream("GET", f"/turns/{turn_id}/events", headers=headers or {}) as response:
+        return list(response.iter_lines())
+
+
+THREE_EVENTS = [
+    TextDelta(delta="one "),
+    TextDelta(delta="two"),
+    Stop(reason="end", usage=Usage()),
+]
+
+
+def test_each_event_carries_its_position_as_its_sse_id():
+    with TestClient(create_app(ScriptedModel(THREE_EVENTS))) as client:
+        turn_id = client.post("/turns", json={"text": "Count."}).json()["turn_id"]
+
+        lines = raw_stream(client, turn_id)
+
+    assert [line for line in lines if line.startswith("id: ")] == ["id: 0", "id: 1", "id: 2"]
+
+
+def test_a_reconnect_with_last_event_id_gets_only_the_events_after_it():
+    # EventSource sends Last-Event-ID when it reconnects; replaying from the first
+    # event would show the answer twice.
+    with TestClient(create_app(ScriptedModel(THREE_EVENTS))) as client:
+        turn_id = client.post("/turns", json={"text": "Count."}).json()["turn_id"]
+        read_events(client, turn_id)
+
+        lines = raw_stream(client, turn_id, headers={"Last-Event-ID": "0"})
+
+    data = [json.loads(line.removeprefix("data: ")) for line in lines if line.startswith("data: ")]
+    assert [event["type"] for event in data] == ["text", "done"]
+    assert data[0]["text"] == "two"
+
+
+@pytest.mark.parametrize("last", ["2", "99", "-1", "x"])
+def test_a_last_event_id_past_the_end_or_invalid_never_hangs(last):
+    with TestClient(create_app(ScriptedModel(THREE_EVENTS))) as client:
+        turn_id = client.post("/turns", json={"text": "Count."}).json()["turn_id"]
+        read_events(client, turn_id)
+
+        lines = raw_stream(client, turn_id, headers={"Last-Event-ID": last})
+
+    data = [json.loads(line.removeprefix("data: ")) for line in lines if line.startswith("data: ")]
+    # Past the end: nothing more to send. Invalid: from the start, as with no header.
+    assert [event["type"] for event in data] in ([], ["text", "text", "done"])
+
+
 class StepModel:
     """Replays one scripted list of events per model step."""
 
