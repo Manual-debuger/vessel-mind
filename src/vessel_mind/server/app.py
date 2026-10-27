@@ -18,6 +18,7 @@ from vessel_mind.agent.router import Router
 from vessel_mind.core.capabilities import CapabilityRegistry
 from vessel_mind.core.chat import ChatMessage, ChatModel
 from vessel_mind.core.events import AgentEvent, DoneEvent, ErrorEvent
+from vessel_mind.core.telemetry import NoTelemetry, Telemetry
 from vessel_mind.server.proposals import TurnProposals, proposal_routes
 from vessel_mind.server.state import (
     Clock,
@@ -94,6 +95,7 @@ def create_app(
     public_host: bool = False,
     clock: Clock | None = None,
     services: Sequence[AbstractAsyncContextManager[object]] = (),
+    telemetry: Telemetry | None = None,
 ) -> FastAPI:
     """The app over one model. tools is the capability registry the loop may call;
     None offers no tools. state_path is the SQLite state file, opened at startup.
@@ -115,7 +117,11 @@ def create_app(
     approval. public_host shows the free-tier notice: the app is served on the
     public hostname (spec §5.4). clock gives the current time for proposal expiry;
     tests fake it.
+
+    telemetry receives a summary of each turn when it ends: its status, steps and
+    usage (and, from the router, its route decision).
     """
+    sink: Telemetry = telemetry if telemetry is not None else NoTelemetry()
     registry = tools if tools is not None else CapabilityRegistry()
     # Turns in this process, for streaming. The state file outlives them.
     turns: dict[str, Turn] = {}
@@ -127,7 +133,9 @@ def create_app(
     def store() -> SessionStore:
         return stores[0]
 
-    async def drive(turn: Turn, turn_id: str, history: list[ChatMessage], text: str) -> None:
+    async def drive(
+        turn: Turn, turn_id: str, session_id: str, history: list[ChatMessage], text: str
+    ) -> None:
         tally = TurnTally()
         finished = False
 
@@ -136,6 +144,16 @@ def create_app(
             if not finished:
                 finished = True
                 store().finish_turn(turn_id, status, messages or [])
+                sink.record(
+                    "turn",
+                    {
+                        "turn_id": turn_id,
+                        "session_id": session_id,
+                        "status": status,
+                        "steps": tally.steps,
+                        "usage": tally.usage.model_dump(),
+                    },
+                )
 
         options: dict[str, Any] = {
             "tools": registry,
@@ -254,7 +272,7 @@ def create_app(
             turns[turn_id] = turn
             latest[session_id] = turn
             history = store().history(session_id)
-            turn.task = asyncio.create_task(drive(turn, turn_id, history, body.text))
+            turn.task = asyncio.create_task(drive(turn, turn_id, session_id, history, body.text))
         return TurnStarted(session_id=session_id, turn_id=turn_id)
 
     def find(turn_id: str) -> Turn:

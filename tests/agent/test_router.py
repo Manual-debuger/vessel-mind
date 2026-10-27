@@ -206,6 +206,36 @@ async def test_a_fast_turn_sends_earlier_tool_calls_as_text_since_it_offers_no_t
     ]
 
 
+class RecordedTelemetry:
+    def __init__(self) -> None:
+        self.records: list[tuple[str, dict]] = []
+
+    def record(self, kind: str, data) -> None:
+        self.records.append((kind, dict(data)))
+
+
+@pytest.mark.asyncio
+async def test_the_route_decision_goes_to_telemetry_with_both_models_usage():
+    fast = ScriptedModel("small", classified('{"route": "fast"}'), answer("Hello!"))
+    telemetry = RecordedTelemetry()
+
+    await collect(Router(fast, ScriptedModel("large"), telemetry=telemetry), [], "Hi")
+
+    assert telemetry.records == [
+        (
+            "route",
+            {
+                "route": "fast",
+                "reason": "classified",
+                "router_model": "small",
+                "router_usage": ROUTER_USAGE.model_dump(),
+                "model": "small",
+                "usage": ANSWER_USAGE.model_dump(),
+            },
+        )
+    ]
+
+
 @pytest.mark.asyncio
 async def test_a_slow_turn_runs_the_tool_loop_on_the_slow_model():
     fast = ScriptedModel("small", classified('{"route": "slow"}'))

@@ -103,6 +103,13 @@ sessions:
   max_turns: 30
   max_turns_per_day: 500
 
+# Telemetry: each turn's route decision (route, reason, both models and their
+# token usage) and its summary (status, steps, usage) are appended to this
+# JSONL file, one object per line. It holds no message text. It sits beside
+# the state file, in the volume compose.yaml keeps. `path: null` turns it off.
+telemetry:
+  path: data/state/telemetry.jsonl
+
 # search_docs: the retrieval pipeline. At startup, the server ingests the
 # pinned corpus into the index when the index is missing or unfinished (the
 # first start downloads the embedding model and may fetch a tarball); a

@@ -15,6 +15,7 @@ from vessel_mind.core.chat import (
     Usage,
     UserMessage,
 )
+from vessel_mind.core.telemetry import JsonlTelemetry
 from vessel_mind.server.app import create_app
 from vessel_mind.server.state import SessionStore
 
@@ -198,6 +199,24 @@ def test_past_the_daily_turn_limit_new_sessions_are_refused_too_until_the_next_d
     assert refused.json()["detail"]["code"] == "daily_turn_limit"
     assert "2" in refused.json()["detail"]["message"]
     assert next_day.status_code == 200
+
+
+def test_each_turn_ends_with_a_summary_in_the_telemetry_file(tmp_path):
+    telemetry = tmp_path / "telemetry.jsonl"
+    app = create_app(
+        EchoModel(), state_path=tmp_path / "state.db", telemetry=JsonlTelemetry(telemetry)
+    )
+    with TestClient(app) as client:
+        started = client.post("/turns", json={"text": "Hello"}).json()
+        run_to_end(client, started["turn_id"])
+
+    (summary,) = [json.loads(line) for line in telemetry.read_text(encoding="utf-8").splitlines()]
+    assert summary["kind"] == "turn"
+    assert summary["turn_id"] == started["turn_id"]
+    assert summary["session_id"] == started["session_id"]
+    assert summary["status"] == "done"
+    assert summary["steps"] == 1
+    assert summary["usage"] == {"input_tokens": 1, "output_tokens": 1, "thinking_tokens": 0}
 
 
 def test_an_unknown_session_is_a_404(tmp_path):

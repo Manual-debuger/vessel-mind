@@ -18,6 +18,7 @@ from vessel_mind.rag.corpus import Document
 from vessel_mind.rag.search import SearchResult
 from vessel_mind.server.config import ConfigError, load_config
 from vessel_mind.server.main import app_from_config, build_router, mcp_servers_from_config
+from vessel_mind.server.state import SessionStore
 
 REPO = Path(__file__).resolve().parent.parent.parent
 EXAMPLE = REPO / "config" / "agent.example.yaml"
@@ -166,16 +167,35 @@ def test_the_public_host_must_limit_the_turns_of_a_day(tmp_path):
 def test_the_daily_turn_limit_in_config_holds_across_sessions(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     config = config_with(tmp_path, "  max_turns_per_day: 500\n", "  max_turns_per_day: 1\n")
+    # Today's one turn was started by another session, before this server ran
+    # (so no turn here calls the configured model).
+    earlier = SessionStore.open(load_config(config).state.path)
+    earlier.begin_turn(earlier.create_session())
+    earlier.close()
     app = app_from_config(config, environ={"GEMINI_API_KEY": "k"}, **offline())
 
     with TestClient(app) as client:
-        first = client.post("/turns", json={"text": "one"})
-        client.post(f"/turns/{first.json()['turn_id']}/cancel")
-        second = client.post("/turns", json={"text": "two"})
+        refused = client.post("/turns", json={"text": "a new session"})
 
-    assert first.status_code == 200
-    assert second.status_code == 429
-    assert second.json()["detail"]["code"] == "daily_turn_limit"
+    assert refused.status_code == 429
+    assert refused.json()["detail"]["code"] == "daily_turn_limit"
+
+
+def test_the_example_appends_telemetry_beside_the_state_file():
+    # In the volume compose.yaml keeps, so a container restart keeps it.
+    config = load_config(EXAMPLE)
+
+    path = config.telemetry.path
+    assert path is not None
+    assert path == Path("data/state/telemetry.jsonl")
+    assert path.parent == config.state.path.parent
+    assert load_config(PUBLIC).telemetry == config.telemetry
+
+
+def test_telemetry_can_be_turned_off(tmp_path):
+    config = config_with(tmp_path, "  path: data/state/telemetry.jsonl\n", "  path: null\n")
+
+    assert load_config(config).telemetry.path is None
 
 
 def test_the_public_example_runs_routed_in_demo_mode_with_a_turn_limit():

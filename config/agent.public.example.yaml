@@ -77,6 +77,11 @@ sessions:
   max_turns: 20
   max_turns_per_day: 100
 
+# Route decisions and turn summaries, as JSONL, in the state volume. No
+# message text.
+telemetry:
+  path: data/state/telemetry.jsonl
+
 # The image ships a complete index at data/index.sqlite, built with this
 # embedding model, and both models in .cache/fastembed. A different model
 # here needs a rebuild of the image (deploy/Dockerfile).

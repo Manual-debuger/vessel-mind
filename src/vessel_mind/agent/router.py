@@ -43,6 +43,7 @@ from vessel_mind.core.events import (
     ToolResultEvent,
     ToolStartEvent,
 )
+from vessel_mind.core.telemetry import NoTelemetry, Telemetry
 
 log = logging.getLogger(__name__)
 
@@ -121,6 +122,9 @@ class Router:
     fast_fallbacks and slow_fallbacks are each path's fallback list, in order
     (spec §5.1): when a path's model fails after its retries, the next one is
     asked, and the route event names the model that answered.
+
+    telemetry receives each turn's route decision, with both models' usage, when
+    the turn is done.
     """
 
     def __init__(
@@ -133,7 +137,9 @@ class Router:
         max_tokens: int | None = None,
         fast_fallbacks: Sequence[ChatModel] = (),
         slow_fallbacks: Sequence[ChatModel] = (),
+        telemetry: Telemetry | None = None,
     ) -> None:
+        self.telemetry: Telemetry = telemetry if telemetry is not None else NoTelemetry()
         self.fast = fast
         self.slow = slow
         self.fast_fallbacks = tuple(fast_fallbacks)
@@ -205,14 +211,16 @@ class Router:
                 for earlier in held:
                     yield earlier
             if isinstance(event, DoneEvent):
-                log.info(
-                    "route %s (%s): router %s %s; answer %s %s",
-                    route,
-                    reason,
-                    decision.router_model,
-                    usage.model_dump(),
-                    decision.model,
-                    event.usage.model_dump(),
+                self.telemetry.record(
+                    "route",
+                    {
+                        "route": route,
+                        "reason": reason,
+                        "router_model": decision.router_model,
+                        "router_usage": usage.model_dump(),
+                        "model": decision.model,
+                        "usage": event.usage.model_dump(),
+                    },
                 )
             yield event
 

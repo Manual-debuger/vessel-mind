@@ -93,6 +93,12 @@ class State(_Config):
     path: Path = Path("data/state/state.db")
 
 
+class TelemetrySettings(_Config):
+    # The JSONL file each turn's route decision and summary are appended to. A
+    # relative path is relative to the server's working directory. None: none.
+    path: Path | None = Path("data/state/telemetry.jsonl")
+
+
 class Sessions(_Config):
     # The turns one session may start, to protect the free quota. None: no limit.
     max_turns: int | None = Field(default=None, gt=0)
@@ -204,6 +210,7 @@ class AgentConfig(_Config):
     agent: Agent = Agent()
     state: State = State()
     sessions: Sessions = Sessions()
+    telemetry: TelemetrySettings = TelemetrySettings()
     retrieval: Retrieval = Retrieval()
     # ADR 0002: on the public host, proposals are shown but every approval is refused.
     demo_mode: bool = False

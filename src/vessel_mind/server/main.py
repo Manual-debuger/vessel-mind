@@ -12,6 +12,7 @@ from vessel_mind.agent.router import Router
 from vessel_mind.core.capabilities import CapabilityRegistry
 from vessel_mind.core.chat import ChatModel
 from vessel_mind.core.credentials import CredentialError, resolve_credential
+from vessel_mind.core.telemetry import JsonlTelemetry, Telemetry
 from vessel_mind.rag.corpus import Document
 from vessel_mind.rag.embed import Embedder, FastEmbedEmbedder
 from vessel_mind.rag.ingest import corpus_loader
@@ -57,12 +58,14 @@ def build_router(
     enabled: bool | None = None,
     fallbacks: bool = True,
     wrap: Callable[[ChatModel], ChatModel] = lambda model: model,
+    telemetry: Telemetry | None = None,
 ) -> Router:
     """The router over one configuration's models: the active one unless named.
 
     enabled overrides router.enabled; False is the eval's slow-only baseline.
     fallbacks=False leaves out the paths' fallback lists. wrap is applied to each
-    model, for example to pace its requests. Raises ConfigError for an undefined
+    model, for example to pace its requests. telemetry receives the route
+    decisions. Raises ConfigError for an undefined
     configuration or an unset key.
     """
     selected = config.select(configuration)
@@ -79,6 +82,7 @@ def build_router(
         max_tokens=settings.max_tokens,
         fast_fallbacks=[model(c) for c in selected.fast_fallbacks] if fallbacks else [],
         slow_fallbacks=[model(c) for c in selected.slow_fallbacks] if fallbacks else [],
+        telemetry=telemetry,
     )
 
 
@@ -100,7 +104,10 @@ def app_from_config(
     model loads and nothing is fetched."""
     environ = os.environ if environ is None else environ
     config = load_config(path or _config_path(environ))
-    turn_router = build_router(config, environ, configuration=configuration, enabled=router)
+    telemetry = JsonlTelemetry(config.telemetry.path) if config.telemetry.path is not None else None
+    turn_router = build_router(
+        config, environ, configuration=configuration, enabled=router, telemetry=telemetry
+    )
 
     settings = config.retrieval
     if embedder is None:
@@ -140,6 +147,7 @@ def app_from_config(
         demo_mode=config.demo_mode,
         public_host=config.public_host,
         services=[retrieval, *mcp_servers],
+        telemetry=telemetry,
     )
 
 
