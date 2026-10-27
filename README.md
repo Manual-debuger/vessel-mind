@@ -77,7 +77,18 @@ The package has four layers, and an import-linter contract checks them in
 imports nothing else; `agent` (loop, router, proposals, MCP client, model adapter) and `rag`
 (chunk, embed, store, search, ingest) import only `core`, and `agent` never imports `rag`;
 `server` wires them together. Retrieval reaches the loop as an injected `read` tool,
-`search_docs`.
+`search_docs`. `eval` (the harness behind `task eval`) is a second composition root above
+`server`: it imports `server` for config, and nothing imports `eval`.
+
+Each path of a configuration can list fallback models (`fast_fallbacks`, `slow_fallbacks`):
+when a model still fails after its retries (HTTP 429 or 503, or no first byte in time), the next
+one answers, and the `route` event names the model that did. Each turn's route decision and
+summary (status, steps, token usage; no message text) are appended to a JSONL telemetry file,
+`data/state/telemetry.jsonl` by default.
+
+The retrieval pipeline reranks on the CPU only (a fastembed cross-encoder). The `llama-server`
+reranker that the spec offered as a second provider was cut: config refuses
+`reranker: llama-server`.
 
 The deployment (ADR 0002):
 
@@ -106,8 +117,8 @@ differs from the code.
 | Endpoint | Purpose |
 |---|---|
 | `GET /health` | readiness |
-| `POST /turns` | start a turn: body `{session_id?, text}`; no `session_id` creates a session; returns `{session_id, turn_id}`. A new turn cancels the session's running turn. Past `sessions.max_turns`: 429 `turn_limit`. |
-| `GET /turns/{id}/events` | the turn's events as Server-Sent Events (`event:` is the type, the data is JSON) |
+| `POST /turns` | start a turn: body `{session_id?, text}`; no `session_id` creates a session; returns `{session_id, turn_id}`. A new turn cancels the session's running turn. Past `sessions.max_turns`: 429 `turn_limit`; past `sessions.max_turns_per_day` (all sessions together, per UTC day): 429 `daily_turn_limit`. |
+| `GET /turns/{id}/events` | the turn's events as Server-Sent Events (`event:` is the type, the data is JSON, `id:` is the event's position); a reconnect with `Last-Event-ID` resumes after that event |
 | `POST /turns/{id}/cancel` | cancel; the stream ends with `done` or `error`, never silently |
 | `POST /proposals/{id}/approve` | run the proposed write once (idempotent by id); in demo mode: 403 `demo_mode` |
 | `POST /proposals/{id}/reject` | discard the proposal; it never runs |
@@ -182,7 +193,8 @@ it needs both Ollama and `GEMINI_API_KEY`.
 
 `config/agent.public.example.yaml` is the public host's configuration: `routed`, demo mode on
 (the console shows proposals, and every approval is refused with 403 `demo_mode`), the
-free-tier notice, a limit of 20 turns per session, and a read-only Notion integration. Copy it
+free-tier notice, a limit of 20 turns per session and of 100 turns a day across all sessions,
+and a read-only Notion integration. Copy it
 to `config/agent.yaml` and start the tunnel too:
 
 ```sh
@@ -198,7 +210,9 @@ Every number here is copied from [`eval/results/results.md`](eval/results/result
 `task eval` generates and nobody edits; `tests/test_readme.py` fails when this copy differs from
 it. The golden set is [`eval/golden.yaml`](eval/golden.yaml): 35 questions over the public
 corpus (English, Traditional Chinese written in Chinese, and unanswerable ones), each with
-expected sources, key points and an expected route.
+expected sources, key points and an expected route. The Traditional Chinese questions (zh-01
+to zh-10) were drafted with an AI assistant, directly in Chinese, and the author reviewed each
+one before the freeze ([`eval/golden-changes.md`](eval/golden-changes.md)).
 
 <!-- results:begin -->
 
@@ -275,8 +289,10 @@ slow path; 1 costly misroute (en-03).
 From [the spec](docs/specs/a-agent-track.md) §7. An open item names its reason.
 
 - [ ] `task verify` green locally (WSL2) and in CI. **Open:** it is green locally and on the
-      ubuntu CI job; the windows CI job fails 4 tests (stream cancellation, CRLF line endings in
-      the corpus test, and two console route-badge tests) as of 2026-10-27.
+      ubuntu CI job; the windows CI job failed 4 tests (stream cancellation, CRLF line endings in
+      the corpus test, and two console route-badge tests) as of 2026-10-27. The fixes
+      (`.gitattributes`, an archive without `core.autocrlf`, UTF-8 subprocess output) await a
+      windows CI run.
 - [x] Module boundaries enforced: a forbidden import fails `tests/test_architecture.py`.
 - [x] The adapter passes fixture tests, including parallel tool calls and cancellation
       (`tests/agent/test_openai_compatible.py`, recorded Gemini fixtures).
