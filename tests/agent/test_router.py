@@ -146,7 +146,7 @@ async def test_a_fast_turn_retrieves_first_and_answers_on_the_fast_model_with_th
     assert search.calls == [{"query": "What is a proposal?"}]
     assert slow.requests == []
     classify, reply = fast.requests
-    # The classification sees the conversation as text and offers no tools.
+    # The classification sees the session as text and offers no tools.
     assert classify.tools == []
     assert classify.messages[-1] == UserMessage(text="What is a proposal?")
     # The answer gets the retrieved sections, numbered as search_docs numbers them.
@@ -491,7 +491,7 @@ async def test_a_model_that_fails_after_it_started_answering_is_not_replaced():
 
 
 @pytest.mark.asyncio
-async def test_the_classification_sees_the_conversation_as_text_only():
+async def test_the_classification_sees_the_session_as_text_only():
     fast = ScriptedModel("small", classified('{"route": "slow"}'))
     slow = ScriptedModel("large", answer("Ok."))
     call = ToolCall(id="c1", name="search_docs", input={"query": "x"})

@@ -12,7 +12,6 @@ import json
 import logging
 import re
 from collections.abc import AsyncIterator, Sequence
-from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
@@ -38,6 +37,7 @@ from vessel_mind.core.events import (
     AgentEvent,
     DoneEvent,
     ErrorEvent,
+    Route,
     RouteEvent,
     RouteReason,
     ToolResultEvent,
@@ -47,14 +47,12 @@ from vessel_mind.core.telemetry import NoTelemetry, Telemetry
 
 log = logging.getLogger(__name__)
 
-Route = Literal["fast", "slow"]
-
 # The tool the fast path retrieves with, and the call id of its tool_start and
 # tool_result events, so a client maps [n] the same way on both paths.
 SEARCH_TOOL = "search_docs"
 FAST_PATH_CALL_ID = "fast-path-search"
 
-CLASSIFIER_SYSTEM = """\
+ROUTER_SYSTEM = """\
 You route a user's message to one of two paths. Reply with JSON only, no other text:
 {"route": "fast"} or {"route": "slow"}.
 
@@ -166,7 +164,7 @@ class Router:
         """
         tally = tally if tally is not None else TurnTally()
         registry = tools if tools is not None else CapabilityRegistry()
-        route, reason, usage, router_model = await self._classify(history, user_text)
+        route, reason, usage, router_model = await self._decide_route(history, user_text)
         if route == "fast":
             model = _FirstThatAnswers((self.fast, *self.fast_fallbacks))
         else:
@@ -285,7 +283,7 @@ class Router:
         ):
             yield event
 
-    async def _classify(
+    async def _decide_route(
         self, history: Sequence[ChatMessage], user_text: str
     ) -> tuple[Route, RouteReason, Usage, str | None]:
         """The route, how it was reached, the classification's usage, and the model
@@ -300,7 +298,7 @@ class Router:
     ) -> tuple[Route, RouteReason, Usage, _FirstThatAnswers]:
         classifier = _FirstThatAnswers((self.fast, *self.fast_fallbacks))
         request = ChatRequest(
-            system=CLASSIFIER_SYSTEM,
+            system=ROUTER_SYSTEM,
             messages=[*_as_text(history), UserMessage(text=user_text)],
             max_tokens=self.max_tokens,
         )
@@ -354,7 +352,7 @@ def _unfenced(text: str) -> str:
 
 
 def _as_text(history: Sequence[ChatMessage]) -> list[ChatMessage]:
-    """The conversation as plain user and assistant text: the classification needs
+    """The session so far as plain user and assistant text: the classification needs
     what was said, not the tool calls or their results."""
     messages: list[ChatMessage] = []
     for message in history:

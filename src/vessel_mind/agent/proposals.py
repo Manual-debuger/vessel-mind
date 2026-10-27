@@ -6,16 +6,15 @@ an approval, outside the loop, executes the call, and at most once (ADR 0001 §5
 """
 
 import datetime
-from typing import Literal, Protocol
+from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict
 
+from vessel_mind.core.capabilities import ProposedEffect
 from vessel_mind.core.chat import ToolCall
 
 # A proposal that nobody approves or rejects in this time expires.
 PROPOSAL_TTL = datetime.timedelta(minutes=10)
-
-ProposedEffect = Literal["write", "irreversible"]
 
 
 class Proposal(BaseModel):

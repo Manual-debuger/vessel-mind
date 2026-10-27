@@ -24,6 +24,9 @@ from vessel_mind.rag.embed import DEFAULT_MODEL
 from vessel_mind.rag.rerank import DEFAULT_RERANK_MODEL, RerankerProvider
 from vessel_mind.rag.search import CANDIDATE_K, TOP_K, CandidateStage
 
+# The configurations (GLOSSARY.md), each a fixed pair of models.
+ConfigurationName = Literal["hosted", "local", "routed"]
+
 
 class ConfigError(Exception):
     """The config file is missing, invalid or refers to an unset env var."""
@@ -202,7 +205,7 @@ class EvalSettings(_Config):
 
 
 class AgentConfig(_Config):
-    configuration: Literal["hosted", "local", "routed"]
+    configuration: ConfigurationName
     providers: dict[str, Provider]
     configurations: dict[str, Configuration]
     router: RouterSettings = RouterSettings()
@@ -254,10 +257,6 @@ class AgentConfig(_Config):
         if self.public_host and self.sessions.max_turns_per_day is None:
             raise ValueError("public_host requires sessions.max_turns_per_day")
         return self
-
-    @property
-    def active(self) -> Configuration:
-        return self.configurations[self.configuration]
 
     def select(self, name: str | None = None) -> Configuration:
         """The named configuration, or the active one when name is None."""

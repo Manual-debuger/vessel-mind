@@ -13,6 +13,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
+from vessel_mind.core.capabilities import ProposedEffect
 from vessel_mind.core.chat import Usage
 
 
@@ -21,6 +22,9 @@ class _Event(BaseModel):
         frozen=True, extra="forbid", json_schema_serialization_defaults_required=True
     )
 
+
+# A route (GLOSSARY.md): the fast path or the slow path.
+Route = Literal["fast", "slow"]
 
 RouteReason = Literal["classified", "timeout", "invalid", "max_tokens", "model_error", "router_off"]
 
@@ -37,7 +41,7 @@ class RouteEvent(_Event):
     """
 
     type: Literal["route"] = "route"
-    route: Literal["fast", "slow"]
+    route: Route
     reason: RouteReason
     # The model that classified the turn; null when the router is off.
     router_model: str | None
@@ -89,7 +93,7 @@ class ProposalEvent(_Event):
     call_id: str
     name: str
     input: dict[str, Any]
-    effect: Literal["write", "irreversible"]
+    effect: ProposedEffect
     expires_at: datetime.datetime
 
 

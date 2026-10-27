@@ -12,8 +12,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, JsonValue
 
 from vessel_mind.agent.loop import run_tool
-from vessel_mind.agent.proposals import PROPOSAL_TTL, Proposal, ProposedEffect
-from vessel_mind.core.capabilities import CapabilityRegistry
+from vessel_mind.agent.proposals import PROPOSAL_TTL, Proposal
+from vessel_mind.core.capabilities import CapabilityRegistry, ProposedEffect
 from vessel_mind.core.chat import ToolCall
 from vessel_mind.server.state import (
     ProposalStatus,

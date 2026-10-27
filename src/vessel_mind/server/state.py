@@ -19,6 +19,7 @@ from typing import Any, Literal
 
 from pydantic import JsonValue, TypeAdapter
 
+from vessel_mind.core.capabilities import ProposedEffect
 from vessel_mind.core.chat import ChatMessage, ToolCall
 
 Clock = Callable[[], datetime.datetime]
@@ -79,9 +80,9 @@ MIGRATIONS: list[str] = [
 #   approved:  an approval claimed it; it executes once. result is set when it has run.
 #   rejected:  a human rejected it; it never runs.
 #   expired:   nobody decided in time, or the server restarted while it was pending.
-#   withdrawn: its turn was cancelled or failed, so the conversation never kept the call.
+#   withdrawn: its turn was cancelled or failed, so the session's history never kept
+#     the call.
 ProposalStatus = Literal["pending", "approved", "rejected", "expired", "withdrawn"]
-ProposalEffect = Literal["write", "irreversible"]
 
 _messages: TypeAdapter[Any] = TypeAdapter(ChatMessage)
 _json: TypeAdapter[JsonValue] = TypeAdapter(JsonValue)
@@ -94,7 +95,7 @@ class StoredProposal:
     call_id: str
     name: str
     input: dict[str, Any]
-    effect: ProposalEffect
+    effect: ProposedEffect
     status: ProposalStatus
     expires_at: datetime.datetime
     # Set once an approved proposal has executed.
@@ -315,8 +316,8 @@ class SessionStore:
     ) -> None:
         """Ends a turn and appends its messages to the session's history, in one transaction.
 
-        A turn that ends other than "done" writes no history, so the conversation
-        never kept its calls: its pending proposals are withdrawn.
+        A turn that ends other than "done" writes no history, so the session never
+        kept its calls: its pending proposals are withdrawn.
         """
         with self._transaction():
             row = self._db.execute(
@@ -357,7 +358,7 @@ class SessionStore:
         self,
         turn_id: str,
         call: ToolCall,
-        effect: ProposalEffect,
+        effect: ProposedEffect,
         ttl: datetime.timedelta,
     ) -> StoredProposal:
         """Stores a pending proposal for one call of a running turn."""

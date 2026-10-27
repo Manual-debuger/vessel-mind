@@ -26,6 +26,7 @@ import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import get_args
 
 from vessel_mind.eval.end_to_end import ResumeError, RowSpec, run_end_to_end, store_not_run
 from vessel_mind.eval.golden import GoldenSet, GoldenSetError, load_golden
@@ -48,13 +49,23 @@ from vessel_mind.rag.ingest import corpus_loader, ingest
 from vessel_mind.rag.rerank import CrossEncoderReranker, FastEmbedCrossEncoder, make_reranker
 from vessel_mind.rag.search import Reranker
 from vessel_mind.rag.store import IndexStore
-from vessel_mind.server.config import AgentConfig, ConfigError, EvalSettings, load_config
+from vessel_mind.server.config import (
+    AgentConfig,
+    ConfigError,
+    ConfigurationName,
+    EvalSettings,
+    load_config,
+)
 from vessel_mind.server.main import DEFAULT_CONFIG, EXAMPLE_CONFIG, build_model, build_router
 from vessel_mind.server.retrieval import RetrievalService, search_docs_registry
 
 DEFAULT_GOLDEN = Path("eval/golden.yaml")
 DEFAULT_RESULTS = Path("eval/results")
-CONFIGURATIONS = ("hosted", "local", "routed")
+
+
+def _check_sources(golden: GoldenSet, documents: Iterable[Document]) -> None:
+    """Raises GoldenSetError when an expected source is not one of the documents."""
+    golden.check_sources({f"{d.source_name}/{d.path}" for d in documents})
 
 
 def run_retrieval_only(
@@ -72,7 +83,7 @@ def run_retrieval_only(
     """Table 1. Raises CorpusPinError or GoldenSetError before it loads a model,
     touches the index or writes a result."""
     documents = list(load_documents())
-    golden.check_sources({f"{d.source_name}/{d.path}" for d in documents})
+    _check_sources(golden, documents)
     embedder, reranker = make_models()
     with IndexStore.open(index_path, embedder) as store:
         ingest(documents, store, embedder)
@@ -114,7 +125,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     mode.add_argument(
         "--config",
-        choices=CONFIGURATIONS,
+        choices=get_args(ConfigurationName),
         help="table 2: run this configuration's row end to end",
     )
     mode.add_argument(
@@ -280,7 +291,7 @@ def _end_to_end(
         )
         golden = load_golden(args.golden)
         documents = list(_documents(args, config)())
-        golden.check_sources({f"{d.source_name}/{d.path}" for d in documents})
+        _check_sources(golden, documents)
     except (ConfigError, GoldenSetError, CorpusPinError, OSError) as exc:
         print(f"eval refused: {exc}", file=sys.stderr)
         return 2
