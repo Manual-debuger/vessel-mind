@@ -187,9 +187,12 @@ def _fixture_repo(tmp_path: Path) -> tuple[Path, str]:
     _git(repo, "config", "user.email", "fixture@example.com")
     _git(repo, "config", "user.name", "Fixture")
     (repo / "docs" / "adr").mkdir(parents=True)
-    (repo / "docs" / "adr" / "0001-first.md").write_text("# First\n\nPinned.\n", encoding="utf-8")
-    (repo / "GLOSSARY.md").write_text("# Glossary\n", encoding="utf-8")
-    (repo / "notes.md").write_text("# Not included\n", encoding="utf-8")
+    # newline="\n": the committed bytes are the same on every OS.
+    (repo / "docs" / "adr" / "0001-first.md").write_text(
+        "# First\n\nPinned.\n", encoding="utf-8", newline="\n"
+    )
+    (repo / "GLOSSARY.md").write_text("# Glossary\n", encoding="utf-8", newline="\n")
+    (repo / "notes.md").write_text("# Not included\n", encoding="utf-8", newline="\n")
     _git(repo, "add", ".")
     _git(repo, "commit", "--quiet", "-m", "fixture")
     return repo, _git(repo, "rev-parse", "HEAD")
@@ -221,6 +224,20 @@ def test_a_git_source_is_read_at_its_pinned_commit_not_from_the_working_tree(tmp
         "GLOSSARY.md": "# Glossary\n",
     }
     assert all(doc.commit == commit for doc in documents)
+
+
+def test_a_git_source_has_the_committed_bytes_whatever_the_clone_s_autocrlf(tmp_path):
+    # Windows clones default to core.autocrlf=true, which git archive applies.
+    repo, commit = _fixture_repo(tmp_path)
+    _git(repo, "config", "core.autocrlf", "true")
+    corpus = load_corpus(_git_corpus(tmp_path, commit))
+
+    documents = read_corpus(corpus, repo_root=repo, cache_dir=tmp_path / "cache")
+
+    assert {doc.path: doc.text for doc in documents} == {
+        "docs/adr/0001-first.md": "# First\n\nPinned.\n",
+        "GLOSSARY.md": "# Glossary\n",
+    }
 
 
 def test_a_git_commit_missing_from_the_clone_cannot_be_pinned(tmp_path):

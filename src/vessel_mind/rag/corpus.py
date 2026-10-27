@@ -110,8 +110,19 @@ def _git_archive(source: Source, repo_root: Path) -> bytes:
         raise CorpusPinError(f"source {source.name!r}: git is not installed")
     try:
         # S603: no shell, and the commit is validated as 40 hex characters.
+        # core.autocrlf=false: git archive applies it, and a pinned commit must give
+        # the same bytes (and hashes) on every machine.
         return subprocess.run(  # noqa: S603
-            [git, "-C", str(repo_root), "archive", "--format=tar", source.commit],
+            [
+                git,
+                "-C",
+                str(repo_root),
+                "-c",
+                "core.autocrlf=false",
+                "archive",
+                "--format=tar",
+                source.commit,
+            ],
             check=True,
             capture_output=True,
         ).stdout
