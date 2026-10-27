@@ -116,6 +116,7 @@ def split_citations(text: str, results: list[dict]) -> list:
         [node, "-e", program, str(CITATIONS_JS), json.dumps([text, results])],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         check=True,
     )
     return json.loads(out.stdout)
@@ -163,6 +164,7 @@ def route_badge(route: dict, done: dict | None) -> str:
         [node, "-e", program, str(ROUTE_JS), json.dumps([route, done])],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         check=True,
     )
     return json.loads(out.stdout)
