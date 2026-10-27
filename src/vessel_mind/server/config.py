@@ -24,6 +24,9 @@ from vessel_mind.rag.embed import DEFAULT_MODEL
 from vessel_mind.rag.rerank import DEFAULT_RERANK_MODEL, RerankerProvider
 from vessel_mind.rag.search import CANDIDATE_K, TOP_K, CandidateStage
 
+# The configurations (GLOSSARY.md), each a fixed pair of models.
+ConfigurationName = Literal["hosted", "local", "routed"]
+
 
 class ConfigError(Exception):
     """The config file is missing, invalid or refers to an unset env var."""
@@ -56,6 +59,14 @@ class Configuration(_Config):
 
     fast: ModelChoice
     slow: ModelChoice
+    # Each path's fallback list (spec §5.1), tried in order when the path's model
+    # still fails after its retries. The route event names the model that answered.
+    fast_fallbacks: list[ModelChoice] = []
+    slow_fallbacks: list[ModelChoice] = []
+
+    def models(self) -> list[ModelChoice]:
+        """Every model the configuration may call."""
+        return [self.fast, self.slow, *self.fast_fallbacks, *self.slow_fallbacks]
 
 
 class RouterSettings(_Config):
@@ -85,9 +96,18 @@ class State(_Config):
     path: Path = Path("data/state/state.db")
 
 
+class TelemetrySettings(_Config):
+    # The JSONL file each turn's route decision and summary are appended to. A
+    # relative path is relative to the server's working directory. None: none.
+    path: Path | None = Path("data/state/telemetry.jsonl")
+
+
 class Sessions(_Config):
     # The turns one session may start, to protect the free quota. None: no limit.
     max_turns: int | None = Field(default=None, gt=0)
+    # The turns all sessions together may start in one UTC day: a new session
+    # does not reset it. None: no limit.
+    max_turns_per_day: int | None = Field(default=None, gt=0)
 
 
 # Commands that fetch a package at start instead of running a pinned one.
@@ -185,7 +205,7 @@ class EvalSettings(_Config):
 
 
 class AgentConfig(_Config):
-    configuration: Literal["hosted", "local", "routed"]
+    configuration: ConfigurationName
     providers: dict[str, Provider]
     configurations: dict[str, Configuration]
     router: RouterSettings = RouterSettings()
@@ -193,11 +213,12 @@ class AgentConfig(_Config):
     agent: Agent = Agent()
     state: State = State()
     sessions: Sessions = Sessions()
+    telemetry: TelemetrySettings = TelemetrySettings()
     retrieval: Retrieval = Retrieval()
     # ADR 0002: on the public host, proposals are shown but every approval is refused.
     demo_mode: bool = False
     # The app is served on the public hostname (ADR 0002): the console shows the
-    # free-tier notice. It requires demo mode and a per-session turn limit.
+    # free-tier notice. It requires demo mode, a per-session and a daily turn limit.
     public_host: bool = False
     # MCP servers by name; the model sees each tool as '<name>_<tool>'.
     mcp_servers: dict[
@@ -211,9 +232,9 @@ class AgentConfig(_Config):
         if self.configuration not in self.configurations:
             raise ValueError(f"configuration {self.configuration!r} is not defined")
         for name, configuration in self.configurations.items():
-            for path in (configuration.fast, configuration.slow):
-                if path.provider not in self.providers:
-                    raise ValueError(f"{name}: unknown provider {path.provider!r}")
+            for choice in configuration.models():
+                if choice.provider not in self.providers:
+                    raise ValueError(f"{name}: unknown provider {choice.provider!r}")
         if self.eval is not None:
             if self.eval.judge.provider not in self.providers:
                 raise ValueError(f"eval.judge: unknown provider {self.eval.judge.provider!r}")
@@ -233,11 +254,9 @@ class AgentConfig(_Config):
             raise ValueError("public_host requires demo_mode: true")
         if self.public_host and self.sessions.max_turns is None:
             raise ValueError("public_host requires sessions.max_turns")
+        if self.public_host and self.sessions.max_turns_per_day is None:
+            raise ValueError("public_host requires sessions.max_turns_per_day")
         return self
-
-    @property
-    def active(self) -> Configuration:
-        return self.configurations[self.configuration]
 
     def select(self, name: str | None = None) -> Configuration:
         """The named configuration, or the active one when name is None."""

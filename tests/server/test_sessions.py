@@ -1,6 +1,7 @@
 """Sessions over the protocol: history across turns, across restarts, and the turn limit."""
 
 import asyncio
+import datetime
 import json
 
 import pytest
@@ -14,6 +15,7 @@ from vessel_mind.core.chat import (
     Usage,
     UserMessage,
 )
+from vessel_mind.core.telemetry import JsonlTelemetry
 from vessel_mind.server.app import create_app
 from vessel_mind.server.state import SessionStore
 
@@ -163,6 +165,58 @@ def test_past_the_turn_limit_a_turn_is_refused_with_a_clear_error(tmp_path):
     assert third.json()["detail"]["code"] == "turn_limit"
     assert "2" in third.json()["detail"]["message"]
     assert other.status_code == 200
+
+
+class Clock:
+    def __init__(self, now: datetime.datetime) -> None:
+        self.now = now
+
+    def __call__(self) -> datetime.datetime:
+        return self.now
+
+
+def test_past_the_daily_turn_limit_new_sessions_are_refused_too_until_the_next_day(tmp_path):
+    # A visitor who reloads the console gets a new session each time; the daily
+    # limit holds across all of them, so the free quota cannot be exhausted.
+    clock = Clock(datetime.datetime(2026, 10, 27, 23, 0, tzinfo=datetime.UTC))
+    app = create_app(
+        EchoModel(),
+        state_path=tmp_path / "state.db",
+        max_turns_per_session=5,
+        max_turns_per_day=2,
+        clock=clock,
+    )
+    with TestClient(app) as client:
+        for text in ("one", "two"):
+            started = client.post("/turns", json={"text": text}).json()
+            run_to_end(client, started["turn_id"])
+
+        refused = client.post("/turns", json={"text": "three"})
+        clock.now += datetime.timedelta(hours=1)  # 00:00 UTC: a new day
+        next_day = client.post("/turns", json={"text": "four"})
+
+    assert refused.status_code == 429
+    assert refused.json()["detail"]["code"] == "daily_turn_limit"
+    assert "2" in refused.json()["detail"]["message"]
+    assert next_day.status_code == 200
+
+
+def test_each_turn_ends_with_a_summary_in_the_telemetry_file(tmp_path):
+    telemetry = tmp_path / "telemetry.jsonl"
+    app = create_app(
+        EchoModel(), state_path=tmp_path / "state.db", telemetry=JsonlTelemetry(telemetry)
+    )
+    with TestClient(app) as client:
+        started = client.post("/turns", json={"text": "Hello"}).json()
+        run_to_end(client, started["turn_id"])
+
+    (summary,) = [json.loads(line) for line in telemetry.read_text(encoding="utf-8").splitlines()]
+    assert summary["kind"] == "turn"
+    assert summary["turn_id"] == started["turn_id"]
+    assert summary["session_id"] == started["session_id"]
+    assert summary["status"] == "done"
+    assert summary["steps"] == 1
+    assert summary["usage"] == {"input_tokens": 1, "output_tokens": 1, "thinking_tokens": 0}
 
 
 def test_an_unknown_session_is_a_404(tmp_path):

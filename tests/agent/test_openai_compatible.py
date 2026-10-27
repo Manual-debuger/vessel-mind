@@ -436,3 +436,91 @@ async def test_a_client_error_raises_at_once_without_retrying():
         await collect(model, question())
 
     assert sleeps.delays == []
+
+
+def raises_then(error: Exception, *responses: httpx.Response):
+    """A transport that raises error on the first request, then sends responses."""
+    queue: list[Exception | httpx.Response] = [error, *responses]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        item = queue.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+    return handler
+
+
+@pytest.mark.asyncio
+async def test_a_first_byte_timeout_is_retried_like_429():
+    sleeps = Sleeps()
+    model = make_model(
+        raises_then(httpx.ReadTimeout("no first byte"), sse_response("gemini_text.sse")),
+        sleep=sleeps,
+    )
+
+    events = await collect(model, question())
+
+    assert sleeps.delays == [1.0]
+    assert isinstance(events[-1], Stop)
+
+
+@pytest.mark.asyncio
+async def test_a_connection_error_is_retried_like_429():
+    sleeps = Sleeps()
+    model = make_model(
+        raises_then(httpx.ConnectError("refused"), sse_response("gemini_text.sse")),
+        sleep=sleeps,
+    )
+
+    events = await collect(model, question())
+
+    assert sleeps.delays == [1.0]
+    assert isinstance(events[-1], Stop)
+
+
+@pytest.mark.asyncio
+async def test_timeouts_that_outlast_the_retries_fail_the_step_as_a_model_error():
+    sleeps = Sleeps()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("no first byte")
+
+    model = make_model(handler, sleep=sleeps, max_retries=2)
+
+    with pytest.raises(ChatModelError, match="timed out"):
+        await collect(model, question())
+
+    assert sleeps.delays == [1.0, 2.0]
+
+
+class BrokenStream(httpx.AsyncByteStream):
+    """Sends the fixture's first event, then the connection times out."""
+
+    def __init__(self, first_event: bytes) -> None:
+        self.first_event = first_event
+
+    async def __aiter__(self):
+        yield self.first_event
+        raise httpx.ReadTimeout("stalled")
+
+
+@pytest.mark.asyncio
+async def test_a_timeout_after_the_first_event_fails_the_step_without_a_retry():
+    # Text has already reached the client: asking again would repeat it.
+    sleeps = Sleeps()
+    first_event = (FIXTURES / "gemini_text.sse").read_bytes().split(b"\n\n")[0] + b"\n\n"
+    model = make_model(
+        lambda request: httpx.Response(
+            200, headers={"content-type": "text/event-stream"}, stream=BrokenStream(first_event)
+        ),
+        sleep=sleeps,
+    )
+    events: list = []
+
+    with pytest.raises(ChatModelError, match="timed out"):
+        async for event in model.stream(question()):
+            events.append(event)
+
+    assert sleeps.delays == []
+    assert events == [TextDelta(delta="The sky is blue because")]

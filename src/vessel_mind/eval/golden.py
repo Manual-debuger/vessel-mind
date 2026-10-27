@@ -15,8 +15,9 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from vessel_mind.core.events import Route
+
 Lang = Literal["en", "zh-Hant"]
-Route = Literal["fast", "slow"]
 
 
 class GoldenSetError(Exception):

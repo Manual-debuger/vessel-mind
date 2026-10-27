@@ -54,7 +54,7 @@ class TurnTally:
 
     usage: Usage = field(default_factory=Usage)
     steps: int = 0
-    # What the turn added to the conversation, in order: the user message, then
+    # What the turn added to the session's history, in order: the user message, then
     # each assistant message, and after one that called tools, one ToolMessage per
     # call. The caller stores them as history.
     messages: list[ChatMessage] = field(default_factory=list)
@@ -141,7 +141,7 @@ async def _dispatch(
     """
     entry = registry.get(call.name)
     if entry is None:
-        yield {"error": f"Unknown tool '{call.name}'."}, True
+        yield _unknown_tool(call.name)
         return
     effect = entry.labels.effect
     if effect == "read":
@@ -169,6 +169,11 @@ async def _dispatch(
     yield {"status": "awaiting_approval", "proposal_id": proposal.id}, False
 
 
+def _unknown_tool(name: str) -> tuple[JsonValue, bool]:
+    """The (result, is_error) of a call to a tool the registry does not hold."""
+    return {"error": f"Unknown tool '{name}'."}, True
+
+
 async def run_tool(
     registry: CapabilityRegistry, name: str, input: dict[str, Any]
 ) -> tuple[JsonValue, bool]:
@@ -178,7 +183,7 @@ async def run_tool(
     """
     entry = registry.get(name)
     if entry is None:
-        return {"error": f"Unknown tool '{name}'."}, True
+        return _unknown_tool(name)
     try:
         # Checked here, so a tool that returns something JSON cannot carry fails the
         # call, not the turn.

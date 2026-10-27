@@ -18,6 +18,7 @@ from vessel_mind.rag.corpus import Document
 from vessel_mind.rag.search import SearchResult
 from vessel_mind.server.config import ConfigError, load_config
 from vessel_mind.server.main import app_from_config, build_router, mcp_servers_from_config
+from vessel_mind.server.state import SessionStore
 
 REPO = Path(__file__).resolve().parent.parent.parent
 EXAMPLE = REPO / "config" / "agent.example.yaml"
@@ -124,13 +125,16 @@ def test_the_public_host_flag_shows_the_free_tier_notice(tmp_path, monkeypatch):
     assert 'id="demo-mode"' in page
 
 
-def public_config(tmp_path, *, demo_mode: bool = True, max_turns: bool = True) -> Path:
-    """The example with public_host on, and demo mode and the turn limit as given."""
+def public_config(
+    tmp_path, *, demo_mode: bool = True, max_turns: bool = True, max_turns_per_day: bool = True
+) -> Path:
+    """The example with public_host on, and demo mode and the turn limits as given."""
     text = EXAMPLE.read_text(encoding="utf-8")
     for old, new in [
         ("public_host: false", "public_host: true"),
         ("demo_mode: false", f"demo_mode: {str(demo_mode).lower()}"),
-        ("sessions:\n  max_turns: 30\n", "sessions:\n  max_turns: 30\n" if max_turns else ""),
+        ("  max_turns: 30\n", "  max_turns: 30\n" if max_turns else ""),
+        ("  max_turns_per_day: 500\n", "  max_turns_per_day: 500\n" if max_turns_per_day else ""),
     ]:
         assert old in text
         text = text.replace(old, new)
@@ -153,12 +157,54 @@ def test_the_public_host_must_limit_the_turns_of_a_session(tmp_path):
         load_config(config)
 
 
+def test_the_public_host_must_limit_the_turns_of_a_day(tmp_path):
+    config = public_config(tmp_path, max_turns_per_day=False)
+
+    with pytest.raises(ConfigError, match="public_host requires sessions.max_turns_per_day"):
+        load_config(config)
+
+
+def test_the_daily_turn_limit_in_config_holds_across_sessions(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    config = config_with(tmp_path, "  max_turns_per_day: 500\n", "  max_turns_per_day: 1\n")
+    # Today's one turn was started by another session, before this server ran
+    # (so no turn here calls the configured model).
+    earlier = SessionStore.open(load_config(config).state.path)
+    earlier.begin_turn(earlier.create_session())
+    earlier.close()
+    app = app_from_config(config, environ={"GEMINI_API_KEY": "k"}, **offline())
+
+    with TestClient(app) as client:
+        refused = client.post("/turns", json={"text": "a new session"})
+
+    assert refused.status_code == 429
+    assert refused.json()["detail"]["code"] == "daily_turn_limit"
+
+
+def test_the_example_appends_telemetry_beside_the_state_file():
+    # In the volume compose.yaml keeps, so a container restart keeps it.
+    config = load_config(EXAMPLE)
+
+    path = config.telemetry.path
+    assert path is not None
+    assert path == Path("data/state/telemetry.jsonl")
+    assert path.parent == config.state.path.parent
+    assert load_config(PUBLIC).telemetry == config.telemetry
+
+
+def test_telemetry_can_be_turned_off(tmp_path):
+    config = config_with(tmp_path, "  path: data/state/telemetry.jsonl\n", "  path: null\n")
+
+    assert load_config(config).telemetry.path is None
+
+
 def test_the_public_example_runs_routed_in_demo_mode_with_a_turn_limit():
     config = load_config(PUBLIC)
 
     assert config.configuration == "routed"
     assert (config.public_host, config.demo_mode) == (True, True)
     assert config.sessions.max_turns is not None
+    assert config.sessions.max_turns_per_day is not None
     # In the container, 127.0.0.1 is the container itself, not llama-server's host.
     assert "127.0.0.1" not in config.providers["local"].base_url
 
@@ -331,6 +377,36 @@ def test_the_router_pairs_the_selected_configurations_models(configuration, fast
     router = build_router(config, {"GEMINI_API_KEY": "k"}, configuration=configuration)
 
     assert (router.fast.id, router.slow.id, router.enabled) == (fast, slow, True)
+
+
+def test_each_path_s_fallback_list_reaches_the_router_in_order(tmp_path):
+    raw = yaml.safe_load(EXAMPLE.read_text(encoding="utf-8"))
+    raw["configurations"]["hosted"]["slow_fallbacks"] = [
+        {"provider": "gemini", "model": "gemini-3.5-flash", "chosen": "2026-10-27"},
+        {"provider": "local", "model": "qwen3.6:35b-a3b", "chosen": "2026-10-27"},
+    ]
+    raw["configurations"]["hosted"]["fast_fallbacks"] = [
+        {"provider": "local", "model": "qwen3:8b", "chosen": "2026-10-27"}
+    ]
+    config = tmp_path / "agent.yaml"
+    config.write_text(yaml.safe_dump(raw), encoding="utf-8")
+
+    router = build_router(load_config(config), {"GEMINI_API_KEY": "k"}, configuration="hosted")
+
+    assert [m.id for m in router.slow_fallbacks] == ["gemini-3.5-flash", "qwen3.6:35b-a3b"]
+    assert [m.id for m in router.fast_fallbacks] == ["qwen3:8b"]
+
+
+def test_a_fallback_with_an_unknown_provider_is_a_config_error(tmp_path):
+    raw = yaml.safe_load(EXAMPLE.read_text(encoding="utf-8"))
+    raw["configurations"]["hosted"]["slow_fallbacks"] = [
+        {"provider": "nowhere", "model": "m", "chosen": "2026-10-27"}
+    ]
+    config = tmp_path / "agent.yaml"
+    config.write_text(yaml.safe_dump(raw), encoding="utf-8")
+
+    with pytest.raises(ConfigError, match="unknown provider 'nowhere'"):
+        load_config(config)
 
 
 def test_the_local_configuration_needs_no_key():

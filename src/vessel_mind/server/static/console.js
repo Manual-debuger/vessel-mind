@@ -26,7 +26,7 @@
 
   function finish(turn, status, text) {
     status.textContent = text;
-    if (turn.source) turn.source.close(); // or EventSource reconnects and replays
+    if (turn.source) turn.source.close(); // or EventSource reconnects when the stream ends
     if (current === turn) {
       current = null;
       running(false);
@@ -204,9 +204,20 @@
     };
     let part = newPart();
     let route = null;
+    const stream = VesselStream.start();
     answer.addEventListener("htmx:sseBeforeMessage", (message) => {
       message.preventDefault();
-      const event = JSON.parse(message.detail.data);
+      const read = VesselStream.read(message.detail, stream);
+      if (read.kind === "disconnected") {
+        // EventSource reconnects by itself and sends Last-Event-ID, so the
+        // stream resumes after the last event shown; CLOSED means it gave up.
+        const closed = turn.source && turn.source.readyState === EventSource.CLOSED;
+        status.textContent = closed ? "disconnected" : "connection lost, reconnecting…";
+        return;
+      }
+      if (read.kind === "duplicate") return;
+      status.textContent = "streaming…";
+      const event = read.event;
       if (event.type === "route") {
         route = event;
         badge.className = `route-badge route-${event.route}`;
@@ -243,6 +254,8 @@
         if (route) badge.textContent = VesselRoute.describe(route, event);
         finish(turn, status, describeDone(event));
       } else if (event.type === "error") {
+        // The server withdraws the proposals of a failed turn too.
+        for (const p of proposals) if (p.open) closeProposal(p, "withdrawn");
         finish(turn, status, `error (${event.code}): ${event.message}`);
       }
     });

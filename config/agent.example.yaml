@@ -25,12 +25,22 @@ providers:
 # Each configuration is a fixed pair of models: the fast path and the slow
 # path. `chosen` is the date the model id was pinned. The slow path uses
 # gemini-3.6-flash, not 3.8: 3.8 allows only 20 free requests a day.
+#
+# fast_fallbacks and slow_fallbacks (optional, default none) list each path's
+# fallback models in order. When a path's model still fails after the retries
+# (`retry:`), the next one is asked; the route event names the model that
+# answered. A model that has started to answer is never replaced. The eval
+# never uses them: a row measures its configuration's own pair.
 configurations:
   # The default: needs only GEMINI_API_KEY.
   hosted:
     fast: {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-26}
     # gemini-3.6-flash: Google's deprecations page says gemini-3.5-flash routes every request to it.
     slow: {provider: gemini, model: gemini-3.6-flash, chosen: 2026-10-26}
+    # Asked when gemini-3.6-flash still fails after the retries (its daily
+    # free quota is spent): the answer is weaker, but the turn is answered.
+    slow_fallbacks:
+      - {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-27}
   # Both paths on the local server, Ollama tags (Q4_K_M). qwen3.6:35b-a3b is
   # a mixture of experts (3B active); the pair needs about 28 GB of VRAM.
   # The fast model does not think: with thinking, qwen3:8b takes about 10 s to
@@ -43,6 +53,10 @@ configurations:
     fast: {provider: local, model: "qwen3:8b", chosen: 2026-10-26, reasoning_effort: none}
     # gemini-3.6-flash: Google's deprecations page says gemini-3.5-flash routes every request to it.
     slow: {provider: gemini, model: gemini-3.6-flash, chosen: 2026-10-26}
+    # Asked when gemini-3.6-flash still fails after the retries (its daily
+    # free quota is spent): the answer is weaker, but the turn is answered.
+    slow_fallbacks:
+      - {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-27}
 
 # The router: the fast model classifies each turn as fast or slow. A fast
 # turn is retrieved first and answered by the fast model; a slow turn runs the
@@ -79,10 +93,22 @@ agent:
 state:
   path: data/state/state.db
 
-# A session may start at most this many turns (cancelled ones count too),
-# so one visitor cannot spend the whole free quota. Omit it for no limit.
+# A session may start at most max_turns turns (cancelled ones count too),
+# so one visitor cannot spend the whole free quota. A new session (a console
+# reload) starts at zero again, so max_turns_per_day bounds the turns of ALL
+# sessions together in one UTC day; past it, POST /turns answers 429 with
+# code daily_turn_limit. These are turns, not model requests: a slow turn can
+# make several. Omit either key for no limit.
 sessions:
   max_turns: 30
+  max_turns_per_day: 500
+
+# Telemetry: each turn's route decision (route, reason, both models and their
+# token usage) and its summary (status, steps, usage) are appended to this
+# JSONL file, one object per line. It holds no message text. It sits beside
+# the state file, in the volume compose.yaml keeps. `path: null` turns it off.
+telemetry:
+  path: data/state/telemetry.jsonl
 
 # search_docs: the retrieval pipeline. At startup, the server ingests the
 # pinned corpus into the index when the index is missing or unfinished (the
@@ -155,7 +181,8 @@ demo_mode: false
 
 # True only on the public hostname: the console then shows the notice that
 # messages go to Gemini's free tier. It requires demo_mode: true and
-# sessions.max_turns. config/agent.public.example.yaml sets both.
+# sessions.max_turns and sessions.max_turns_per_day.
+# config/agent.public.example.yaml sets all three.
 public_host: false
 
 # MCP servers, started over stdio when the app starts. The model sees each

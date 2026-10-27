@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from vessel_mind.agent.router import CLASSIFIER_SYSTEM, Router
+from vessel_mind.agent.router import ROUTER_SYSTEM, Router
 from vessel_mind.core.capabilities import CapabilityRegistry
 from vessel_mind.core.chat import (
     ChatModelError,
@@ -122,7 +122,7 @@ def _user(req: ChatRequest) -> str:
 
 
 def fast_reply(req: ChatRequest):
-    if req.system == CLASSIFIER_SYSTEM:
+    if req.system == ROUTER_SYSTEM:
         return [TextDelta(delta=ROUTES[_user(req)]), Stop(reason="end", usage=CLASSIFY)]
     return [TextDelta(delta=FAST_ANSWERS[_user(req)]), Stop(reason="end", usage=FAST_ANSWER)]
 

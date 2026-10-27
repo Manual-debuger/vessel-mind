@@ -24,7 +24,10 @@ log = logging.getLogger(__name__)
 Resource = Literal[
     "memory", "timers", "voice", "filesystem", "network", "public_corpus", "workspace"
 ]
-Effect = Literal["read", "write", "irreversible"]
+# The effects that need an approval: a call with one is proposed, never run
+# by the loop (ADR 0001 §5).
+ProposedEffect = Literal["write", "irreversible"]
+Effect = Literal["read"] | ProposedEffect
 TrustLevel = Literal["tainted", "trusted"]
 
 # The resources whose data must not leave: one third of the trifecta.

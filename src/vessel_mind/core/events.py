@@ -13,6 +13,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
+from vessel_mind.core.capabilities import ProposedEffect
 from vessel_mind.core.chat import Usage
 
 
@@ -22,7 +23,10 @@ class _Event(BaseModel):
     )
 
 
-RouteReason = Literal["classified", "timeout", "invalid", "model_error", "router_off"]
+# A route (GLOSSARY.md): the fast path or the slow path.
+Route = Literal["fast", "slow"]
+
+RouteReason = Literal["classified", "timeout", "invalid", "max_tokens", "model_error", "router_off"]
 
 
 class RouteEvent(_Event):
@@ -30,20 +34,23 @@ class RouteEvent(_Event):
     when the server routes turns.
 
     reason says how the route was reached: `classified` (the fast model chose it),
-    `timeout`, `invalid` (the classification was not the expected JSON) or
-    `model_error` (each of these three falls back to the slow path), or `router_off`
+    `timeout`, `invalid` (the classification was not the expected JSON),
+    `max_tokens` (the classification was cut off by its token budget) or
+    `model_error` (each of these four falls back to the slow path), or `router_off`
     (every turn takes the slow path).
     """
 
     type: Literal["route"] = "route"
-    route: Literal["fast", "slow"]
+    route: Route
     reason: RouteReason
     # The model that classified the turn; null when the router is off.
     router_model: str | None
     # The classification's own usage. done.usage counts only the answering model's
     # steps, so a turn's tokens are router_usage plus done.usage.
     router_usage: Usage
-    # The model that answers the turn.
+    # The model that answers the turn. With a fallback list (spec §5.1) it is the
+    # model that actually answered, so with one the event waits until a model has
+    # started to answer; when none could, it names the path's first model.
     model: str
 
 
@@ -86,7 +93,7 @@ class ProposalEvent(_Event):
     call_id: str
     name: str
     input: dict[str, Any]
-    effect: Literal["write", "irreversible"]
+    effect: ProposedEffect
     expires_at: datetime.datetime
 
 

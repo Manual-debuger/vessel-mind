@@ -32,6 +32,10 @@ configurations:
     fast: {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-26}
     # gemini-3.6-flash: Google's deprecations page says gemini-3.5-flash routes every request to it.
     slow: {provider: gemini, model: gemini-3.6-flash, chosen: 2026-10-26}
+    # Asked when gemini-3.6-flash still fails after the retries (its daily
+    # free quota is spent): the answer is weaker, but the turn is answered.
+    slow_fallbacks:
+      - {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-27}
   local:
     fast: {provider: local, model: "qwen3:8b", chosen: 2026-10-26}
     slow: {provider: local, model: "qwen3.6:35b-a3b", chosen: 2026-10-26}
@@ -39,6 +43,10 @@ configurations:
     fast: {provider: local, model: "qwen3:8b", chosen: 2026-10-26}
     # gemini-3.6-flash: Google's deprecations page says gemini-3.5-flash routes every request to it.
     slow: {provider: gemini, model: gemini-3.6-flash, chosen: 2026-10-26}
+    # Asked when gemini-3.6-flash still fails after the retries (its daily
+    # free quota is spent): the answer is weaker, but the turn is answered.
+    slow_fallbacks:
+      - {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-27}
 
 router:
   enabled: true
@@ -61,10 +69,18 @@ agent:
 state:
   path: data/state/state.db
 
-# Required on the public host: one session may start at most this many
-# turns, so one visitor cannot spend the whole free quota.
+# Required on the public host: one session may start at most max_turns
+# turns, and all sessions together at most max_turns_per_day turns in one
+# UTC day (a reload's new session does not reset it), so visitors cannot
+# spend the whole free quota. Past either, POST /turns answers 429.
 sessions:
   max_turns: 20
+  max_turns_per_day: 100
+
+# Route decisions and turn summaries, as JSONL, in the state volume. No
+# message text.
+telemetry:
+  path: data/state/telemetry.jsonl
 
 # The image ships a complete index at data/index.sqlite, built with this
 # embedding model, and both models in .cache/fastembed. A different model

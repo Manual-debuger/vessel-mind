@@ -74,25 +74,41 @@ class OpenAICompatibleModel:
         body = self._body(req)
         attempt = 0
         while True:
-            async with self._client.stream(
-                "POST", self._url, json=body, headers=headers
-            ) as response:
-                if response.status_code == 200:
-                    async for event in self._events(response):
-                        yield event
-                    return
-                delay = self._retry_delay(response, attempt)
-                if delay is None:
-                    raise ChatModelError(f"{self.id}: HTTP {response.status_code}")
+            # Until the first event reaches the caller, a failed attempt can be
+            # retried without the caller seeing anything twice.
+            started = False
+            try:
+                async with self._client.stream(
+                    "POST", self._url, json=body, headers=headers
+                ) as response:
+                    if response.status_code == 200:
+                        async for event in self._events(response):
+                            started = True
+                            yield event
+                        return
+                    retryable = response.status_code in _RETRYABLE
+                    problem = f"HTTP {response.status_code}"
+                    retry_after = response.headers.get("retry-after", "")
+            except (httpx.TimeoutException, httpx.ConnectError) as error:
+                # A first-byte timeout or a refused connection: worth asking again.
+                retryable = not started
+                problem = (
+                    "timed out" if isinstance(error, httpx.TimeoutException) else ("cannot connect")
+                )
+                retry_after = ""
+            except httpx.HTTPError as error:
+                raise ChatModelError(f"{self.id}: {type(error).__name__}") from None
+            delay = self._retry_delay(retryable, retry_after, attempt)
+            if delay is None:
+                raise ChatModelError(f"{self.id}: {problem}")
             attempt += 1
             await self._sleep(delay)
 
-    def _retry_delay(self, response: httpx.Response, attempt: int) -> float | None:
+    def _retry_delay(self, retryable: bool, retry_after: str, attempt: int) -> float | None:
         """Seconds to wait before the next attempt, or None to give up."""
-        if response.status_code not in _RETRYABLE or attempt >= self._max_retries:
+        if not retryable or attempt >= self._max_retries:
             return None
         delay = self._backoff_base * 2**attempt
-        retry_after = response.headers.get("retry-after", "")
         if retry_after.isdigit():
             delay = float(retry_after)
         return delay if delay <= self._backoff_max else None
