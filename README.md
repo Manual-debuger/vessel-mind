@@ -288,11 +288,7 @@ slow path; 1 costly misroute (en-03).
 
 From [the spec](docs/specs/a-agent-track.md) §7. An open item names its reason.
 
-- [ ] `task verify` green locally (WSL2) and in CI. **Open:** it is green locally and on the
-      ubuntu CI job; the windows CI job failed 4 tests (stream cancellation, CRLF line endings in
-      the corpus test, and two console route-badge tests) as of 2026-10-27. The fixes
-      (`.gitattributes`, an archive without `core.autocrlf`, UTF-8 subprocess output) await a
-      windows CI run.
+- [x] `task verify` green locally (WSL2) and in CI (ubuntu and windows, 2026-10-27).
 - [x] Module boundaries enforced: a forbidden import fails `tests/test_architecture.py`.
 - [x] The adapter passes fixture tests, including parallel tool calls and cancellation
       (`tests/agent/test_openai_compatible.py`, recorded Gemini fixtures).
