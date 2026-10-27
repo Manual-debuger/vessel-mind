@@ -124,13 +124,16 @@ def test_the_public_host_flag_shows_the_free_tier_notice(tmp_path, monkeypatch):
     assert 'id="demo-mode"' in page
 
 
-def public_config(tmp_path, *, demo_mode: bool = True, max_turns: bool = True) -> Path:
-    """The example with public_host on, and demo mode and the turn limit as given."""
+def public_config(
+    tmp_path, *, demo_mode: bool = True, max_turns: bool = True, max_turns_per_day: bool = True
+) -> Path:
+    """The example with public_host on, and demo mode and the turn limits as given."""
     text = EXAMPLE.read_text(encoding="utf-8")
     for old, new in [
         ("public_host: false", "public_host: true"),
         ("demo_mode: false", f"demo_mode: {str(demo_mode).lower()}"),
-        ("sessions:\n  max_turns: 30\n", "sessions:\n  max_turns: 30\n" if max_turns else ""),
+        ("  max_turns: 30\n", "  max_turns: 30\n" if max_turns else ""),
+        ("  max_turns_per_day: 500\n", "  max_turns_per_day: 500\n" if max_turns_per_day else ""),
     ]:
         assert old in text
         text = text.replace(old, new)
@@ -153,12 +156,35 @@ def test_the_public_host_must_limit_the_turns_of_a_session(tmp_path):
         load_config(config)
 
 
+def test_the_public_host_must_limit_the_turns_of_a_day(tmp_path):
+    config = public_config(tmp_path, max_turns_per_day=False)
+
+    with pytest.raises(ConfigError, match="public_host requires sessions.max_turns_per_day"):
+        load_config(config)
+
+
+def test_the_daily_turn_limit_in_config_holds_across_sessions(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    config = config_with(tmp_path, "  max_turns_per_day: 500\n", "  max_turns_per_day: 1\n")
+    app = app_from_config(config, environ={"GEMINI_API_KEY": "k"}, **offline())
+
+    with TestClient(app) as client:
+        first = client.post("/turns", json={"text": "one"})
+        client.post(f"/turns/{first.json()['turn_id']}/cancel")
+        second = client.post("/turns", json={"text": "two"})
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    assert second.json()["detail"]["code"] == "daily_turn_limit"
+
+
 def test_the_public_example_runs_routed_in_demo_mode_with_a_turn_limit():
     config = load_config(PUBLIC)
 
     assert config.configuration == "routed"
     assert (config.public_host, config.demo_mode) == (True, True)
     assert config.sessions.max_turns is not None
+    assert config.sessions.max_turns_per_day is not None
     # In the container, 127.0.0.1 is the container itself, not llama-server's host.
     assert "127.0.0.1" not in config.providers["local"].base_url
 

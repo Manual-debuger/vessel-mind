@@ -19,7 +19,13 @@ from vessel_mind.core.capabilities import CapabilityRegistry
 from vessel_mind.core.chat import ChatMessage, ChatModel
 from vessel_mind.core.events import AgentEvent, DoneEvent, ErrorEvent
 from vessel_mind.server.proposals import TurnProposals, proposal_routes
-from vessel_mind.server.state import Clock, SessionStore, TurnLimitReached, TurnStatus
+from vessel_mind.server.state import (
+    Clock,
+    DailyTurnLimitReached,
+    SessionStore,
+    TurnLimitReached,
+    TurnStatus,
+)
 
 log = logging.getLogger(__name__)
 
@@ -83,6 +89,7 @@ def create_app(
     max_tokens: int | None = None,
     state_path: Path | str = ":memory:",
     max_turns_per_session: int | None = None,
+    max_turns_per_day: int | None = None,
     demo_mode: bool = False,
     public_host: bool = False,
     clock: Clock | None = None,
@@ -100,8 +107,9 @@ def create_app(
     exited in reverse at shutdown: for example the retrieval index its tools read,
     or an MCP server, which registers its tools in the registry when it starts.
 
-    max_turns_per_session bounds the turns one session may start, to protect the
-    provider's free quota; None means no bound.
+    max_turns_per_session bounds the turns one session may start, and
+    max_turns_per_day the turns all sessions together may start in one UTC day,
+    to protect the provider's free quota; None means no bound.
 
     demo_mode (ADR 0002) still makes and shows proposals but refuses every
     approval. public_host shows the free-tier notice: the app is served on the
@@ -196,8 +204,21 @@ def create_app(
     async def health() -> dict[str, Any]:
         return {"status": "ok", "model": model.id}
 
+    def daily_limit_reached() -> HTTPException:
+        return HTTPException(
+            status_code=429,
+            detail={
+                "code": "daily_turn_limit",
+                "message": f"This server has answered all {max_turns_per_day} of its turns "
+                "for today (UTC). Try again tomorrow.",
+            },
+        )
+
     @app.post("/turns")
     async def start_turn(body: StartTurn) -> TurnStarted:
+        # Checked before a session is made, so a refused turn leaves none behind.
+        if max_turns_per_day is not None and store().turns_today() >= max_turns_per_day:
+            raise daily_limit_reached()
         if body.session_id is None:
             session_id = store().create_session()
         elif store().has_session(body.session_id):
@@ -213,7 +234,13 @@ def create_app(
                 previous.task.cancel()
                 await asyncio.wait([previous.task])
             try:
-                turn_id = store().begin_turn(session_id, max_turns=max_turns_per_session)
+                turn_id = store().begin_turn(
+                    session_id,
+                    max_turns=max_turns_per_session,
+                    max_turns_per_day=max_turns_per_day,
+                )
+            except DailyTurnLimitReached:
+                raise daily_limit_reached() from None
             except TurnLimitReached:
                 raise HTTPException(
                     status_code=429,

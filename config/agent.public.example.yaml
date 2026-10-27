@@ -69,10 +69,13 @@ agent:
 state:
   path: data/state/state.db
 
-# Required on the public host: one session may start at most this many
-# turns, so one visitor cannot spend the whole free quota.
+# Required on the public host: one session may start at most max_turns
+# turns, and all sessions together at most max_turns_per_day turns in one
+# UTC day (a reload's new session does not reset it), so visitors cannot
+# spend the whole free quota. Past either, POST /turns answers 429.
 sessions:
   max_turns: 20
+  max_turns_per_day: 100
 
 # The image ships a complete index at data/index.sqlite, built with this
 # embedding model, and both models in .cache/fastembed. A different model

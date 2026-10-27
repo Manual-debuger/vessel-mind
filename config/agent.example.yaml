@@ -93,10 +93,15 @@ agent:
 state:
   path: data/state/state.db
 
-# A session may start at most this many turns (cancelled ones count too),
-# so one visitor cannot spend the whole free quota. Omit it for no limit.
+# A session may start at most max_turns turns (cancelled ones count too),
+# so one visitor cannot spend the whole free quota. A new session (a console
+# reload) starts at zero again, so max_turns_per_day bounds the turns of ALL
+# sessions together in one UTC day; past it, POST /turns answers 429 with
+# code daily_turn_limit. These are turns, not model requests: a slow turn can
+# make several. Omit either key for no limit.
 sessions:
   max_turns: 30
+  max_turns_per_day: 500
 
 # search_docs: the retrieval pipeline. At startup, the server ingests the
 # pinned corpus into the index when the index is missing or unfinished (the
@@ -169,7 +174,8 @@ demo_mode: false
 
 # True only on the public hostname: the console then shows the notice that
 # messages go to Gemini's free tier. It requires demo_mode: true and
-# sessions.max_turns. config/agent.public.example.yaml sets both.
+# sessions.max_turns and sessions.max_turns_per_day.
+# config/agent.public.example.yaml sets all three.
 public_host: false
 
 # MCP servers, started over stdio when the app starts. The model sees each

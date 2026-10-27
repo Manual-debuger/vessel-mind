@@ -118,6 +118,10 @@ class TurnLimitReached(Exception):
     """The session has started as many turns as it may."""
 
 
+class DailyTurnLimitReached(Exception):
+    """All sessions together have started as many turns today (UTC) as they may."""
+
+
 _NOT_RUN = {
     "rejected": "A human rejected it. It was not run.",
     "expired": "Nobody approved it in time. It was not run.",
@@ -264,15 +268,35 @@ class SessionStore:
             "SELECT count(*) FROM turns WHERE session_id = ?", (session_id,)
         ).fetchone()[0]
 
-    def begin_turn(self, session_id: str, *, max_turns: int | None = None) -> str:
+    def turns_today(self) -> int:
+        """Every turn any session started since 00:00 UTC today, whatever its status."""
+        midnight = (
+            self._clock()
+            .astimezone(datetime.UTC)
+            .replace(hour=0, minute=0, second=0, microsecond=0)
+        )
+        return self._db.execute(
+            "SELECT count(*) FROM turns WHERE started_at >= ?", (_text(midnight),)
+        ).fetchone()[0]
+
+    def begin_turn(
+        self,
+        session_id: str,
+        *,
+        max_turns: int | None = None,
+        max_turns_per_day: int | None = None,
+    ) -> str:
         """Records a running turn and returns its id.
 
-        Raises UnknownSession, or TurnLimitReached when the session has already
-        started max_turns turns.
+        Raises UnknownSession, TurnLimitReached when the session has already
+        started max_turns turns, or DailyTurnLimitReached when all sessions
+        together have started max_turns_per_day turns today (UTC).
         """
         with self._transaction():
             if not self.has_session(session_id):
                 raise UnknownSession(session_id)
+            if max_turns_per_day is not None and self.turns_today() >= max_turns_per_day:
+                raise DailyTurnLimitReached(session_id)
             if max_turns is not None and self.turn_count(session_id) >= max_turns:
                 raise TurnLimitReached(session_id)
             turn_id = uuid.uuid4().hex

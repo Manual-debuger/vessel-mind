@@ -136,6 +136,7 @@ def app_from_config(
         max_tokens=config.agent.max_tokens,
         state_path=config.state.path,
         max_turns_per_session=config.sessions.max_turns,
+        max_turns_per_day=config.sessions.max_turns_per_day,
         demo_mode=config.demo_mode,
         public_host=config.public_host,
         services=[retrieval, *mcp_servers],

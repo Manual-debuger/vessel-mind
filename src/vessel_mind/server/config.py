@@ -96,6 +96,9 @@ class State(_Config):
 class Sessions(_Config):
     # The turns one session may start, to protect the free quota. None: no limit.
     max_turns: int | None = Field(default=None, gt=0)
+    # The turns all sessions together may start in one UTC day: a new session
+    # does not reset it. None: no limit.
+    max_turns_per_day: int | None = Field(default=None, gt=0)
 
 
 # Commands that fetch a package at start instead of running a pinned one.
@@ -205,7 +208,7 @@ class AgentConfig(_Config):
     # ADR 0002: on the public host, proposals are shown but every approval is refused.
     demo_mode: bool = False
     # The app is served on the public hostname (ADR 0002): the console shows the
-    # free-tier notice. It requires demo mode and a per-session turn limit.
+    # free-tier notice. It requires demo mode, a per-session and a daily turn limit.
     public_host: bool = False
     # MCP servers by name; the model sees each tool as '<name>_<tool>'.
     mcp_servers: dict[
@@ -241,6 +244,8 @@ class AgentConfig(_Config):
             raise ValueError("public_host requires demo_mode: true")
         if self.public_host and self.sessions.max_turns is None:
             raise ValueError("public_host requires sessions.max_turns")
+        if self.public_host and self.sessions.max_turns_per_day is None:
+            raise ValueError("public_host requires sessions.max_turns_per_day")
         return self
 
     @property

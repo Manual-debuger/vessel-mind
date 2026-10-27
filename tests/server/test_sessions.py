@@ -1,6 +1,7 @@
 """Sessions over the protocol: history across turns, across restarts, and the turn limit."""
 
 import asyncio
+import datetime
 import json
 
 import pytest
@@ -163,6 +164,40 @@ def test_past_the_turn_limit_a_turn_is_refused_with_a_clear_error(tmp_path):
     assert third.json()["detail"]["code"] == "turn_limit"
     assert "2" in third.json()["detail"]["message"]
     assert other.status_code == 200
+
+
+class Clock:
+    def __init__(self, now: datetime.datetime) -> None:
+        self.now = now
+
+    def __call__(self) -> datetime.datetime:
+        return self.now
+
+
+def test_past_the_daily_turn_limit_new_sessions_are_refused_too_until_the_next_day(tmp_path):
+    # A visitor who reloads the console gets a new session each time; the daily
+    # limit holds across all of them, so the free quota cannot be exhausted.
+    clock = Clock(datetime.datetime(2026, 10, 27, 23, 0, tzinfo=datetime.UTC))
+    app = create_app(
+        EchoModel(),
+        state_path=tmp_path / "state.db",
+        max_turns_per_session=5,
+        max_turns_per_day=2,
+        clock=clock,
+    )
+    with TestClient(app) as client:
+        for text in ("one", "two"):
+            started = client.post("/turns", json={"text": text}).json()
+            run_to_end(client, started["turn_id"])
+
+        refused = client.post("/turns", json={"text": "three"})
+        clock.now += datetime.timedelta(hours=1)  # 00:00 UTC: a new day
+        next_day = client.post("/turns", json={"text": "four"})
+
+    assert refused.status_code == 429
+    assert refused.json()["detail"]["code"] == "daily_turn_limit"
+    assert "2" in refused.json()["detail"]["message"]
+    assert next_day.status_code == 200
 
 
 def test_an_unknown_session_is_a_404(tmp_path):
