@@ -14,8 +14,8 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 from vessel_mind.core.chat import Usage
-from vessel_mind.core.events import RouteReason
-from vessel_mind.eval.golden import Lang, Route
+from vessel_mind.core.events import Route, RouteReason
+from vessel_mind.eval.golden import Lang
 from vessel_mind.eval.judge import Verdict
 from vessel_mind.server.config import ModelPrice
 
@@ -28,19 +28,32 @@ class _Model(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
+_SLOW_ONLY = "-slow-only"
+# Rows whose name is not the rule's: table 2 calls hosted's router-off row
+# plain `slow-only`. The only place that says so.
+_NAMED_ROWS: dict[str, tuple[str, bool]] = {"slow-only": ("hosted", False)}
+
+
 def row_name(configuration: str, router: bool) -> str:
-    if router:
-        return configuration
-    return "slow-only" if configuration == "hosted" else f"{configuration}-slow-only"
+    for name, row in _NAMED_ROWS.items():
+        if row == (configuration, router):
+            return name
+    return configuration if router else f"{configuration}{_SLOW_ONLY}"
+
+
+def _row_of(name: str) -> tuple[str, bool]:
+    """The (configuration, router) of a row name: row_name's inverse."""
+    if name in _NAMED_ROWS:
+        return _NAMED_ROWS[name]
+    if name.endswith(_SLOW_ONLY):
+        return name.removesuffix(_SLOW_ONLY), False
+    return name, True
 
 
 def row_command(row: str) -> str:
     """The command that runs a row."""
-    if row == "slow-only":
-        return "task eval -- --config hosted --no-router"
-    if row.endswith("-slow-only"):
-        return f"task eval -- --config {row.removesuffix('-slow-only')} --no-router"
-    return f"task eval -- --config {row}"
+    configuration, router = _row_of(row)
+    return f"task eval -- --config {configuration}" + ("" if router else " --no-router")
 
 
 class Turn(_Model):
