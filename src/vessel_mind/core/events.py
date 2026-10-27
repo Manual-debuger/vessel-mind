@@ -43,7 +43,9 @@ class RouteEvent(_Event):
     # The classification's own usage. done.usage counts only the answering model's
     # steps, so a turn's tokens are router_usage plus done.usage.
     router_usage: Usage
-    # The model that answers the turn.
+    # The model that answers the turn. With a fallback list (spec §5.1) it is the
+    # model that actually answered, so with one the event waits until a model has
+    # started to answer; when none could, it names the path's first model.
     model: str
 
 

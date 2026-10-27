@@ -56,6 +56,14 @@ class Configuration(_Config):
 
     fast: ModelChoice
     slow: ModelChoice
+    # Each path's fallback list (spec §5.1), tried in order when the path's model
+    # still fails after its retries. The route event names the model that answered.
+    fast_fallbacks: list[ModelChoice] = []
+    slow_fallbacks: list[ModelChoice] = []
+
+    def models(self) -> list[ModelChoice]:
+        """Every model the configuration may call."""
+        return [self.fast, self.slow, *self.fast_fallbacks, *self.slow_fallbacks]
 
 
 class RouterSettings(_Config):
@@ -211,9 +219,9 @@ class AgentConfig(_Config):
         if self.configuration not in self.configurations:
             raise ValueError(f"configuration {self.configuration!r} is not defined")
         for name, configuration in self.configurations.items():
-            for path in (configuration.fast, configuration.slow):
-                if path.provider not in self.providers:
-                    raise ValueError(f"{name}: unknown provider {path.provider!r}")
+            for choice in configuration.models():
+                if choice.provider not in self.providers:
+                    raise ValueError(f"{name}: unknown provider {choice.provider!r}")
         if self.eval is not None:
             if self.eval.judge.provider not in self.providers:
                 raise ValueError(f"eval.judge: unknown provider {self.eval.judge.provider!r}")

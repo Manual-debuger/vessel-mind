@@ -20,6 +20,7 @@ from vessel_mind.agent.proposals import Proposals
 from vessel_mind.core.capabilities import CapabilityRegistry
 from vessel_mind.core.chat import (
     AssistantMessage,
+    ChatEvent,
     ChatMessage,
     ChatModel,
     ChatModelError,
@@ -32,6 +33,7 @@ from vessel_mind.core.chat import (
 from vessel_mind.core.events import (
     AgentEvent,
     DoneEvent,
+    ErrorEvent,
     RouteEvent,
     RouteReason,
     ToolResultEvent,
@@ -74,11 +76,47 @@ class RouteDecision(BaseModel):
     route: Route
 
 
+class _FirstThatAnswers:
+    """One path's models, in order, as one ChatModel for one turn.
+
+    A model that fails before its first event (its adapter has spent its retries)
+    hands the request to the next one. A model that fails after it started
+    answering is not replaced: the client has already seen part of its answer.
+    answered is the id of the model that answered last, or None.
+    """
+
+    def __init__(self, models: Sequence[ChatModel]) -> None:
+        self.models = models
+        self.id = models[0].id
+        self.answered: str | None = None
+
+    async def stream(self, req: ChatRequest) -> AsyncIterator[ChatEvent]:
+        for number, model in enumerate(self.models):
+            started = False
+            try:
+                async for event in model.stream(req):
+                    if not started:
+                        started = True
+                        self.answered = model.id
+                    yield event
+            except ChatModelError as error:
+                if started or number == len(self.models) - 1:
+                    raise
+                log.warning("%s failed, trying %s: %s", model.id, self.models[number + 1].id, error)
+                continue
+            self.answered = model.id
+            return
+
+
 class Router:
     """Routes each turn between two models: one configuration's fast and slow paths.
 
     enabled=False sends every turn to the slow path without asking the fast model:
     the eval's slow-only baseline. timeout bounds the classification in seconds.
+
+    fast_fallbacks and slow_fallbacks are each path's fallback list, in order
+    (spec §5.1): when a path's model fails after its retries, the next one is
+    asked, and the route event names the model that answered.
     """
 
     def __init__(
@@ -89,9 +127,13 @@ class Router:
         enabled: bool = True,
         timeout: float = 10.0,
         max_tokens: int | None = None,
+        fast_fallbacks: Sequence[ChatModel] = (),
+        slow_fallbacks: Sequence[ChatModel] = (),
     ) -> None:
         self.fast = fast
         self.slow = slow
+        self.fast_fallbacks = tuple(fast_fallbacks)
+        self.slow_fallbacks = tuple(slow_fallbacks)
         self.enabled = enabled
         self.timeout = timeout
         self.max_tokens = max_tokens
@@ -114,17 +156,76 @@ class Router:
         """
         tally = tally if tally is not None else TurnTally()
         registry = tools if tools is not None else CapabilityRegistry()
-        route, reason, usage = await self._classify(history, user_text)
-        model = self.fast if route == "fast" else self.slow
-        decision = RouteEvent(
-            route=route,
-            reason=reason,
-            router_model=self.fast.id if self.enabled else None,
-            router_usage=usage,
-            model=model.id,
-        )
-        yield decision
+        route, reason, usage, router_model = await self._classify(history, user_text)
+        if route == "fast":
+            model = _FirstThatAnswers((self.fast, *self.fast_fallbacks))
+        else:
+            model = _FirstThatAnswers((self.slow, *self.slow_fallbacks))
+        # With a fallback list, which model answers is known only once one has
+        # started: the turn's events wait until then, so the route event, which
+        # names that model, still comes first.
+        waiting = len(model.models) > 1
+        held: list[AgentEvent] = []
+        decision: RouteEvent | None = None
 
+        def decide() -> RouteEvent:
+            return RouteEvent(
+                route=route,
+                reason=reason,
+                router_model=router_model,
+                router_usage=usage,
+                model=model.answered or model.id,
+            )
+
+        if not waiting:
+            decision = decide()
+            yield decision
+
+        async for event in self._answer(
+            route,
+            model,
+            history,
+            user_text,
+            registry=registry,
+            proposals=proposals,
+            system=system,
+            max_tokens=max_tokens,
+            tally=tally,
+        ):
+            if decision is None:
+                if model.answered is None and not isinstance(event, DoneEvent | ErrorEvent):
+                    held.append(event)
+                    continue
+                decision = decide()
+                yield decision
+                for earlier in held:
+                    yield earlier
+            if isinstance(event, DoneEvent):
+                log.info(
+                    "route %s (%s): router %s %s; answer %s %s",
+                    route,
+                    reason,
+                    decision.router_model,
+                    usage.model_dump(),
+                    decision.model,
+                    event.usage.model_dump(),
+                )
+            yield event
+
+    async def _answer(
+        self,
+        route: Route,
+        model: ChatModel,
+        history: Sequence[ChatMessage],
+        user_text: str,
+        *,
+        registry: CapabilityRegistry,
+        proposals: Proposals | None,
+        system: str | None,
+        max_tokens: int | None,
+        tally: TurnTally,
+    ) -> AsyncIterator[AgentEvent]:
+        """The turn's events on its path, after the route event."""
         if route == "fast":
             context = None
             if registry.get(SEARCH_TOOL) is not None:
@@ -136,7 +237,7 @@ class Router:
                 )
                 context = FAST_CONTEXT + json.dumps(result, ensure_ascii=False, indent=1)
             turn = run_turn(
-                self.fast,
+                model,
                 history,
                 user_text,
                 system="\n\n".join(part for part in (system, context) if part) or None,
@@ -145,7 +246,7 @@ class Router:
             )
         else:
             turn = run_turn(
-                self.slow,
+                model,
                 history,
                 user_text,
                 tools=registry,
@@ -155,24 +256,22 @@ class Router:
                 tally=tally,
             )
         async for event in turn:
-            if isinstance(event, DoneEvent):
-                log.info(
-                    "route %s (%s): router %s %s; answer %s %s",
-                    route,
-                    reason,
-                    decision.router_model,
-                    usage.model_dump(),
-                    model.id,
-                    event.usage.model_dump(),
-                )
             yield event
 
     async def _classify(
         self, history: Sequence[ChatMessage], user_text: str
-    ) -> tuple[Route, RouteReason, Usage]:
-        """The route, how it was reached, and the classification's usage."""
+    ) -> tuple[Route, RouteReason, Usage, str | None]:
+        """The route, how it was reached, the classification's usage, and the model
+        that classified (None when the router is off)."""
         if not self.enabled:
-            return "slow", "router_off", Usage()
+            return "slow", "router_off", Usage(), None
+        route, reason, usage, classifier = await self._ask_fast_model(history, user_text)
+        return route, reason, usage, classifier.answered or classifier.id
+
+    async def _ask_fast_model(
+        self, history: Sequence[ChatMessage], user_text: str
+    ) -> tuple[Route, RouteReason, Usage, _FirstThatAnswers]:
+        classifier = _FirstThatAnswers((self.fast, *self.fast_fallbacks))
         request = ChatRequest(
             system=CLASSIFIER_SYSTEM,
             messages=[*_as_text(history), UserMessage(text=user_text)],
@@ -182,7 +281,7 @@ class Router:
         usage = Usage()
         try:
             async with asyncio.timeout(self.timeout):
-                async for event in self.fast.stream(request):
+                async for event in classifier.stream(request):
                     match event:
                         case TextDelta(delta=delta):
                             text.append(delta)
@@ -194,16 +293,16 @@ class Router:
             log.warning(
                 "route classification by %s timed out after %ss", self.fast.id, self.timeout
             )
-            return "slow", "timeout", usage
+            return "slow", "timeout", usage, classifier
         except ChatModelError as error:
             log.warning("route classification failed: %s", error)
-            return "slow", "model_error", usage
+            return "slow", "model_error", usage, classifier
         try:
             decision = RouteDecision.model_validate_json(_unfenced("".join(text)))
         except ValidationError:
-            log.warning("route classification by %s was not the expected JSON", self.fast.id)
-            return "slow", "invalid", usage
-        return decision.route, "classified", usage
+            log.warning("route classification by %s was not the expected JSON", classifier.answered)
+            return "slow", "invalid", usage, classifier
+        return decision.route, "classified", usage, classifier
 
 
 _FENCE = re.compile(r"^```(?:json)?\s*(.*?)\s*```$", re.DOTALL)

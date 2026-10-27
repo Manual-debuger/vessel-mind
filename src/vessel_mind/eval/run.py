@@ -27,7 +27,6 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from datetime import UTC, date, datetime
 from pathlib import Path
 
-from vessel_mind.agent.router import Router
 from vessel_mind.eval.end_to_end import ResumeError, RowSpec, run_end_to_end, store_not_run
 from vessel_mind.eval.golden import GoldenSet, GoldenSetError, load_golden
 from vessel_mind.eval.grades import grade
@@ -223,7 +222,7 @@ def _record_not_run(config: AgentConfig, settings: EvalSettings, results_dir: Pa
     the row has measured results. Its slow-only row is stored too when table 2
     lists it (`slow-only`, for hosted)."""
     for name, reason in settings.not_run.items():
-        pair = config.select(name)
+        selected = config.select(name)
         for router in (True, False):
             row = row_name(name, router)
             if not router and row not in ROW_ORDER:
@@ -236,8 +235,8 @@ def _record_not_run(config: AgentConfig, settings: EvalSettings, results_dir: Pa
                 NotRun(
                     row=row,
                     configuration=name,
-                    fast_model=pair.fast.model,
-                    slow_model=pair.slow.model,
+                    fast_model=selected.fast.model,
+                    slow_model=selected.slow.model,
                     reason=reason,
                     router=router,
                 ),
@@ -262,11 +261,17 @@ def _end_to_end(
         return 2
 
     name = row_name(args.config, not args.no_router)
-    pair = config.select(args.config)
+    selected = config.select(args.config)
     pacer = Pacer(settings.request_interval)
     try:
-        configured = build_router(
-            config, environ, configuration=args.config, enabled=not args.no_router
+        # A row measures its configuration's fixed pair, so no fallback answers.
+        router = build_router(
+            config,
+            environ,
+            configuration=args.config,
+            enabled=not args.no_router,
+            fallbacks=False,
+            wrap=lambda model: PacedModel(model, pacer),
         )
         judge = Judge(
             PacedModel(build_model(config, settings.judge, environ), pacer),
@@ -279,21 +284,14 @@ def _end_to_end(
     except (ConfigError, GoldenSetError, CorpusPinError, OSError) as exc:
         print(f"eval refused: {exc}", file=sys.stderr)
         return 2
-    router = Router(
-        PacedModel(configured.fast, pacer),
-        PacedModel(configured.slow, pacer),
-        enabled=configured.enabled,
-        timeout=configured.timeout,
-        max_tokens=configured.max_tokens,
-    )
     self_hosted = set(settings.self_hosted_providers)
-    used = (pair.fast, pair.slow) if not args.no_router else (pair.slow,)
+    used = (selected.fast, selected.slow) if not args.no_router else (selected.slow,)
     spec = RowSpec(
         name=name,
         configuration=args.config,
         router=not args.no_router,
-        fast_model=pair.fast.model,
-        slow_model=pair.slow.model,
+        fast_model=selected.fast.model,
+        slow_model=selected.slow.model,
         prices={c.model: settings.prices[c.model] for c in used if c.model in settings.prices},
         self_hosted_models=tuple(c.model for c in used if c.provider in self_hosted),
     )

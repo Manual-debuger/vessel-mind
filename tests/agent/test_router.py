@@ -21,6 +21,7 @@ from vessel_mind.core.chat import (
 )
 from vessel_mind.core.events import (
     DoneEvent,
+    ErrorEvent,
     RouteEvent,
     TextEvent,
     ToolResultEvent,
@@ -288,6 +289,105 @@ async def test_a_fast_turn_without_a_search_tool_answers_with_no_retrieval():
 
     assert [type(e) for e in events] == [RouteEvent, TextEvent, DoneEvent]
     assert fast.requests[1].system == "Be brief."
+
+
+@pytest.mark.asyncio
+async def test_when_the_slow_model_fails_its_fallback_answers_and_the_route_names_it():
+    fast = ScriptedModel("small", classified('{"route": "slow"}'))
+    slow = ScriptedModel("large", ChatModelError("large: HTTP 429"))
+    fallback = ScriptedModel("large-older", answer("Fallback answer."))
+
+    events = await collect(Router(fast, slow, slow_fallbacks=[fallback]), [], "Compare X and Y.")
+
+    assert events == [
+        RouteEvent(
+            route="slow",
+            reason="classified",
+            router_model="small",
+            router_usage=ROUTER_USAGE,
+            model="large-older",
+        ),
+        TextEvent(text="Fallback answer."),
+        DoneEvent(reason="end", usage=ANSWER_USAGE, steps=1),
+    ]
+    assert len(slow.requests) == 1
+    assert fallback.requests[0].messages == slow.requests[0].messages
+
+
+@pytest.mark.asyncio
+async def test_on_the_fast_path_the_route_names_the_fallback_and_still_comes_first():
+    fast = ScriptedModel("small", classified('{"route": "fast"}'), ChatModelError("small: 503"))
+    fallback = ScriptedModel("small-older", answer("It waits [1]."))
+    search = FakeSearch(RESULTS)
+
+    events = await collect(
+        Router(fast, ScriptedModel("large"), fast_fallbacks=[fallback]),
+        [],
+        "What is a proposal?",
+        tools=tools(search),
+    )
+
+    assert [type(e) for e in events] == [
+        RouteEvent,
+        ToolStartEvent,
+        ToolResultEvent,
+        TextEvent,
+        DoneEvent,
+    ]
+    assert events[0].model == "small-older"
+    assert events[0].router_model == "small"
+
+
+@pytest.mark.asyncio
+async def test_a_classification_the_fast_model_cannot_make_goes_to_its_fallback():
+    fast = ScriptedModel("small", ChatModelError("small: HTTP 429"))
+    fallback = ScriptedModel("small-older", classified('{"route": "slow"}'))
+    slow = ScriptedModel("large", answer("Slow answer."))
+
+    events = await collect(Router(fast, slow, fast_fallbacks=[fallback]), [], "Hello?")
+
+    assert events[0] == RouteEvent(
+        route="slow",
+        reason="classified",
+        router_model="small-older",
+        router_usage=ROUTER_USAGE,
+        model="large",
+    )
+
+
+@pytest.mark.asyncio
+async def test_when_every_model_of_the_path_fails_the_turn_ends_with_a_model_error():
+    fast = ScriptedModel("small", classified('{"route": "slow"}'))
+    slow = ScriptedModel("large", ChatModelError("large: HTTP 429"))
+    fallback = ScriptedModel("large-older", ChatModelError("large-older: timed out"))
+
+    events = await collect(Router(fast, slow, slow_fallbacks=[fallback]), [], "Hello?")
+
+    assert events[0].model == "large"  # no model answered: the route names the first
+    assert isinstance(events[-1], ErrorEvent)
+    assert events[-1].code == "model_error"
+    assert "large-older" in events[-1].message
+
+
+@pytest.mark.asyncio
+async def test_a_model_that_fails_after_it_started_answering_is_not_replaced():
+    # Its text already reached the client; a second answer would follow the first.
+    class FailsMidAnswer:
+        id = "large"
+
+        async def stream(self, req):
+            yield TextDelta(delta="Half an ")
+            raise ChatModelError("large: timed out")
+
+    fast = ScriptedModel("small", classified('{"route": "slow"}'))
+    fallback = ScriptedModel("large-older", answer("Whole answer."))
+
+    events = await collect(Router(fast, FailsMidAnswer(), slow_fallbacks=[fallback]), [], "Hello?")
+
+    assert events[0].model == "large"
+    assert events[1] == TextEvent(text="Half an ")
+    assert isinstance(events[-1], ErrorEvent)
+    assert fallback.requests == []
 
 
 @pytest.mark.asyncio

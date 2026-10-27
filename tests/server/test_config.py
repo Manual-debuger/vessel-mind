@@ -333,6 +333,36 @@ def test_the_router_pairs_the_selected_configurations_models(configuration, fast
     assert (router.fast.id, router.slow.id, router.enabled) == (fast, slow, True)
 
 
+def test_each_path_s_fallback_list_reaches_the_router_in_order(tmp_path):
+    raw = yaml.safe_load(EXAMPLE.read_text(encoding="utf-8"))
+    raw["configurations"]["hosted"]["slow_fallbacks"] = [
+        {"provider": "gemini", "model": "gemini-3.5-flash", "chosen": "2026-10-27"},
+        {"provider": "local", "model": "qwen3.6:35b-a3b", "chosen": "2026-10-27"},
+    ]
+    raw["configurations"]["hosted"]["fast_fallbacks"] = [
+        {"provider": "local", "model": "qwen3:8b", "chosen": "2026-10-27"}
+    ]
+    config = tmp_path / "agent.yaml"
+    config.write_text(yaml.safe_dump(raw), encoding="utf-8")
+
+    router = build_router(load_config(config), {"GEMINI_API_KEY": "k"}, configuration="hosted")
+
+    assert [m.id for m in router.slow_fallbacks] == ["gemini-3.5-flash", "qwen3.6:35b-a3b"]
+    assert [m.id for m in router.fast_fallbacks] == ["qwen3:8b"]
+
+
+def test_a_fallback_with_an_unknown_provider_is_a_config_error(tmp_path):
+    raw = yaml.safe_load(EXAMPLE.read_text(encoding="utf-8"))
+    raw["configurations"]["hosted"]["slow_fallbacks"] = [
+        {"provider": "nowhere", "model": "m", "chosen": "2026-10-27"}
+    ]
+    config = tmp_path / "agent.yaml"
+    config.write_text(yaml.safe_dump(raw), encoding="utf-8")
+
+    with pytest.raises(ConfigError, match="unknown provider 'nowhere'"):
+        load_config(config)
+
+
 def test_the_local_configuration_needs_no_key():
     router = build_router(load_config(EXAMPLE), {}, configuration="local")
 

@@ -31,7 +31,8 @@ def _config_path(environ: Mapping[str, str]) -> Path:
     return DEFAULT_CONFIG if DEFAULT_CONFIG.exists() else EXAMPLE_CONFIG
 
 
-def _model(config: AgentConfig, choice: ModelChoice, environ: Mapping[str, str]) -> ChatModel:
+def build_model(config: AgentConfig, choice: ModelChoice, environ: Mapping[str, str]) -> ChatModel:
+    """One model from config, with its provider's key. Raises ConfigError for an unset key."""
     provider = config.providers[choice.provider]
     try:
         credential = resolve_credential(provider.auth, environ)
@@ -48,31 +49,36 @@ def _model(config: AgentConfig, choice: ModelChoice, environ: Mapping[str, str])
     )
 
 
-def build_model(config: AgentConfig, choice: ModelChoice, environ: Mapping[str, str]) -> ChatModel:
-    """One model from config, with its provider's key. Raises ConfigError for an unset key."""
-    return _model(config, choice, environ)
-
-
 def build_router(
     config: AgentConfig,
     environ: Mapping[str, str],
     *,
     configuration: str | None = None,
     enabled: bool | None = None,
+    fallbacks: bool = True,
+    wrap: Callable[[ChatModel], ChatModel] = lambda model: model,
 ) -> Router:
     """The router over one configuration's models: the active one unless named.
 
     enabled overrides router.enabled; False is the eval's slow-only baseline.
-    Raises ConfigError for an undefined configuration or an unset key.
+    fallbacks=False leaves out the paths' fallback lists. wrap is applied to each
+    model, for example to pace its requests. Raises ConfigError for an undefined
+    configuration or an unset key.
     """
-    pair = config.select(configuration)
+    selected = config.select(configuration)
     settings = config.router
+
+    def model(choice: ModelChoice) -> ChatModel:
+        return wrap(build_model(config, choice, environ))
+
     return Router(
-        _model(config, pair.fast, environ),
-        _model(config, pair.slow, environ),
+        model(selected.fast),
+        model(selected.slow),
         enabled=settings.enabled if enabled is None else enabled,
         timeout=settings.timeout,
         max_tokens=settings.max_tokens,
+        fast_fallbacks=[model(c) for c in selected.fast_fallbacks] if fallbacks else [],
+        slow_fallbacks=[model(c) for c in selected.slow_fallbacks] if fallbacks else [],
     )
 
 

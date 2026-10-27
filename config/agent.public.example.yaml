@@ -32,6 +32,10 @@ configurations:
     fast: {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-26}
     # gemini-3.6-flash: Google's deprecations page says gemini-3.5-flash routes every request to it.
     slow: {provider: gemini, model: gemini-3.6-flash, chosen: 2026-10-26}
+    # Asked when gemini-3.6-flash still fails after the retries (its daily
+    # free quota is spent): the answer is weaker, but the turn is answered.
+    slow_fallbacks:
+      - {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-27}
   local:
     fast: {provider: local, model: "qwen3:8b", chosen: 2026-10-26}
     slow: {provider: local, model: "qwen3.6:35b-a3b", chosen: 2026-10-26}
@@ -39,6 +43,10 @@ configurations:
     fast: {provider: local, model: "qwen3:8b", chosen: 2026-10-26}
     # gemini-3.6-flash: Google's deprecations page says gemini-3.5-flash routes every request to it.
     slow: {provider: gemini, model: gemini-3.6-flash, chosen: 2026-10-26}
+    # Asked when gemini-3.6-flash still fails after the retries (its daily
+    # free quota is spent): the answer is weaker, but the turn is answered.
+    slow_fallbacks:
+      - {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-27}
 
 router:
   enabled: true
