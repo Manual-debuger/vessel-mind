@@ -77,12 +77,23 @@ def test_the_token_check_finds_a_token_and_an_assignment():
     assert not TOKEN_ASSIGNED.search("#   TUNNEL_TOKEN=... docker compose up")
 
 
-def test_the_env_file_compose_reads_is_git_ignored():
+@pytest.mark.parametrize(
+    "path",
+    [
+        ".env",  # the file compose reads by default
+        ".env.public",  # docker compose --env-file .env.public
+        ".env.local",
+        "config/agent.yaml",
+        "config/agent.public.yaml",
+        "config/agent.local.yaml",
+    ],
+)
+def test_the_files_that_hold_secrets_or_local_config_are_git_ignored(path):
     git = shutil.which("git")
     if git is None:
         pytest.skip("git is not installed")
     ignored = subprocess.run(  # noqa: S603 - fixed arguments, no shell
-        [git, "-C", str(REPO), "check-ignore", "-q", ".env"], check=False
+        [git, "-C", str(REPO), "check-ignore", "-q", path], check=False
     )
 
     assert ignored.returncode == 0
@@ -119,6 +130,13 @@ def test_the_app_needs_only_the_gemini_key_and_the_tunnel_token_never_reaches_it
 
     assert env["GEMINI_API_KEY"] is None  # passed through from the shell
     assert "TUNNEL_TOKEN" not in env
+
+
+def test_the_app_takes_the_config_file_name_from_the_environment():
+    env = environment(compose()["services"]["app"])
+
+    # The env file names config/agent.public.yaml or another file under the mounted config/.
+    assert env["VESSEL_MIND_CONFIG"] is None
 
 
 def test_the_state_file_is_in_a_volume_apart_from_the_index_the_image_ships():
@@ -208,5 +226,6 @@ def test_the_build_context_keeps_git_and_drops_local_secrets_and_data():
     }
 
     assert ".git" not in ignored  # the index stage reads the corpus pin from it
-    assert {".env", "config/agent.yaml", "data", ".cache", ".venv"} <= ignored
+    assert {".env", ".env.*", "config/agent.yaml", "data", ".cache", ".venv"} <= ignored
+    assert {"config/agent.public.yaml", "config/agent.local.yaml"} <= ignored
     assert "deploy/notion-mcp/node_modules" in ignored

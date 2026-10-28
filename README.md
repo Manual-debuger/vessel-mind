@@ -195,11 +195,24 @@ it needs both Ollama and `GEMINI_API_KEY`.
 (the console shows proposals, and every approval is refused with 403 `demo_mode`), the
 free-tier notice, a limit of 20 turns per session and of 100 turns a day across all sessions,
 and a read-only Notion integration. Copy it
-to `config/agent.yaml` and start the tunnel too:
+to `config/agent.public.yaml` (git-ignored), put the secrets and the file's name in a
+git-ignored `.env.public`, and start the tunnel too:
 
 ```sh
-GEMINI_API_KEY=... NOTION_TOKEN=... TUNNEL_TOKEN=... docker compose --profile tunnel up -d --build
+# .env.public
+VESSEL_MIND_CONFIG=config/agent.public.yaml
+GEMINI_API_KEY=...
+NOTION_TOKEN=...   # the read-only integration
+TUNNEL_TOKEN=...
 ```
+
+```sh
+docker compose --env-file .env.public --profile tunnel up -d --build
+```
+
+The configuration files name the environment variables (`key_env: NOTION_TOKEN`), never
+the secrets. A localhost configuration works the same way: `config/agent.local.yaml`
+(demo mode off) and `.env.local` with the write integration's token.
 
 The tunnel reaches only the app. The state file, the MCP servers and Ollama have no route from
 the public hostname.

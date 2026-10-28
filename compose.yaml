@@ -29,6 +29,9 @@ services:
       # Only when config/agent.yaml enables the Notion MCP server. On the public
       # host, the read-only integration's token.
       - NOTION_TOKEN
+      # Which file under config/ the app reads, for example
+      # config/agent.public.yaml; unset, config/agent.yaml, else the example.
+      - VESSEL_MIND_CONFIG
     ports:
       # Loopback only: the LAN cannot reach the app; the tunnel reaches it as app:8000.
       - "127.0.0.1:8000:8000"

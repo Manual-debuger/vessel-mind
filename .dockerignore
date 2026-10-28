@@ -4,7 +4,10 @@
 
 # Secrets and local config.
 .env
+.env.*
 config/agent.yaml
+config/agent.public.yaml
+config/agent.local.yaml
 
 # Runtime data and caches; the image builds its own index.
 data
