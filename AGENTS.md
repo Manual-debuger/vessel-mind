@@ -24,6 +24,11 @@ anything you write to the repository or its tracker: no `Co-Authored-By`
 trailers or "Generated with" lines in commit messages, pull requests or
 issues, and no self-references in code, comments or docs.
 
+One exception: a provenance note. Where a reader must know how content
+was made in order to trust a measurement (eval data such as the golden
+set, and the docs that describe it), say that a model drafted it and
+who reviewed it. State the method; name no product.
+
 ## Guardrails
 
 - `vibe-guard` checks every shell command and file edit before it runs

@@ -30,9 +30,9 @@ ticket #12). Every later change follows these rules.
 At the author's request, an agent drafted the Traditional Chinese
 questions (zh-01 to zh-10) directly in Chinese, not as translations of the
 English questions. The author verified each one before the freeze; each
-is marked `drafted_by: agent` and `reviewed_by_author: true`. This departs
-from ticket #12 and spec §5.8, which say the author writes the Chinese
-questions; the golden-set commit message records the departure.
+is marked `drafted_by: agent` and `reviewed_by_author: true`. Ticket #12
+and spec §5.8 first said the author writes the Chinese questions; both now
+describe this method.
 
 ## Corpus changes
 
