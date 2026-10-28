@@ -110,6 +110,18 @@ class Sessions(_Config):
     max_turns_per_day: int | None = Field(default=None, gt=0)
 
 
+class Console(_Config):
+    """What the console shows a visitor beside the question box."""
+
+    # The Notion page the agent reads, published to the web, so a visitor can
+    # check its answers. None: no link.
+    demo_page_url: Annotated[str, Field(pattern=r"^https://\S+$")] | None = None
+    # Questions a visitor can click to fill the question box.
+    example_questions: list[Annotated[str, Field(min_length=1, max_length=8000)]] = Field(
+        default=[], max_length=10
+    )
+
+
 # Commands that fetch a package at start instead of running a pinned one.
 _PACKAGE_RUNNERS = frozenset({"npx", "npm", "pnpm", "pnpx", "yarn", "bunx", "uvx"})
 
@@ -220,6 +232,7 @@ class AgentConfig(_Config):
     # The app is served on the public hostname (ADR 0002): the console shows the
     # free-tier notice. It requires demo mode, a per-session and a daily turn limit.
     public_host: bool = False
+    console: Console = Console()
     # MCP servers by name; the model sees each tool as '<name>_<tool>'.
     mcp_servers: dict[
         Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]{0,19}$")], McpServerConfig

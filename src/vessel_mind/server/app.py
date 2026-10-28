@@ -105,6 +105,8 @@ def create_app(
     max_turns_per_day: int | None = None,
     demo_mode: bool = False,
     public_host: bool = False,
+    demo_page_url: str | None = None,
+    example_questions: Sequence[str] = (),
     clock: Clock | None = None,
     services: Sequence[AbstractAsyncContextManager[object]] = (),
     telemetry: Telemetry | None = None,
@@ -127,7 +129,8 @@ def create_app(
 
     demo_mode (ADR 0002) still makes and shows proposals but refuses every
     approval. public_host shows the free-tier notice: the app is served on the
-    public hostname (spec §5.4). clock gives the current time for proposal expiry;
+    public hostname (spec §5.4). demo_page_url links the published page the agent
+    reads, and example_questions fill the question box when clicked. clock gives the current time for proposal expiry;
     tests fake it.
 
     telemetry receives a summary of each turn when it ends: its status, steps and
@@ -227,6 +230,10 @@ def create_app(
                 "fast_model_id": router.fast.id if router is not None else None,
                 "demo_mode": demo_mode,
                 "public_host": public_host,
+                "demo_page_url": demo_page_url,
+                "max_turns_per_session": max_turns_per_session,
+                "max_turns_per_day": max_turns_per_day,
+                "example_questions": list(example_questions),
             },
         )
 

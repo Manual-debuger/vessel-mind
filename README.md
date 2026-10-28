@@ -211,7 +211,9 @@ docker compose --env-file .env.public --profile tunnel up -d --build
 ```
 
 The configuration files name the environment variables (`key_env: NOTION_TOKEN`), never
-the secrets. A localhost configuration works the same way: `config/agent.local.yaml`
+the secrets. The optional `console` block links the demo Notion page, published to the web,
+so a visitor can check the agent's answers against it, and lists example questions that
+fill the question box when clicked. A localhost configuration works the same way: `config/agent.local.yaml`
 (demo mode off) and `.env.local` with the write integration's token.
 
 The tunnel reaches only the app. The state file, the MCP servers and Ollama have no route from

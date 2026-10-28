@@ -262,3 +262,79 @@ def test_the_route_badge_with_the_router_off_names_only_the_answering_model():
     badge = route_badge(route, None)
 
     assert badge == "slow path (router_off) · answer large"
+
+
+DEMO_PAGE = "https://example.notion.site/Demo-0123456789abcdef0123456789abcdef"
+
+
+def test_the_console_links_the_published_page_the_agent_reads():
+    with TestClient(create_app(SilentModel(), demo_page_url=DEMO_PAGE)) as client:
+        page = client.get("/").text
+
+    assert 'id="demo-page"' in page
+    assert f'href="{DEMO_PAGE}"' in page
+    # A new tab, and the published page gets no handle on the console.
+    assert 'target="_blank"' in page
+    assert 'rel="noopener noreferrer"' in page
+
+
+def test_without_a_demo_page_the_console_shows_no_link():
+    with TestClient(create_app(SilentModel())) as client:
+        page = client.get("/").text
+
+    assert 'id="demo-page"' not in page
+
+
+def test_example_questions_are_buttons_that_fill_the_question_box():
+    questions = ["Which sprint items are still open?", "幫我把錄影那項標記為完成"]
+    with TestClient(create_app(SilentModel(), example_questions=questions)) as client:
+        page = client.get("/").text
+
+    assert 'id="examples"' in page
+    assert page.count('class="example"') == 2
+    for question in questions:
+        assert question in page
+
+
+def test_example_questions_are_escaped():
+    with TestClient(create_app(SilentModel(), example_questions=["<b>x</b>"])) as client:
+        page = client.get("/").text
+
+    assert "&lt;b&gt;x&lt;/b&gt;" in page
+    assert "<b>x</b>" not in page
+
+
+def test_without_example_questions_the_console_shows_none():
+    with TestClient(create_app(SilentModel())) as client:
+        page = client.get("/").text
+
+    assert 'id="examples"' not in page
+
+
+def about_text(page: str) -> str:
+    start = page.index('id="about"')
+    return notice_text(page[start : page.index("</details>", start)])
+
+
+def test_the_public_host_explains_what_the_demo_does_and_how_to_use_it():
+    app = create_app(
+        SilentModel(),
+        public_host=True,
+        demo_mode=True,
+        max_turns_per_session=20,
+        max_turns_per_day=100,
+    )
+    with TestClient(app) as client:
+        about = about_text(client.get("/").text)
+
+    for words in ["public documents", "Notion", "proposal", "Traditional Chinese", "[n]", "Stop"]:
+        assert words in about
+    assert "20 questions per session" in about
+    assert "100 questions a day" in about
+
+
+def test_localhost_shows_no_explanation_for_visitors():
+    with TestClient(create_app(SilentModel())) as client:
+        page = client.get("/").text
+
+    assert 'id="about"' not in page

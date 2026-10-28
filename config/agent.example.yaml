@@ -185,6 +185,14 @@ demo_mode: false
 # config/agent.public.example.yaml sets all three.
 public_host: false
 
+# What the console shows a visitor. demo_page_url links the Notion page the
+# agent reads, published to the web (Share > Publish), so answers can be
+# checked; https only. example_questions fill the question box when clicked.
+# console:
+#   demo_page_url: https://<your-site>.notion.site/<page>
+#   example_questions:
+#     - Which sprint items on the Notion page are still open?
+
 # MCP servers, started over stdio when the app starts. The model sees each
 # tool as <server>_<tool>, for example notion_API-post-search.
 mcp_servers:

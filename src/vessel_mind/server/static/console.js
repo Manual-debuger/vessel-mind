@@ -272,4 +272,12 @@
   question.addEventListener("keydown", (key) => {
     if (key.key === "Enter" && (key.ctrlKey || key.metaKey)) form.requestSubmit();
   });
+
+  // An example question fills the box; the visitor still sends it.
+  for (const example of document.querySelectorAll("button.example")) {
+    example.addEventListener("click", () => {
+      question.value = example.textContent.trim();
+      question.focus();
+    });
+  }
 })();

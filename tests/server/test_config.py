@@ -192,6 +192,46 @@ def test_the_example_appends_telemetry_beside_the_state_file():
     assert load_config(PUBLIC).telemetry == config.telemetry
 
 
+CONSOLE = """
+console:
+  demo_page_url: https://example.notion.site/Demo-0123456789abcdef0123456789abcdef
+  example_questions:
+    - Which sprint items are still open?
+"""
+
+
+def test_the_console_block_links_the_demo_page_and_offers_example_questions(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    config = tmp_path / "agent.yaml"
+    config.write_text(EXAMPLE.read_text(encoding="utf-8") + CONSOLE, encoding="utf-8")
+
+    app = app_from_config(config, environ={"GEMINI_API_KEY": "test-key"}, **offline())
+    with TestClient(app) as client:
+        page = client.get("/").text
+
+    assert 'href="https://example.notion.site/Demo-0123456789abcdef0123456789abcdef"' in page
+    assert "Which sprint items are still open?" in page
+
+
+def test_the_example_has_no_demo_page_and_no_example_questions():
+    console = load_config(EXAMPLE).console
+
+    assert console.demo_page_url is None
+    assert console.example_questions == []
+
+
+@pytest.mark.parametrize(
+    "url", ["http://example.notion.site/Demo", "javascript:alert(1)", "example.notion.site"]
+)
+def test_the_demo_page_must_be_an_https_url(tmp_path, url):
+    config = tmp_path / "agent.yaml"
+    text = EXAMPLE.read_text(encoding="utf-8") + f"\nconsole:\n  demo_page_url: {url!r}\n"
+    config.write_text(text, encoding="utf-8")
+
+    with pytest.raises(ConfigError):
+        load_config(config)
+
+
 def test_telemetry_can_be_turned_off(tmp_path):
     config = config_with(tmp_path, "  path: data/state/telemetry.jsonl\n", "  path: null\n")
 

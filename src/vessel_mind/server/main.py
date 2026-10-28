@@ -146,6 +146,8 @@ def app_from_config(
         max_turns_per_day=config.sessions.max_turns_per_day,
         demo_mode=config.demo_mode,
         public_host=config.public_host,
+        demo_page_url=config.console.demo_page_url,
+        example_questions=config.console.example_questions,
         services=[retrieval, *mcp_servers],
         telemetry=telemetry,
     )

@@ -104,6 +104,14 @@ demo_mode: true
 # may use them to improve its models. Do not enter personal data."
 public_host: true
 
+# What the console shows a visitor. demo_page_url links the Notion page the
+# agent reads, published to the web (Share > Publish), so answers can be
+# checked; https only. example_questions fill the question box when clicked.
+# console:
+#   demo_page_url: https://<your-site>.notion.site/<page>
+#   example_questions:
+#     - Which sprint items on the Notion page are still open?
+
 mcp_servers:
   notion:
     command: node
