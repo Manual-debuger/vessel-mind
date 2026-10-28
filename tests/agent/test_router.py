@@ -470,6 +470,47 @@ async def test_when_every_model_of_the_path_fails_the_turn_ends_with_a_model_err
 
 
 @pytest.mark.asyncio
+async def test_cancelling_before_a_slow_first_byte_ends_the_turn_within_100_ms():
+    # With a fallback list the route event waits for the first byte; cancelling
+    # meanwhile still stops the model at once.
+    class SlowFirstByte:
+        id = "large"
+
+        def __init__(self) -> None:
+            self.started = asyncio.Event()
+            self.cancelled = False
+
+        async def stream(self, req):
+            self.started.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                self.cancelled = True
+                raise
+            yield TextDelta(delta="never")
+
+    fast = ScriptedModel("small", classified('{"route": "slow"}'))
+    slow = SlowFirstByte()
+    fallback = ScriptedModel("large-older", answer("Never asked."))
+    router = Router(fast, slow, slow_fallbacks=[fallback])
+    seen: list = []
+
+    async def consume() -> None:
+        async for event in router.run([], "Compare X and Y."):
+            seen.append(event)
+
+    task = asyncio.create_task(consume())
+    await asyncio.wait_for(slow.started.wait(), timeout=1)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(task, timeout=0.1)
+
+    assert slow.cancelled
+    assert seen == []
+    assert fallback.requests == []
+
+
+@pytest.mark.asyncio
 async def test_a_model_that_fails_after_it_started_answering_is_not_replaced():
     # Its text already reached the client; a second answer would follow the first.
     class FailsMidAnswer:

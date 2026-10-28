@@ -293,6 +293,13 @@ def test_an_unknown_candidate_stage_is_refused(tmp_path):
         load_config(config)
 
 
+def test_more_candidates_than_the_reranker_takes_are_refused_at_load(tmp_path):
+    config = config_with(tmp_path, "candidate_k: 30", "candidate_k: 31")
+
+    with pytest.raises(ConfigError, match=r"retrieval\.candidate_k"):
+        load_config(config)
+
+
 def test_top_k_may_not_exceed_the_candidates(tmp_path):
     config = config_with(tmp_path, "top_k: 5", "top_k: 31")
 

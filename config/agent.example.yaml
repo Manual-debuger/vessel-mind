@@ -81,7 +81,8 @@ agent:
   system: >-
     You are vessel-mind, a concise assistant. Answer in plain text. For a
     question about vessel-mind or VibeConform, call search_docs first, answer
-    only from its results, and cite each claim as [n].
+    only from its results, and cite each claim by its section number, for
+    example [1] or [2][3].
   # Gemini counts thinking tokens against this budget.
   max_tokens: 4096
 
@@ -121,6 +122,7 @@ retrieval:
   corpus: eval/corpus.yaml
   # vector | keyword | hybrid (reciprocal rank fusion, k = 60).
   candidates: hybrid
+  # The candidates the reranker reorders; at most 30.
   candidate_k: 30
   # The results search_docs returns; at most candidate_k.
   top_k: 5

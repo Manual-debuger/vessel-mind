@@ -10,7 +10,6 @@ the slow path the slow model runs the full tool loop.
 import asyncio
 import json
 import logging
-import re
 from collections.abc import AsyncIterator, Sequence
 
 from pydantic import BaseModel, ConfigDict, ValidationError
@@ -25,13 +24,12 @@ from vessel_mind.core.chat import (
     ChatModel,
     ChatModelError,
     ChatRequest,
-    Stop,
-    StopReason,
-    TextDelta,
     ToolCall,
     ToolMessage,
     Usage,
     UserMessage,
+    read_reply,
+    unfenced,
 )
 from vessel_mind.core.events import (
     AgentEvent,
@@ -65,8 +63,9 @@ If you are not sure, choose slow."""
 
 FAST_CONTEXT = """\
 Sections from search_docs for the user's latest message, numbered as the search
-numbered them. Answer only from them, and cite each claim as [n]. If no section
-answers the message, say that the documents do not cover it.
+numbered them. Answer only from them. Cite a section by its number in square
+brackets, for example [1] or [2][3], after the sentence it supports. If no
+section answers the message, say that the documents do not cover it.
 
 """
 
@@ -302,32 +301,22 @@ class Router:
             messages=[*_as_text(history), UserMessage(text=user_text)],
             max_tokens=self.max_tokens,
         )
-        text: list[str] = []
-        usage = Usage()
-        stop_reason: StopReason = "end"
         try:
             async with asyncio.timeout(self.timeout):
-                async for event in classifier.stream(request):
-                    match event:
-                        case TextDelta(delta=delta):
-                            text.append(delta)
-                        case Stop(reason=reason, usage=step_usage):
-                            usage = step_usage
-                            stop_reason = reason
-                        case _:
-                            pass
+                reply = await read_reply(classifier, request)
         except TimeoutError:
             log.warning(
                 "route classification by %s timed out after %ss", self.fast.id, self.timeout
             )
-            return "slow", "timeout", usage, classifier
+            return "slow", "timeout", Usage(), classifier
         except ChatModelError as error:
             log.warning("route classification failed: %s", error)
-            return "slow", "model_error", usage, classifier
+            return "slow", "model_error", Usage(), classifier
+        usage = reply.usage
         try:
-            decision = RouteDecision.model_validate_json(_unfenced("".join(text)))
+            decision = RouteDecision.model_validate_json(unfenced(reply.text))
         except ValidationError:
-            if stop_reason == "max_tokens":
+            if reply.reason == "max_tokens":
                 # Cut off, often after spending the whole budget on thinking: the
                 # budget is too small, not the model's answer wrong.
                 log.warning(
@@ -339,16 +328,6 @@ class Router:
             log.warning("route classification by %s was not the expected JSON", classifier.answered)
             return "slow", "invalid", usage, classifier
         return decision.route, "classified", usage, classifier
-
-
-_FENCE = re.compile(r"^```(?:json)?\s*(.*?)\s*```$", re.DOTALL)
-
-
-def _unfenced(text: str) -> str:
-    """The text without a Markdown code fence around it, which small models often add."""
-    text = text.strip()
-    match = _FENCE.match(text)
-    return match.group(1) if match else text
 
 
 def _as_text(history: Sequence[ChatMessage]) -> list[ChatMessage]:

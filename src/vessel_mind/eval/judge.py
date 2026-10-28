@@ -6,7 +6,6 @@ file change, not a code change.
 """
 
 import json
-import re
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -16,17 +15,17 @@ from vessel_mind.core.chat import (
     ChatModel,
     ChatModelError,
     ChatRequest,
-    Stop,
-    TextDelta,
     Usage,
     UserMessage,
+    read_reply,
+    unfenced,
 )
 
 DEFAULT_RUBRIC = Path("eval/judge.md")
 
 
 class JudgeError(Exception):
-    """The judge failed or its reply broke the rubric. The answer stays ungraded."""
+    """The judge failed or its reply broke the rubric. The answer stays unscored."""
 
 
 class Verdict(BaseModel):
@@ -37,7 +36,7 @@ class Verdict(BaseModel):
     quote: str | None
 
 
-class _Reply(BaseModel):
+class _Verdicts(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     verdicts: tuple[Verdict, ...]
@@ -52,9 +51,9 @@ class Judge:
         self.model = model
         self.rubric = rubric
         self.max_tokens = max_tokens
-        self.usage = Usage()  # summed over every grade, for the record
+        self.usage = Usage()  # summed over every decision, for the record
 
-    async def grade(
+    async def decide(
         self, question: str, key_points: Sequence[str], answer: str
     ) -> tuple[Verdict, ...]:
         """One verdict per key point, in order. Raises JudgeError."""
@@ -68,17 +67,13 @@ class Judge:
             messages=[UserMessage(text=json.dumps(prompt, ensure_ascii=False))],
             max_tokens=self.max_tokens,
         )
-        text: list[str] = []
         try:
-            async for event in self.model.stream(request):
-                if isinstance(event, TextDelta):
-                    text.append(event.delta)
-                elif isinstance(event, Stop):
-                    self.usage += event.usage
+            reply = await read_reply(self.model, request)
         except ChatModelError as error:
             raise JudgeError(f"judge {self.model.id}: {error}") from None
+        self.usage += reply.usage
         try:
-            verdicts = _Reply.model_validate_json(_unfenced("".join(text))).verdicts
+            verdicts = _Verdicts.model_validate_json(unfenced(reply.text)).verdicts
         except ValidationError:
             raise JudgeError(f"judge {self.model.id}: the reply is not the rubric's JSON") from None
         if [v.key_point for v in verdicts] != list(range(1, len(key_points) + 1)):
@@ -88,12 +83,3 @@ class Judge:
         if any(v.covered and not (v.quote or "").strip() for v in verdicts):
             raise JudgeError(f"judge {self.model.id}: a covered key point has no quote")
         return verdicts
-
-
-_FENCE = re.compile(r"^```(?:json)?\s*(.*?)\s*```$", re.DOTALL)
-
-
-def _unfenced(text: str) -> str:
-    text = text.strip()
-    match = _FENCE.match(text)
-    return match.group(1) if match else text

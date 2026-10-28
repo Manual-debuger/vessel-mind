@@ -63,7 +63,7 @@ Costly misroutes: 1 (en-03). A costly misroute is a fast-path answer scoring at 
 
 Judge: `qwen3.6:35b-a3b`, with the rubric `eval/judge.md`, for the rows local, local-slow-only.
 
-The judge `qwen3.6:35b-a3b` shares a model family (`qwen3.6:35b`) with the measured rows local, local-slow-only, so its scores may favour them. It is itself a model of local, local-slow-only.
+The judge `qwen3.6:35b-a3b` shares a model family (`qwen`) with the measured rows local, local-slow-only, so its scores may favour them. It is itself a model of local, local-slow-only.
 
 ### Judge–human agreement
 

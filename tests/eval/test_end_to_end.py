@@ -33,11 +33,11 @@ from vessel_mind.eval.end_to_end import (
 from vessel_mind.eval.golden import load_golden
 from vessel_mind.eval.judge import Judge
 from vessel_mind.eval.pacing import PacedModel, Pacer
-from vessel_mind.eval.records import row_name
-from vessel_mind.eval.results import render_results
+from vessel_mind.eval.records import Row
+from vessel_mind.eval.results import model_family, render_results
 from vessel_mind.rag.search import SearchResult
 from vessel_mind.rag.search_docs import SearchDocsTool
-from vessel_mind.server.config import ModelPrice
+from vessel_mind.server.config import ConfigurationName, ModelPrice
 from vessel_mind.server.retrieval import SEARCH_DOCS_LABELS
 
 TODAY = date(2026, 10, 30)
@@ -215,7 +215,7 @@ async def _run(
     router_on: bool,
     models: Models | None = None,
     golden=None,
-    configuration: str = "hosted",
+    configuration: ConfigurationName = "hosted",
     **kwargs,
 ):
     models = models or Models()
@@ -223,9 +223,7 @@ async def _run(
     return await run_end_to_end(
         golden=golden or _golden(tmp_path),
         spec=RowSpec(
-            name=row_name(configuration, router_on),
-            configuration=configuration,
-            router=router_on,
+            row=Row(configuration, router_on),
             fast_model="fake-lite",
             slow_model="fake-flash",
             prices=PRICES,
@@ -249,10 +247,11 @@ async def _run(
 
 
 def _not_run(tmp_path: Path) -> None:
-    for name, fast, slow in (
+    rows: tuple[tuple[ConfigurationName, str, str], ...] = (
         ("local", "local-small", "local-large"),
         ("routed", "local-small", "fake-flash"),
-    ):
+    )
+    for name, fast, slow in rows:
         store_not_run(
             tmp_path / "results",
             NotRun(
@@ -320,6 +319,22 @@ async def test_routed_rows_report_router_accuracy_the_confusion_table_and_costly
     # en-01 and en-02 scored 0.5 on the fast path and 1.0 slow-only; zh-01 tied.
     assert "Costly misroutes: 2 (en-01, en-02)." in text
     assert "### Router: slow-only" not in text
+
+
+@pytest.mark.parametrize(
+    ("judge", "measured"),
+    [
+        ("qwen3.6:35b-a3b", "qwen3:8b"),
+        ("gemini-3.6-flash", "gemini-3.5-flash-lite"),
+        ("models/gemini-3.6-flash", "gemini-3.5-flash"),
+    ],
+)
+def test_models_whose_names_begin_alike_are_one_family(judge, measured):
+    assert model_family(judge) == model_family(measured)
+
+
+def test_models_whose_names_begin_differently_are_different_families():
+    assert model_family("qwen3:8b") != model_family("gemini-3.5-flash")
 
 
 @pytest.mark.asyncio

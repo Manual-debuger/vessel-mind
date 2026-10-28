@@ -4,6 +4,7 @@ These types are not any provider's wire format. An adapter translates them to an
 from its provider, so a new adapter never changes the loop (ADR 0001 §2).
 """
 
+import re
 from collections.abc import AsyncIterator
 from typing import Annotated, Any, Literal, Protocol
 
@@ -110,3 +111,37 @@ class ChatModel(Protocol):
     id: str
 
     def stream(self, req: ChatRequest) -> AsyncIterator[ChatEvent]: ...
+
+
+class Reply(_Model):
+    """One model step's whole text, for a caller that reads it only once it is complete."""
+
+    text: str
+    reason: StopReason
+    usage: Usage
+
+
+async def read_reply(model: ChatModel, req: ChatRequest) -> Reply:
+    """Streams one step to its end and joins its text. Raises ChatModelError."""
+    text: list[str] = []
+    reason: StopReason = "end"
+    usage = Usage()
+    async for event in model.stream(req):
+        match event:
+            case TextDelta(delta=delta):
+                text.append(delta)
+            case Stop():
+                reason, usage = event.reason, event.usage
+            case _:
+                pass
+    return Reply(text="".join(text), reason=reason, usage=usage)
+
+
+_FENCE = re.compile(r"^```(?:json)?\s*(.*?)\s*```$", re.DOTALL)
+
+
+def unfenced(text: str) -> str:
+    """The text without a Markdown code fence around it, which small models often add."""
+    text = text.strip()
+    match = _FENCE.match(text)
+    return match.group(1) if match else text

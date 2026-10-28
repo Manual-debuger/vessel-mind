@@ -12,6 +12,7 @@ only the stored files, so it is repeatable and makes no model call.
 """
 
 import datetime
+import re
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from pathlib import Path
@@ -22,11 +23,11 @@ from vessel_mind.eval.records import (
     ROW_ORDER,
     NotRun,
     QuestionRecord,
+    Row,
     RowResults,
     load_rows,
     ordered,
-    row_command,
-    row_name,
+    row_of,
 )
 from vessel_mind.eval.retrieval import LANGS, RetrievalAblation
 
@@ -39,6 +40,7 @@ LANG_NAMES = {"en": "English", "zh-Hant": "Traditional Chinese"}
 # same configuration.
 MISROUTE_MARGIN = 0.25
 _DASH = "—"
+_FAMILY = re.compile(r"[a-z]+")
 
 
 def store_retrieval(results_dir: Path, ablation: RetrievalAblation) -> Path:
@@ -85,7 +87,7 @@ def render_results(results_dir: Path) -> str:
 def _end_to_end_section(rows: Mapping[str, RowResults | NotRun]) -> Iterable[str]:
     yield "## 2. End to end"
     yield ""
-    names = ordered([*ROW_ORDER, *rows])
+    table = ordered([*ROW_ORDER, *(row_of(r) for r in rows.values())])
     run = [r for r in rows.values() if isinstance(r, RowResults)]
     if run:
         first = run[0]
@@ -105,7 +107,8 @@ def _end_to_end_section(rows: Mapping[str, RowResults | NotRun]) -> Iterable[str
     )
     yield "|---|---|---|---|---|---|---|---|---|---|---|"
     notes: list[str] = []
-    for name in names:
+    for table_row in table:
+        name = table_row.name
         row = rows.get(name)
         if isinstance(row, RowResults):
             yield _row_line(row)
@@ -114,7 +117,7 @@ def _end_to_end_section(rows: Mapping[str, RowResults | NotRun]) -> Iterable[str
                 notes.append(
                     f"- **{name}** is *incomplete*: "
                     + (row.stopped or f"{missing} questions not yet run")
-                    + f". Resume it with `{row_command(name)}`."
+                    + f". Resume it with `{table_row.command}`."
                 )
             continue
         if isinstance(row, NotRun):
@@ -122,7 +125,7 @@ def _end_to_end_section(rows: Mapping[str, RowResults | NotRun]) -> Iterable[str
             models, reason = f"{fast} / {row.slow_model}", row.reason
         else:
             models = _DASH
-            reason = f"no results are stored; run `{row_command(name)}`."
+            reason = f"no results are stored; run `{table_row.command}`."
         yield f"| {name} | {models} | *not run* |" + f" {_DASH} |" * 8
         notes.append(f"- **{name}** was not run: {reason}")
     if notes:
@@ -148,7 +151,7 @@ def _end_to_end_section(rows: Mapping[str, RowResults | NotRun]) -> Iterable[str
     for row in run:
         if row.router:
             yield ""
-            yield from _router_lines(row, rows.get(row_name(row.configuration, False)))
+            yield from _router_lines(row, rows.get(Row(row.configuration, router=False).name))
     yield from _judge_lines(run)
 
 
@@ -321,9 +324,13 @@ def _misroute_lines(
     )
 
 
-def _family(model: str) -> str:
-    """A model's family: the first part of its id (gemini-3.5-flash: gemini)."""
-    return model.split("-", 1)[0].lower()
+def model_family(model: str) -> str:
+    """A model's family: the letters that begin its name, after any provider path and
+    before the first digit or separator (gemini-3.5-flash: gemini; qwen3:8b and
+    qwen3.6:35b-a3b: qwen)."""
+    name = model.rsplit("/", 1)[-1].lower()
+    match = _FAMILY.match(name)
+    return match.group(0) if match else name
 
 
 def _judge_lines(run: list[RowResults]) -> Iterable[str]:
@@ -339,12 +346,12 @@ def _judge_lines(run: list[RowResults]) -> Iterable[str]:
             f"Judge: `{judge}`, with the rubric `eval/judge.md`, for the rows "
             f"{', '.join(r.row for r in rows)}."
         )
-        family = _family(judge)
+        family = model_family(judge)
         shared = [
             r.row
             for r in run
             if any(
-                _family(m) == family
+                model_family(m) == family
                 for m in ((r.fast_model,) if r.router else ()) + (r.slow_model,)
             )
         ]

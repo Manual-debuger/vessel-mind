@@ -36,9 +36,9 @@ from vessel_mind.eval.pacing import PacedModel, Pacer
 from vessel_mind.eval.records import (
     ROW_ORDER,
     NotRun,
+    Row,
     RowResults,
     read_row,
-    row_name,
     row_path,
 )
 from vessel_mind.eval.results import store_retrieval, write_results
@@ -197,7 +197,7 @@ def _retrieval_only(args: argparse.Namespace, config: AgentConfig, golden: Golde
     def make_models() -> tuple[Embedder, Reranker]:
         embedder = FastEmbedEmbedder(settings.embedding_model, cache_dir=model_cache)
         encoder = FastEmbedCrossEncoder(settings.reranker_model, cache_dir=model_cache)
-        return embedder, CrossEncoderReranker(encoder, max_candidates=settings.candidate_k)
+        return embedder, CrossEncoderReranker(encoder)
 
     try:
         ablation = run_retrieval_only(
@@ -235,16 +235,16 @@ def _record_not_run(config: AgentConfig, settings: EvalSettings, results_dir: Pa
     for name, reason in settings.not_run.items():
         selected = config.select(name)
         for router in (True, False):
-            row = row_name(name, router)
+            row = Row(name, router)
             if not router and row not in ROW_ORDER:
                 continue
-            path = row_path(results_dir, row)
+            path = row_path(results_dir, row.name)
             if path.exists() and isinstance(read_row(path), RowResults):
                 continue
             store_not_run(
                 results_dir,
                 NotRun(
-                    row=row,
+                    row=row.name,
                     configuration=name,
                     fast_model=selected.fast.model,
                     slow_model=selected.slow.model,
@@ -271,7 +271,7 @@ def _end_to_end(
         )
         return 2
 
-    name = row_name(args.config, not args.no_router)
+    row = Row(args.config, router=not args.no_router)
     selected = config.select(args.config)
     pacer = Pacer(settings.request_interval)
     try:
@@ -298,9 +298,7 @@ def _end_to_end(
     self_hosted = set(settings.self_hosted_providers)
     used = (selected.fast, selected.slow) if not args.no_router else (selected.slow,)
     spec = RowSpec(
-        name=name,
-        configuration=args.config,
-        router=not args.no_router,
+        row=row,
         fast_model=selected.fast.model,
         slow_model=selected.slow.model,
         prices={c.model: settings.prices[c.model] for c in used if c.model in settings.prices},
@@ -354,10 +352,10 @@ def _end_to_end(
     done = sum(not r.failed for r in results.records)
     failed = len(results.records) - done
     print(
-        f"{args.results_dir}: row {name}: {done} of {results.questions_total} answered, "
+        f"{args.results_dir}: row {row.name}: {done} of {results.questions_total} answered, "
         f"{failed} failed; {pacer.requests} requests in this run"
     )
     if results.stopped or len(results.records) < results.questions_total:
-        print(f"row {name} is incomplete: {results.stopped or 'questions not yet run'}")
+        print(f"row {row.name} is incomplete: {results.stopped or 'questions not yet run'}")
         return 1
     return 0

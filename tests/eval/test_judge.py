@@ -45,7 +45,7 @@ async def test_the_judge_sends_the_rubric_and_the_numbered_key_points():
     model = Replies(GOOD)
     judge = Judge(model, "RUBRIC", max_tokens=99)
 
-    verdicts = await judge.grade("Q?", ("picks a path", "falls back"), "It picks a path.")
+    verdicts = await judge.decide("Q?", ("picks a path", "falls back"), "It picks a path.")
 
     assert [(v.covered, v.quote) for v in verdicts] == [(True, "It picks a path."), (False, None)]
     request = model.requests[0]
@@ -79,13 +79,13 @@ async def test_a_reply_that_breaks_the_rubric_is_a_judge_error(reply):
     judge = Judge(Replies(reply), "RUBRIC")
 
     with pytest.raises(JudgeError):
-        await judge.grade("Q?", ("a", "b"), "answer")
+        await judge.decide("Q?", ("a", "b"), "answer")
 
 
 @pytest.mark.asyncio
 async def test_a_model_error_is_a_judge_error():
     with pytest.raises(JudgeError, match="429"):
-        await Judge(Fails(), "RUBRIC").grade("Q?", ("a",), "answer")
+        await Judge(Fails(), "RUBRIC").decide("Q?", ("a",), "answer")
 
 
 def test_the_committed_rubric_is_the_judge_prompt():

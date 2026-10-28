@@ -1,12 +1,12 @@
 """Table 2, end to end (spec §5.8): each golden question as one turn through the router.
 
 A turn runs exactly as the server runs it (agent.router over the search_docs
-registry), from an empty history. The judge then grades the answer's key
-points. Every request takes a slot from one Pacer, so a run stays inside the
+registry), from an empty history. The judge then decides which key points the
+answer covers. Every request takes a slot from one Pacer, so a run stays inside the
 free tier's request rate, and the row's file is rewritten after each question:
 
 - a question whose turn failed is run again by the next run of the row;
-- an answer the judge could not grade is graded again, without a new turn;
+- an answer the judge could not score is judged again, without a new turn;
 - after max_consecutive_failures questions fail in a row (a daily quota is
   spent), the run stops, and the next run resumes there.
 """
@@ -32,9 +32,10 @@ from vessel_mind.eval.golden import GoldenQuestion, GoldenSet
 from vessel_mind.eval.judge import Judge, JudgeError
 from vessel_mind.eval.pacing import Pacer
 from vessel_mind.eval.records import (
-    Graded,
+    Judged,
     NotRun,
     QuestionRecord,
+    Row,
     RowResults,
     Turn,
     read_row,
@@ -51,9 +52,7 @@ class ResumeError(Exception):
 
 @dataclass(frozen=True)
 class RowSpec:
-    name: str
-    configuration: str
-    router: bool
+    row: Row
     fast_model: str
     slow_model: str
     prices: Mapping[str, ModelPrice]
@@ -88,7 +87,7 @@ async def run_end_to_end(
     results.md. Raises ResumeError when the stored row used other inputs and
     fresh is False."""
     records: dict[str, QuestionRecord] = {}
-    path = row_path(results_dir, spec.name)
+    path = row_path(results_dir, spec.row.name)
     if not fresh and path.exists():
         stored = read_row(path)
         if isinstance(stored, RowResults):
@@ -97,9 +96,9 @@ async def run_end_to_end(
 
     def row(stopped: str | None = None) -> RowResults:
         return RowResults(
-            row=spec.name,
-            configuration=spec.configuration,
-            router=spec.router,
+            row=spec.row.name,
+            configuration=spec.row.configuration,
+            router=spec.row.router,
             fast_model=spec.fast_model,
             slow_model=spec.slow_model,
             generated=today or datetime.now(UTC).date(),
@@ -122,7 +121,7 @@ async def run_end_to_end(
             turn = await _turn(question, router, tools, pacer, system, max_tokens, clock)
             record = _record(question, turn)
         if not record.failed and not record.judged:
-            record = record.model_copy(update={"judge": await _grade(record, judge)})
+            record = record.model_copy(update={"judge": await _judge(record, judge)})
         records[question.id] = record
         write_row(results_dir, row())
         if record.failed or not record.judged:
@@ -152,7 +151,7 @@ def _check_resumable(
             ("golden set", stored.golden_sha256, golden.sha256),
             ("fast model", stored.fast_model, spec.fast_model),
             ("slow model", stored.slow_model, spec.slow_model),
-            ("router", stored.router, spec.router),
+            ("router", stored.router, spec.row.router),
             ("judge", stored.judge_model, judge_model),
             ("top_k", stored.top_k, top_k),
         )
@@ -160,7 +159,7 @@ def _check_resumable(
     ]
     if changed:
         raise ResumeError(
-            f"row {spec.name!r}: the stored results used another {', '.join(changed)}; "
+            f"row {spec.row.name!r}: the stored results used another {', '.join(changed)}; "
             "run with --fresh to discard them and start the row again"
         )
 
@@ -225,9 +224,9 @@ def _record(question: GoldenQuestion, turn: Turn) -> QuestionRecord:
     )
 
 
-async def _grade(record: QuestionRecord, judge: Judge) -> Graded:
+async def _judge(record: QuestionRecord, judge: Judge) -> Judged:
     try:
-        verdicts = await judge.grade(record.question, record.key_points, record.turn.answer)
+        verdicts = await judge.decide(record.question, record.key_points, record.turn.answer)
     except JudgeError as error:
-        return Graded(model=judge.model.id, error=str(error))
-    return Graded(model=judge.model.id, verdicts=verdicts)
+        return Judged(model=judge.model.id, error=str(error))
+    return Judged(model=judge.model.id, verdicts=verdicts)

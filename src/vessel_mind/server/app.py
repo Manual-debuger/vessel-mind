@@ -4,6 +4,7 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator, Sequence
 from contextlib import AbstractAsyncContextManager, AsyncExitStack, asynccontextmanager
+from functools import partial
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -143,10 +144,11 @@ def create_app(
     # The latest turn of each session, and a lock so a session starts one turn at a time.
     latest: dict[str, Turn] = {}
     session_locks: dict[str, asyncio.Lock] = {}
-    stores: list[SessionStore] = []
+    # The state file's store while the app runs: opened and closed by lifespan.
+    open_store: list[SessionStore] = []
 
     def store() -> SessionStore:
-        return stores[0]
+        return open_store[0]
 
     async def drive(
         turn: Turn, turn_id: str, session_id: str, history: list[ChatMessage], text: str
@@ -170,17 +172,16 @@ def create_app(
                     },
                 )
 
-        options: dict[str, Any] = {
-            "tools": registry,
-            "proposals": TurnProposals(store(), turn_id),
-            "system": system,
-            "max_tokens": max_tokens,
-            "tally": tally,
-        }
-        events = (
-            router.run(history, text, **options)
-            if router is not None
-            else run_turn(model, history, text, **options)
+        # The router and the plain loop take the same turn arguments.
+        run = router.run if router is not None else partial(run_turn, model)
+        events = run(
+            history,
+            text,
+            tools=registry,
+            proposals=TurnProposals(store(), turn_id),
+            system=system,
+            max_tokens=max_tokens,
+            tally=tally,
         )
         try:
             async for event in events:
@@ -203,7 +204,7 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        stores.append(SessionStore.open(state_path, clock=clock))
+        open_store.append(SessionStore.open(state_path, clock=clock))
         try:
             async with AsyncExitStack() as stack:
                 for service in services:
@@ -215,7 +216,7 @@ def create_app(
                     task.cancel()
                 await asyncio.gather(*running, return_exceptions=True)
         finally:
-            stores.pop().close()
+            open_store.pop().close()
 
     app = FastAPI(title="vessel-mind", lifespan=lifespan)
     app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")

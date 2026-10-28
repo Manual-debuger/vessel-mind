@@ -165,7 +165,9 @@ class Retrieval(_Config):
     index: Path = Path("data/index.sqlite")
     corpus: Path = Path("eval/corpus.yaml")
     candidates: CandidateStage = "hybrid"
-    candidate_k: int = Field(default=CANDIDATE_K, gt=0)
+    # The reranker takes at most CANDIDATE_K (spec §5.6): a larger value is refused here,
+    # not by the first search.
+    candidate_k: int = Field(default=CANDIDATE_K, gt=0, le=CANDIDATE_K)
     top_k: int = Field(default=TOP_K, gt=0)
     embedding_model: str = DEFAULT_MODEL
     # cpu: a fastembed cross-encoder reorders the candidates; none: no rerank stage.
@@ -213,7 +215,7 @@ class EvalSettings(_Config):
     # and the results say that GPU electricity is not measured.
     self_hosted_providers: list[str] = []
     # Configurations that are not run, with the reason the results show.
-    not_run: dict[str, str] = {}
+    not_run: dict[ConfigurationName, str] = {}
 
 
 class AgentConfig(_Config):

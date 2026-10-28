@@ -7,6 +7,7 @@ stopped. A row that is not run stores its reason instead.
 """
 
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import Annotated, Literal
@@ -17,43 +18,40 @@ from vessel_mind.core.chat import Usage
 from vessel_mind.core.events import Route, RouteReason
 from vessel_mind.eval.golden import Lang
 from vessel_mind.eval.judge import Verdict
-from vessel_mind.server.config import ModelPrice
+from vessel_mind.server.config import ConfigurationName, ModelPrice
+
+FILE_PREFIX = "end_to_end-"
+
+
+@dataclass(frozen=True)
+class Row:
+    """A row of table 2 (GLOSSARY.md): a configuration, with its router on or off."""
+
+    configuration: ConfigurationName
+    router: bool = True
+
+    @property
+    def name(self) -> str:
+        """The row's name in the table and in its file name. Table 2 calls hosted's
+        router-off row plain `slow-only`; any other is NAME-slow-only."""
+        if self.router:
+            return self.configuration
+        return "slow-only" if self.configuration == "hosted" else f"{self.configuration}-slow-only"
+
+    @property
+    def command(self) -> str:
+        """The command that runs the row."""
+        return f"task eval -- --config {self.configuration}" + (
+            "" if self.router else " --no-router"
+        )
+
 
 # The rows of table 2, in order. Any other stored row follows them.
-ROW_ORDER = ("hosted", "slow-only", "local", "routed")
-FILE_PREFIX = "end_to_end-"
+ROW_ORDER = (Row("hosted"), Row("hosted", router=False), Row("local"), Row("routed"))
 
 
 class _Model(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
-
-
-_SLOW_ONLY = "-slow-only"
-# Rows whose name is not the rule's: table 2 calls hosted's router-off row
-# plain `slow-only`. The only place that says so.
-_NAMED_ROWS: dict[str, tuple[str, bool]] = {"slow-only": ("hosted", False)}
-
-
-def row_name(configuration: str, router: bool) -> str:
-    for name, row in _NAMED_ROWS.items():
-        if row == (configuration, router):
-            return name
-    return configuration if router else f"{configuration}{_SLOW_ONLY}"
-
-
-def _row_of(name: str) -> tuple[str, bool]:
-    """The (configuration, router) of a row name: row_name's inverse."""
-    if name in _NAMED_ROWS:
-        return _NAMED_ROWS[name]
-    if name.endswith(_SLOW_ONLY):
-        return name.removesuffix(_SLOW_ONLY), False
-    return name, True
-
-
-def row_command(row: str) -> str:
-    """The command that runs a row."""
-    configuration, router = _row_of(row)
-    return f"task eval -- --config {configuration}" + ("" if router else " --no-router")
 
 
 class Turn(_Model):
@@ -80,7 +78,7 @@ class Turn(_Model):
     error: str | None = None
 
 
-class Graded(_Model):
+class Judged(_Model):
     """The judge's verdicts on one answer, or why it could not give them."""
 
     model: str
@@ -96,7 +94,7 @@ class QuestionRecord(_Model):
     expected_sources: tuple[str, ...]
     expected_route: Route
     turn: Turn
-    judge: Graded | None = None
+    judge: Judged | None = None
 
     @property
     def failed(self) -> bool:
@@ -118,7 +116,7 @@ class QuestionRecord(_Model):
 class RowResults(_Model):
     status: Literal["run"] = "run"
     row: str
-    configuration: str
+    configuration: ConfigurationName
     router: bool
     fast_model: str
     slow_model: str
@@ -140,7 +138,7 @@ class RowResults(_Model):
 class NotRun(_Model):
     status: Literal["not_run"] = "not_run"
     row: str
-    configuration: str
+    configuration: ConfigurationName
     fast_model: str
     slow_model: str
     reason: str
@@ -176,10 +174,15 @@ def load_rows(results_dir: Path) -> dict[str, RowResults | NotRun]:
         row.row: row
         for row in (read_row(p) for p in sorted(results_dir.glob(f"{FILE_PREFIX}*.json")))
     }
-    return {name: found[name] for name in ordered(found)}
+    return {row.name: found[row.name] for row in ordered(row_of(r) for r in found.values())}
 
 
-def ordered(names: Iterable[str]) -> list[str]:
-    """Row names in table order, each once."""
-    names = set(names)
-    return [n for n in ROW_ORDER if n in names] + sorted(n for n in names if n not in ROW_ORDER)
+def row_of(stored: RowResults | NotRun) -> Row:
+    return Row(stored.configuration, stored.router)
+
+
+def ordered(rows: Iterable[Row]) -> list[Row]:
+    """Rows in table order, each once."""
+    rows = set(rows)
+    rest = sorted((r for r in rows if r not in ROW_ORDER), key=lambda r: r.name)
+    return [r for r in ROW_ORDER if r in rows] + rest

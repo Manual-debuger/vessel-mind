@@ -62,7 +62,8 @@ agent:
   system: >-
     You are vessel-mind, a concise assistant. Answer in plain text. For a
     question about vessel-mind or VibeConform, call search_docs first, answer
-    only from its results, and cite each claim as [n].
+    only from its results, and cite each claim by its section number, for
+    example [1] or [2][3].
   max_tokens: 4096
 
 # In the volume that compose.yaml mounts at data/state.
@@ -89,6 +90,7 @@ retrieval:
   index: data/index.sqlite
   corpus: eval/corpus.yaml
   candidates: hybrid
+  # The candidates the reranker reorders; at most 30.
   candidate_k: 30
   top_k: 5
   embedding_model: jinaai/jina-embeddings-v2-base-zh
