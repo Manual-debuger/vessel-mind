@@ -396,6 +396,10 @@ From [the spec](docs/specs/a-agent-track.md) §7. An open item names its reason.
 - [ ] A 2–3 minute demo video, linked from this README. **Open:** the author records it. It
       needs a live Notion write on localhost through a proposal and Approve (#9), and one
       English and one Traditional Chinese question with `[n]` links and screenshots (#11).
+- [ ] The manual tests of [the hand-off](docs/specs/a-agent-track-handoff.md#manual-test-plan):
+      3, 4, 8 and 10 pass (2026-10-28 and 2026-10-29). **Open:** 1 passes over the HTTP API
+      but is not yet checked in a browser; 5 has not run; 6 fails: a cancelled turn leaves no
+      route line (#28); 2, 7, 9 and 11 as above.
 - [x] Public hostname behind Access, in demo mode, with Ollama not reachable from it
       (2026-10-28): the tunnel routes only `app:8000`; the author signed in with the email PIN
       and saw an approval refused; Notion refuses a write with the read-only token (#16).
