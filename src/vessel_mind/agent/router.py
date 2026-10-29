@@ -127,7 +127,7 @@ class Router:
     asked, and the route event names the model that answered.
 
     telemetry receives each turn's route decision, with both models' usage, when
-    the turn is done.
+    the turn is done or cancelled.
     """
 
     def __init__(
@@ -190,42 +190,56 @@ class Router:
                 model=model.answered or model.id,
             )
 
+        def record(decision: RouteEvent, answer_usage: Usage) -> None:
+            self.telemetry.record(
+                "route",
+                {
+                    "route": route,
+                    "reason": reason,
+                    "router_model": decision.router_model,
+                    "router_usage": usage.model_dump(),
+                    "model": decision.model,
+                    "usage": answer_usage.model_dump(),
+                },
+            )
+
         if not waiting:
             decision = decide()
             yield decision
 
-        async for event in self._answer(
-            route,
-            model,
-            history,
-            user_text,
-            registry=registry,
-            proposals=proposals,
-            system=system,
-            max_tokens=max_tokens,
-            tally=tally,
-        ):
-            if decision is None:
-                if model.answered is None and not isinstance(event, DoneEvent | ErrorEvent):
-                    held.append(event)
-                    continue
-                decision = decide()
-                yield decision
-                for earlier in held:
-                    yield earlier
-            if isinstance(event, DoneEvent):
-                self.telemetry.record(
-                    "route",
-                    {
-                        "route": route,
-                        "reason": reason,
-                        "router_model": decision.router_model,
-                        "router_usage": usage.model_dump(),
-                        "model": decision.model,
-                        "usage": event.usage.model_dump(),
-                    },
-                )
-            yield event
+        ended = False
+        try:
+            async for event in self._answer(
+                route,
+                model,
+                history,
+                user_text,
+                registry=registry,
+                proposals=proposals,
+                system=system,
+                max_tokens=max_tokens,
+                tally=tally,
+            ):
+                if decision is None:
+                    if model.answered is None and not isinstance(event, DoneEvent | ErrorEvent):
+                        held.append(event)
+                        continue
+                    decision = decide()
+                    yield decision
+                    for earlier in held:
+                        yield earlier
+                if isinstance(event, DoneEvent | ErrorEvent):
+                    ended = True
+                if isinstance(event, DoneEvent):
+                    record(decision, event.usage)
+                yield event
+        except (asyncio.CancelledError, GeneratorExit):
+            # A cancelled turn ends without a done event (the caller publishes one):
+            # its route is recorded here, with the usage spent until the cancel. Before
+            # any model answered, the route names the path's first model.
+            if not ended:
+                record(decision or decide(), tally.usage)
+            raise
 
     async def _answer(
         self,
