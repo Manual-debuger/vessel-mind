@@ -50,15 +50,17 @@ class ScriptedModel:
 
 
 class HangingModel:
-    """Never answers: a classification that times out."""
+    """Never answers: a classification that times out. asked is set once it is asked."""
 
     id = "hanging"
 
     def __init__(self) -> None:
         self.requests: list[ChatRequest] = []
+        self.asked = asyncio.Event()
 
     async def stream(self, req: ChatRequest):
         self.requests.append(req)
+        self.asked.set()
         await asyncio.Event().wait()
         yield TextDelta(delta="never")
 
@@ -488,6 +490,30 @@ async def test_a_classification_the_fast_model_cannot_make_goes_to_its_fallback(
 
 
 @pytest.mark.asyncio
+async def test_a_fast_turn_classified_by_the_fallback_is_answered_by_it_without_asking_the_failed_model():
+    fast = ScriptedModel("small", ChatModelError("small: HTTP 429"))
+    fallback = ScriptedModel("small-older", classified('{"route": "fast"}'), answer("Hello!"))
+    telemetry = RecordedTelemetry()
+
+    events = await collect(
+        Router(fast, ScriptedModel("large"), fast_fallbacks=[fallback], telemetry=telemetry),
+        [],
+        "Hi",
+    )
+
+    assert len(fast.requests) == 1
+    assert len(fallback.requests) == 2
+    assert events[0] == RouteEvent(
+        route="fast",
+        reason="classified",
+        router_model="small-older",
+        router_usage=ROUTER_USAGE,
+        model="small-older",
+    )
+    assert telemetry.records[0][1]["model"] == "small-older"
+
+
+@pytest.mark.asyncio
 async def test_when_every_model_of_the_path_fails_the_turn_ends_with_a_model_error():
     fast = ScriptedModel("small", classified('{"route": "slow"}'))
     slow = ScriptedModel("large", ChatModelError("large: HTTP 429"))
@@ -604,6 +630,30 @@ class SearchesThenHangs:
         await asyncio.Event().wait()
 
 
+async def cancel_when(ready: asyncio.Event, router: Router, text: str, **kwargs) -> None:
+    """Runs a turn until ready is set, then cancels it."""
+    task = asyncio.create_task(collect(router, [], text, **kwargs))
+    await asyncio.wait_for(ready.wait(), timeout=1)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+def slow_route_line(model: str, usage: Usage) -> tuple[str, dict]:
+    """The route line of a turn the fast model classified slow."""
+    return (
+        "route",
+        {
+            "route": "slow",
+            "reason": "classified",
+            "router_model": "small",
+            "router_usage": ROUTER_USAGE.model_dump(),
+            "model": model,
+            "usage": usage.model_dump(),
+        },
+    )
+
+
 @pytest.mark.asyncio
 async def test_a_turn_cancelled_after_its_route_still_records_the_route_with_the_usage_so_far():
     fast = ScriptedModel("small", classified('{"route": "slow"}'))
@@ -611,64 +661,23 @@ async def test_a_turn_cancelled_after_its_route_still_records_the_route_with_the
     telemetry = RecordedTelemetry()
     router = Router(fast, slow, telemetry=telemetry)
 
-    async def consume() -> None:
-        async for _ in router.run([], "Compare X and Y.", tools=tools(FakeSearch(RESULTS))):
-            pass
+    await cancel_when(slow.hanging, router, "Compare X and Y.", tools=tools(FakeSearch(RESULTS)))
 
-    task = asyncio.create_task(consume())
-    await asyncio.wait_for(slow.hanging.wait(), timeout=1)
-    task.cancel()
-    with pytest.raises(asyncio.CancelledError):
-        await task
-
-    assert telemetry.records == [
-        (
-            "route",
-            {
-                "route": "slow",
-                "reason": "classified",
-                "router_model": "small",
-                "router_usage": ROUTER_USAGE.model_dump(),
-                "model": "large",
-                "usage": ANSWER_USAGE.model_dump(),
-            },
-        )
-    ]
+    assert telemetry.records == [slow_route_line("large", ANSWER_USAGE)]
 
 
 @pytest.mark.asyncio
-async def test_a_turn_cancelled_before_any_fallback_answered_records_the_paths_first_model():
-    # The route is decided; which model would answer is not. As when every model
-    # fails, the route names the path's first model.
+async def test_a_turn_cancelled_before_any_fallback_answered_records_the_model_it_was_asking():
     fast = ScriptedModel("small", classified('{"route": "slow"}'))
-    slow = HangingModel()
+    slow = ScriptedModel("large", ChatModelError("large: HTTP 429"))
+    fallback = HangingModel()
     telemetry = RecordedTelemetry()
-    router = Router(fast, slow, slow_fallbacks=[ScriptedModel("large-older")], telemetry=telemetry)
+    router = Router(fast, slow, slow_fallbacks=[fallback], telemetry=telemetry)
 
-    async def consume() -> None:
-        async for _ in router.run([], "Compare X and Y."):
-            pass
+    await cancel_when(fallback.asked, router, "Compare X and Y.")
 
-    task = asyncio.create_task(consume())
-    while not slow.requests:
-        await asyncio.sleep(0)
-    task.cancel()
-    with pytest.raises(asyncio.CancelledError):
-        await task
-
-    assert telemetry.records == [
-        (
-            "route",
-            {
-                "route": "slow",
-                "reason": "classified",
-                "router_model": "small",
-                "router_usage": ROUTER_USAGE.model_dump(),
-                "model": "hanging",
-                "usage": Usage().model_dump(),
-            },
-        )
-    ]
+    assert len(slow.requests) == 1
+    assert telemetry.records == [slow_route_line("hanging", Usage())]
 
 
 @pytest.mark.asyncio
@@ -692,11 +701,6 @@ async def test_a_turn_cancelled_while_classifying_records_no_route():
     telemetry = RecordedTelemetry()
     router = Router(fast, ScriptedModel("large"), timeout=60, telemetry=telemetry)
 
-    task = asyncio.create_task(collect(router, [], "Hi"))
-    while not fast.requests:
-        await asyncio.sleep(0)
-    task.cancel()
-    with pytest.raises(asyncio.CancelledError):
-        await task
+    await cancel_when(fast.asked, router, "Hi")
 
     assert telemetry.records == []
