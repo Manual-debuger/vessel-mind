@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from collections.abc import AsyncGenerator
 
 import pytest
 from pydantic import JsonValue
@@ -49,15 +50,17 @@ class ScriptedModel:
 
 
 class HangingModel:
-    """Never answers: a classification that times out."""
+    """Never answers: a classification that times out. asked is set once it is asked."""
 
     id = "hanging"
 
     def __init__(self) -> None:
         self.requests: list[ChatRequest] = []
+        self.asked = asyncio.Event()
 
     async def stream(self, req: ChatRequest):
         self.requests.append(req)
+        self.asked.set()
         await asyncio.Event().wait()
         yield TextDelta(delta="never")
 
@@ -415,6 +418,37 @@ async def test_when_the_slow_model_fails_its_fallback_answers_and_the_route_name
 
 
 @pytest.mark.asyncio
+async def test_once_a_fallback_answers_later_steps_of_the_turn_skip_the_failed_model():
+    fast = ScriptedModel("small", classified('{"route": "slow"}'))
+    slow = ScriptedModel(
+        "large",
+        ChatModelError("large: HTTP 404"),
+        ChatModelError("large: HTTP 404"),
+    )
+    fallback = ScriptedModel(
+        "large-older",
+        [
+            ToolCall(id="c1", name="search_docs", input={"query": "proposal"}),
+            Stop(reason="tool_use", usage=ANSWER_USAGE),
+        ],
+        answer("Compared [1]."),
+    )
+    search = FakeSearch(RESULTS)
+
+    events = await collect(
+        Router(fast, slow, slow_fallbacks=[fallback]),
+        [],
+        "Compare X and Y.",
+        tools=tools(search),
+    )
+
+    assert len(slow.requests) == 1
+    assert len(fallback.requests) == 2
+    assert events[0].model == "large-older"
+    assert events[-1] == DoneEvent(reason="end", usage=ANSWER_USAGE + ANSWER_USAGE, steps=2)
+
+
+@pytest.mark.asyncio
 async def test_on_the_fast_path_the_route_names_the_fallback_and_still_comes_first():
     fast = ScriptedModel("small", classified('{"route": "fast"}'), ChatModelError("small: 503"))
     fallback = ScriptedModel("small-older", answer("It waits [1]."))
@@ -453,6 +487,30 @@ async def test_a_classification_the_fast_model_cannot_make_goes_to_its_fallback(
         router_usage=ROUTER_USAGE,
         model="large",
     )
+
+
+@pytest.mark.asyncio
+async def test_a_fast_turn_classified_by_the_fallback_is_answered_by_it_without_asking_the_failed_model():
+    fast = ScriptedModel("small", ChatModelError("small: HTTP 429"))
+    fallback = ScriptedModel("small-older", classified('{"route": "fast"}'), answer("Hello!"))
+    telemetry = RecordedTelemetry()
+
+    events = await collect(
+        Router(fast, ScriptedModel("large"), fast_fallbacks=[fallback], telemetry=telemetry),
+        [],
+        "Hi",
+    )
+
+    assert len(fast.requests) == 1
+    assert len(fallback.requests) == 2
+    assert events[0] == RouteEvent(
+        route="fast",
+        reason="classified",
+        router_model="small-older",
+        router_usage=ROUTER_USAGE,
+        model="small-older",
+    )
+    assert telemetry.records[0][1]["model"] == "small-older"
 
 
 @pytest.mark.asyncio
@@ -550,3 +608,99 @@ async def test_the_classification_sees_the_session_as_text_only():
         AssistantMessage(text="Found x [1]."),
         UserMessage(text="And y?"),
     ]
+
+
+class SearchesThenHangs:
+    """Calls search_docs in its first step, then streams a delta and hangs until cancelled."""
+
+    id = "large"
+
+    def __init__(self) -> None:
+        self.requests: list[ChatRequest] = []
+        self.hanging = asyncio.Event()
+
+    async def stream(self, req: ChatRequest):
+        self.requests.append(req)
+        if len(self.requests) == 1:
+            yield ToolCall(id="c1", name="search_docs", input={"query": "x"})
+            yield Stop(reason="tool_use", usage=ANSWER_USAGE)
+            return
+        yield TextDelta(delta="Comparing")
+        self.hanging.set()
+        await asyncio.Event().wait()
+
+
+async def cancel_when(ready: asyncio.Event, router: Router, text: str, **kwargs) -> None:
+    """Runs a turn until ready is set, then cancels it."""
+    task = asyncio.create_task(collect(router, [], text, **kwargs))
+    await asyncio.wait_for(ready.wait(), timeout=1)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+def slow_route_line(model: str, usage: Usage) -> tuple[str, dict]:
+    """The route line of a turn the fast model classified slow."""
+    return (
+        "route",
+        {
+            "route": "slow",
+            "reason": "classified",
+            "router_model": "small",
+            "router_usage": ROUTER_USAGE.model_dump(),
+            "model": model,
+            "usage": usage.model_dump(),
+        },
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_turn_cancelled_after_its_route_still_records_the_route_with_the_usage_so_far():
+    fast = ScriptedModel("small", classified('{"route": "slow"}'))
+    slow = SearchesThenHangs()
+    telemetry = RecordedTelemetry()
+    router = Router(fast, slow, telemetry=telemetry)
+
+    await cancel_when(slow.hanging, router, "Compare X and Y.", tools=tools(FakeSearch(RESULTS)))
+
+    assert telemetry.records == [slow_route_line("large", ANSWER_USAGE)]
+
+
+@pytest.mark.asyncio
+async def test_a_turn_cancelled_before_any_fallback_answered_records_the_model_it_was_asking():
+    fast = ScriptedModel("small", classified('{"route": "slow"}'))
+    slow = ScriptedModel("large", ChatModelError("large: HTTP 429"))
+    fallback = HangingModel()
+    telemetry = RecordedTelemetry()
+    router = Router(fast, slow, slow_fallbacks=[fallback], telemetry=telemetry)
+
+    await cancel_when(fallback.asked, router, "Compare X and Y.")
+
+    assert len(slow.requests) == 1
+    assert telemetry.records == [slow_route_line("hanging", Usage())]
+
+
+@pytest.mark.asyncio
+async def test_a_turn_closed_after_its_done_event_records_its_route_once():
+    fast = ScriptedModel("small", classified('{"route": "fast"}'), answer("Hello!"))
+    telemetry = RecordedTelemetry()
+    events = Router(fast, ScriptedModel("large"), telemetry=telemetry).run([], "Hi")
+    assert isinstance(events, AsyncGenerator)
+
+    async for event in events:
+        if isinstance(event, DoneEvent):
+            break
+    await events.aclose()
+
+    assert [kind for kind, _ in telemetry.records] == ["route"]
+
+
+@pytest.mark.asyncio
+async def test_a_turn_cancelled_while_classifying_records_no_route():
+    fast = HangingModel()
+    telemetry = RecordedTelemetry()
+    router = Router(fast, ScriptedModel("large"), timeout=60, telemetry=telemetry)
+
+    await cancel_when(fast.asked, router, "Hi")
+
+    assert telemetry.records == []
