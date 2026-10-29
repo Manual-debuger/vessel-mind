@@ -221,6 +221,8 @@ def test_each_turn_ends_with_a_summary_in_the_telemetry_file(tmp_path):
 
 
 class RoutesSlow:
+    """A fast model that classifies every turn as slow."""
+
     id = "small"
 
     async def stream(self, req: ChatRequest):

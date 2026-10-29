@@ -86,33 +86,45 @@ class _FirstThatAnswers:
     answering is not replaced: the client has already seen part of its answer.
     Once a model has answered, the turn's later steps start from it: the models
     before it, which failed, are not asked again in this turn.
-    answered is the id of the model that answered last, or None.
+    asking is the id of the model asked now, or asked last; answered is the id of
+    the model that answered last, or None.
     """
 
     def __init__(self, models: Sequence[ChatModel]) -> None:
         self.models = models
         self.id = models[0].id
-        self.answered: str | None = None
-        self._first = 0
+        self._asking = 0
+        self._answered: int | None = None
+
+    @property
+    def asking(self) -> str:
+        return self.models[self._asking].id
+
+    @property
+    def answered(self) -> str | None:
+        return None if self._answered is None else self.models[self._answered].id
+
+    def from_answered(self) -> "_FirstThatAnswers":
+        """The models from the one that answered last on, for another use in this turn."""
+        return _FirstThatAnswers(self.models[self._answered or 0 :])
 
     async def stream(self, req: ChatRequest) -> AsyncIterator[ChatEvent]:
-        for number in range(self._first, len(self.models)):
+        for number in range(self._answered or 0, len(self.models)):
+            self._asking = number
             model = self.models[number]
             started = False
             try:
                 async for event in model.stream(req):
                     if not started:
                         started = True
-                        self.answered = model.id
-                        self._first = number
+                        self._answered = number
                     yield event
             except ChatModelError as error:
                 if started or number == len(self.models) - 1:
                     raise
                 log.warning("%s failed, trying %s: %s", model.id, self.models[number + 1].id, error)
                 continue
-            self.answered = model.id
-            self._first = number
+            self._answered = number
             return
 
 
@@ -169,9 +181,12 @@ class Router:
         """
         tally = tally if tally is not None else TurnTally()
         registry = tools if tools is not None else CapabilityRegistry()
-        route, reason, usage, router_model = await self._decide_route(history, user_text)
+        fast = _FirstThatAnswers((self.fast, *self.fast_fallbacks))
+        route, reason, usage, router_model = await self._decide_route(fast, history, user_text)
         if route == "fast":
-            model = _FirstThatAnswers((self.fast, *self.fast_fallbacks))
+            # The fast path's answer starts from the model that classified: the
+            # ones before it failed in this turn.
+            model = fast.from_answered()
         else:
             model = _FirstThatAnswers((self.slow, *self.slow_fallbacks))
         # With a fallback list, which model answers is known only once one has
@@ -181,30 +196,17 @@ class Router:
         held: list[AgentEvent] = []
         decision: RouteEvent | None = None
 
-        def decide() -> RouteEvent:
+        def decide(answering: str) -> RouteEvent:
             return RouteEvent(
                 route=route,
                 reason=reason,
                 router_model=router_model,
                 router_usage=usage,
-                model=model.answered or model.id,
-            )
-
-        def record(decision: RouteEvent, answer_usage: Usage) -> None:
-            self.telemetry.record(
-                "route",
-                {
-                    "route": route,
-                    "reason": reason,
-                    "router_model": decision.router_model,
-                    "router_usage": usage.model_dump(),
-                    "model": decision.model,
-                    "usage": answer_usage.model_dump(),
-                },
+                model=answering,
             )
 
         if not waiting:
-            decision = decide()
+            decision = decide(model.id)
             yield decision
 
         ended = False
@@ -224,22 +226,36 @@ class Router:
                     if model.answered is None and not isinstance(event, DoneEvent | ErrorEvent):
                         held.append(event)
                         continue
-                    decision = decide()
+                    decision = decide(model.answered or model.id)
                     yield decision
                     for earlier in held:
                         yield earlier
                 if isinstance(event, DoneEvent | ErrorEvent):
                     ended = True
-                if isinstance(event, DoneEvent):
-                    record(decision, event.usage)
+                    if isinstance(event, DoneEvent):
+                        self._record_route(decision, event.usage)
                 yield event
         except (asyncio.CancelledError, GeneratorExit):
             # A cancelled turn ends without a done event (the caller publishes one):
             # its route is recorded here, with the usage spent until the cancel. Before
-            # any model answered, the route names the path's first model.
+            # any model answered, the route names the model it was asking.
             if not ended:
-                record(decision or decide(), tally.usage)
+                self._record_route(decision or decide(model.asking), tally.usage)
             raise
+
+    def _record_route(self, routed: RouteEvent, answer_usage: Usage) -> None:
+        """The turn's route line: its route event and the answering model's usage."""
+        self.telemetry.record(
+            "route",
+            {
+                "route": routed.route,
+                "reason": routed.reason,
+                "router_model": routed.router_model,
+                "router_usage": routed.router_usage.model_dump(),
+                "model": routed.model,
+                "usage": answer_usage.model_dump(),
+            },
+        )
 
     async def _answer(
         self,
@@ -303,19 +319,18 @@ class Router:
             yield event
 
     async def _decide_route(
-        self, history: Sequence[ChatMessage], user_text: str
+        self, classifier: _FirstThatAnswers, history: Sequence[ChatMessage], user_text: str
     ) -> tuple[Route, RouteReason, Usage, str | None]:
         """The route, how it was reached, the classification's usage, and the model
         that classified (None when the router is off)."""
         if not self.enabled:
             return "slow", "router_off", Usage(), None
-        route, reason, usage, classifier = await self._ask_fast_model(history, user_text)
+        route, reason, usage = await self._ask_fast_model(classifier, history, user_text)
         return route, reason, usage, classifier.answered or classifier.id
 
     async def _ask_fast_model(
-        self, history: Sequence[ChatMessage], user_text: str
-    ) -> tuple[Route, RouteReason, Usage, _FirstThatAnswers]:
-        classifier = _FirstThatAnswers((self.fast, *self.fast_fallbacks))
+        self, classifier: _FirstThatAnswers, history: Sequence[ChatMessage], user_text: str
+    ) -> tuple[Route, RouteReason, Usage]:
         request = ChatRequest(
             system=ROUTER_SYSTEM,
             messages=[*_as_text(history), UserMessage(text=user_text)],
@@ -328,10 +343,10 @@ class Router:
             log.warning(
                 "route classification by %s timed out after %ss", self.fast.id, self.timeout
             )
-            return "slow", "timeout", Usage(), classifier
+            return "slow", "timeout", Usage()
         except ChatModelError as error:
             log.warning("route classification failed: %s", error)
-            return "slow", "model_error", Usage(), classifier
+            return "slow", "model_error", Usage()
         usage = reply.usage
         try:
             decision = RouteDecision.model_validate_json(unfenced(reply.text))
@@ -344,10 +359,10 @@ class Router:
                     classifier.answered,
                     self.max_tokens,
                 )
-                return "slow", "max_tokens", usage, classifier
+                return "slow", "max_tokens", usage
             log.warning("route classification by %s was not the expected JSON", classifier.answered)
-            return "slow", "invalid", usage, classifier
-        return decision.route, "classified", usage, classifier
+            return "slow", "invalid", usage
+        return decision.route, "classified", usage
 
 
 def _as_text(history: Sequence[ChatMessage]) -> list[ChatMessage]:
