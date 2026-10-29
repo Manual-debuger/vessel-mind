@@ -414,7 +414,7 @@ async def test_retry_after_longer_than_the_cap_raises_instead_of_waiting():
         await collect(model, question())
 
     assert sleeps.delays == []
-    # The router asks the fallback first until then (#32).
+    # The router asks the fallback first until then (spec §5.1).
     assert raised.value.retry_after == 80422.0
 
 
