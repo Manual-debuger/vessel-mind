@@ -416,6 +416,37 @@ async def test_when_the_slow_model_fails_its_fallback_answers_and_the_route_name
 
 
 @pytest.mark.asyncio
+async def test_once_a_fallback_answers_later_steps_of_the_turn_skip_the_failed_model():
+    fast = ScriptedModel("small", classified('{"route": "slow"}'))
+    slow = ScriptedModel(
+        "large",
+        ChatModelError("large: HTTP 404"),
+        ChatModelError("large: HTTP 404"),
+    )
+    fallback = ScriptedModel(
+        "large-older",
+        [
+            ToolCall(id="c1", name="search_docs", input={"query": "proposal"}),
+            Stop(reason="tool_use", usage=ANSWER_USAGE),
+        ],
+        answer("Compared [1]."),
+    )
+    search = FakeSearch(RESULTS)
+
+    events = await collect(
+        Router(fast, slow, slow_fallbacks=[fallback]),
+        [],
+        "Compare X and Y.",
+        tools=tools(search),
+    )
+
+    assert len(slow.requests) == 1
+    assert len(fallback.requests) == 2
+    assert events[0].model == "large-older"
+    assert events[-1] == DoneEvent(reason="end", usage=ANSWER_USAGE + ANSWER_USAGE, steps=2)
+
+
+@pytest.mark.asyncio
 async def test_on_the_fast_path_the_route_names_the_fallback_and_still_comes_first():
     fast = ScriptedModel("small", classified('{"route": "fast"}'), ChatModelError("small: 503"))
     fallback = ScriptedModel("small-older", answer("It waits [1]."))
