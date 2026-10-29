@@ -102,7 +102,15 @@ class ChatRequest(_Model):
 
 
 class ChatModelError(Exception):
-    """A model call failed after the adapter's own retries. The message holds no secret."""
+    """A model call failed after the adapter's own retries. The message holds no secret.
+
+    retry_after is the seconds the provider asked to wait before the next request
+    (a 429's Retry-After), or None when it named no wait.
+    """
+
+    def __init__(self, message: str, *, retry_after: float | None = None) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after
 
 
 class ChatModel(Protocol):

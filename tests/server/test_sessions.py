@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from vessel_mind.agent.router import Router
 from vessel_mind.core.chat import (
     AssistantMessage,
+    ChatModelError,
     ChatRequest,
     Stop,
     TextDelta,
@@ -258,6 +259,55 @@ def test_a_cancelled_turn_leaves_a_route_line_and_a_turn_line_in_the_telemetry_f
     ]
     assert lines[0]["route"] == "slow"
     assert lines[0]["model"] == "hang-on-first"
+    assert lines[0]["usage"] == lines[1]["usage"]
+
+
+class FailsAfterStarting:
+    """Streams a delta, then raises failure."""
+
+    id = "fails"
+
+    def __init__(self, failure: Exception) -> None:
+        self.failure = failure
+
+    async def stream(self, req: ChatRequest):
+        yield TextDelta(delta="Starting")
+        raise self.failure
+
+
+@pytest.mark.parametrize(
+    ("failure", "code"),
+    [(ChatModelError("fails: HTTP 500"), "model_error"), (RuntimeError("a bug"), "internal_error")],
+)
+def test_a_turn_that_fails_after_its_route_leaves_a_route_line_and_a_turn_line(
+    tmp_path, failure, code
+):
+    telemetry = tmp_path / "telemetry.jsonl"
+    sink = JsonlTelemetry(telemetry)
+    slow = FailsAfterStarting(failure)
+    app = create_app(
+        slow,
+        router=Router(RoutesSlow(), slow, telemetry=sink),
+        state_path=tmp_path / "state.db",
+        telemetry=sink,
+    )
+    with TestClient(app) as client:
+        started = client.post("/turns", json={"text": "Tell me a long story."}).json()
+        events: list[dict] = []
+        with client.stream("GET", f"/turns/{started['turn_id']}/events") as response:
+            for line in response.iter_lines():
+                if line.startswith("data: "):
+                    events.append(json.loads(line.removeprefix("data: ")))
+
+    assert [event["type"] for event in events] == ["route", "text", "error"]
+    assert events[-1]["code"] == code
+    lines = [json.loads(line) for line in telemetry.read_text(encoding="utf-8").splitlines()]
+    assert [(line["kind"], line.get("status")) for line in lines] == [
+        ("route", None),
+        ("turn", "error"),
+    ]
+    assert lines[0]["route"] == "slow"
+    assert lines[0]["model"] == "fails"
     assert lines[0]["usage"] == lines[1]["usage"]
 
 
