@@ -86,9 +86,9 @@ show only the public corpus and demo pages, never personal data.
 
 ## Before the repository is made public
 
-- [ ] Scan the whole git history for secrets, for example
-      `gitleaks detect --log-opts="--all"`. A finding means: rotate that key first, then
-      rewrite the history.
+- [x] Scan the whole git history for secrets, for example
+      `gitleaks git --log-opts="--all"`. A finding means: rotate that key first, then
+      rewrite the history. Done 2026-10-29 with gitleaks v8.24.3: no leaks in 48 commits.
 - [ ] No personal data in the repository: README, screenshots, `eval/results/`,
       `eval/human_grades.jsonl`, test fixtures. `config/agent.yaml` and env files never
       committed (`git log --all -- config/agent.yaml` prints nothing).
@@ -98,7 +98,7 @@ show only the public corpus and demo pages, never personal data.
       `public_host: true`, `sessions.max_turns_per_day` set, Notion read-only.
 - [ ] Manual tests 1–11 above done, or listed as open in the README's definition of
       done.
-- [ ] PR #21 merged into `main`; the tickets close with it.
+- [x] PR #21 merged into `main`; the tickets close with it.
 - [ ] After the repository is public, protect `main` (GitHub flow): require a pull
       request and the checks `verify (ubuntu-latest)`, `verify (windows-latest)`,
       `security` and `audit` (strict); no force push or deletion; include admins; no
