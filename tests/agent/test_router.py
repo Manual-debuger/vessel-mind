@@ -521,7 +521,7 @@ async def test_when_every_model_of_the_path_fails_the_turn_ends_with_a_model_err
 
     events = await collect(Router(fast, slow, slow_fallbacks=[fallback]), [], "Hello?")
 
-    assert events[0].model == "large"  # no model answered: the route names the first
+    assert events[0].model == "large-older"  # no model answered: the one it was asking
     assert isinstance(events[-1], ErrorEvent)
     assert events[-1].code == "model_error"
     assert "large-older" in events[-1].message
@@ -717,7 +717,7 @@ class Clock:
 
 
 @pytest.mark.asyncio
-async def test_a_failed_model_is_asked_after_its_fallback_until_the_cool_down_passes():
+async def test_a_failed_model_is_asked_after_its_fallback_until_the_cooldown_passes():
     fast = ScriptedModel(
         "small",
         classified('{"route": "slow"}'),
@@ -732,7 +732,7 @@ async def test_a_failed_model_is_asked_after_its_fallback_until_the_cool_down_pa
     first = await collect(router, [], "Compare X and Y.")
     clock.now += 299
     second = await collect(router, [], "Compare X and Y.")
-    clock.now += 1  # the default cool-down, 5 minutes, has passed
+    clock.now += 1  # the default cooldown, 5 minutes, has passed
     third = await collect(router, [], "Compare X and Y.")
 
     assert len(slow.requests) == 2
@@ -780,6 +780,66 @@ async def test_a_remembered_model_is_still_asked_when_its_fallbacks_fail():
     assert second[0].model == "large"
     assert second[1] == TextEvent(text="Large after all.")
     assert len(fallback.requests) == 2
+
+
+@pytest.mark.asyncio
+async def test_when_every_model_fails_with_a_remembered_one_last_the_route_names_it():
+    fast = ScriptedModel("small", *[classified('{"route": "slow"}')] * 2)
+    slow = ScriptedModel(
+        "large", ChatModelError("large: HTTP 429"), ChatModelError("large: HTTP 429")
+    )
+    fallback = ScriptedModel(
+        "large-older", answer("First."), ChatModelError("large-older: timed out")
+    )
+    telemetry = RecordedTelemetry()
+    router = Router(fast, slow, slow_fallbacks=[fallback], clock=Clock(), telemetry=telemetry)
+
+    await collect(router, [], "Compare X and Y.")
+    second = await collect(router, [], "Compare X and Y.")
+
+    # The remembered model was asked last: the route names it, as a cancel would.
+    assert second[0].model == "large"
+    assert isinstance(second[-1], ErrorEvent)
+    assert telemetry.records[-1] == slow_route_line("large", Usage())
+
+
+@pytest.mark.asyncio
+async def test_a_later_short_failure_does_not_cut_short_an_earlier_retry_after():
+    fast = ScriptedModel("small", *[classified('{"route": "slow"}')] * 3)
+    slow = ScriptedModel(
+        "large",
+        ChatModelError("large: HTTP 429", retry_after=86400),
+        ChatModelError("large: timed out"),
+        answer("Too soon."),
+    )
+    fallback = ScriptedModel(
+        "large-older", answer("First."), ChatModelError("large-older: timed out"), answer("Third.")
+    )
+    clock = Clock()
+    router = Router(fast, slow, slow_fallbacks=[fallback], cooldown=300, clock=clock)
+
+    await collect(router, [], "Compare X and Y.")
+    await collect(router, [], "Compare X and Y.")
+    clock.now += 301  # the cooldown has passed; the day-long Retry-After has not
+    third = await collect(router, [], "Compare X and Y.")
+
+    assert third[0].model == "large-older"
+    assert len(slow.requests) == 2
+
+
+@pytest.mark.asyncio
+async def test_a_turn_closed_after_its_route_event_records_its_route():
+    fast = ScriptedModel("small", classified('{"route": "slow"}'))
+    telemetry = RecordedTelemetry()
+    events = Router(fast, ScriptedModel("large", answer("Never.")), telemetry=telemetry).run(
+        [], "Compare X and Y."
+    )
+    assert isinstance(events, AsyncGenerator)
+
+    assert isinstance(await anext(events), RouteEvent)
+    await events.aclose()
+
+    assert telemetry.records == [slow_route_line("large", Usage())]
 
 
 @pytest.mark.asyncio

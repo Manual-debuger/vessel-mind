@@ -7,6 +7,8 @@ llama-server. No provider SDK.
 import asyncio
 import json
 from collections.abc import AsyncIterator, Awaitable, Callable
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import Any, Literal, cast
 
 import httpx
@@ -88,34 +90,31 @@ class OpenAICompatibleModel:
                         return
                     retryable = response.status_code in _RETRYABLE
                     problem = f"HTTP {response.status_code}"
-                    retry_after = response.headers.get("retry-after", "")
+                    retry_after = _seconds(response.headers.get("retry-after", ""))
             except (httpx.TimeoutException, httpx.ConnectError) as error:
                 # A first-byte timeout or a refused connection: worth asking again.
                 retryable = not started
                 problem = (
                     "timed out" if isinstance(error, httpx.TimeoutException) else ("cannot connect")
                 )
-                retry_after = ""
+                retry_after = None
             except httpx.HTTPError as error:
                 raise ChatModelError(f"{self.id}: {type(error).__name__}") from None
             delay = self._retry_delay(retryable, retry_after, attempt)
             if delay is None:
                 # The wait the provider asked for goes with the error: the router
                 # asks this model's fallbacks first until it has passed.
-                raise ChatModelError(
-                    f"{self.id}: {problem}",
-                    retry_after=float(retry_after) if retry_after.isdigit() else None,
-                )
+                raise ChatModelError(f"{self.id}: {problem}", retry_after=retry_after)
             attempt += 1
             await self._sleep(delay)
 
-    def _retry_delay(self, retryable: bool, retry_after: str, attempt: int) -> float | None:
+    def _retry_delay(
+        self, retryable: bool, retry_after: float | None, attempt: int
+    ) -> float | None:
         """Seconds to wait before the next attempt, or None to give up."""
         if not retryable or attempt >= self._max_retries:
             return None
-        delay = self._backoff_base * 2**attempt
-        if retry_after.isdigit():
-            delay = float(retry_after)
+        delay = self._backoff_base * 2**attempt if retry_after is None else retry_after
         return delay if delay <= self._backoff_max else None
 
     async def _events(self, response: httpx.Response) -> AsyncIterator[ChatEvent]:
@@ -192,6 +191,22 @@ class OpenAICompatibleModel:
         if self.reasoning_effort is not None:
             body["reasoning_effort"] = self.reasoning_effort
         return body
+
+
+def _seconds(retry_after: str) -> float | None:
+    """A Retry-After header's wait in seconds, or None when it names none.
+
+    The header is either delta-seconds or an HTTP date; a date already past is 0.
+    """
+    if retry_after.isdigit():
+        return float(retry_after)
+    try:
+        until = parsedate_to_datetime(retry_after)
+    except (TypeError, ValueError):
+        return None
+    if until.tzinfo is None:  # "-0000": a date in UTC whose source zone is unknown
+        until = until.replace(tzinfo=UTC)
+    return max(0.0, (until - datetime.now(UTC)).total_seconds())
 
 
 def _wire_call(call: ToolCall) -> dict[str, Any]:
