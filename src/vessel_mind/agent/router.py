@@ -84,6 +84,8 @@ class _FirstThatAnswers:
     A model that fails before its first event (its adapter has spent its retries)
     hands the request to the next one. A model that fails after it started
     answering is not replaced: the client has already seen part of its answer.
+    Once a model has answered, the turn's later steps start from it: the models
+    before it, which failed, are not asked again in this turn.
     answered is the id of the model that answered last, or None.
     """
 
@@ -91,15 +93,18 @@ class _FirstThatAnswers:
         self.models = models
         self.id = models[0].id
         self.answered: str | None = None
+        self._first = 0
 
     async def stream(self, req: ChatRequest) -> AsyncIterator[ChatEvent]:
-        for number, model in enumerate(self.models):
+        for number in range(self._first, len(self.models)):
+            model = self.models[number]
             started = False
             try:
                 async for event in model.stream(req):
                     if not started:
                         started = True
                         self.answered = model.id
+                        self._first = number
                     yield event
             except ChatModelError as error:
                 if started or number == len(self.models) - 1:
@@ -107,6 +112,7 @@ class _FirstThatAnswers:
                 log.warning("%s failed, trying %s: %s", model.id, self.models[number + 1].id, error)
                 continue
             self.answered = model.id
+            self._first = number
             return
 
 
