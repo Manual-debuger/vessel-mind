@@ -139,7 +139,8 @@ class Router:
     asked, and the route event names the model that answered.
 
     telemetry receives each turn's route decision, with both models' usage, when
-    the turn is done or cancelled.
+    the turn ends: done, in an error, cancelled, or raising. A turn that ends
+    while it is classified has no route and records none.
     """
 
     def __init__(
@@ -209,7 +210,7 @@ class Router:
             decision = decide(model.id)
             yield decision
 
-        ended = False
+        recorded = False
         try:
             async for event in self._answer(
                 route,
@@ -231,17 +232,17 @@ class Router:
                     for earlier in held:
                         yield earlier
                 if isinstance(event, DoneEvent | ErrorEvent):
-                    ended = True
-                    if isinstance(event, DoneEvent):
-                        self._record_route(decision, event.usage)
+                    # Before the event goes out: the caller writes its turn line on it.
+                    self._record_route(decision, tally.usage)
+                    recorded = True
                 yield event
-        except (asyncio.CancelledError, GeneratorExit):
-            # A cancelled turn ends without a done event (the caller publishes one):
-            # its route is recorded here, with the usage spent until the cancel. Before
-            # any model answered, the route names the model it was asking.
-            if not ended:
+        finally:
+            # A turn that is cancelled, or whose path raises, ends without a done or
+            # error event (the caller publishes one): its route is recorded here, with
+            # the usage spent until then. Before any model answered, the route names
+            # the model it was asking.
+            if not recorded:
                 self._record_route(decision or decide(model.asking), tally.usage)
-            raise
 
     def _record_route(self, routed: RouteEvent, answer_usage: Usage) -> None:
         """The turn's route line: its route event and the answering model's usage."""
