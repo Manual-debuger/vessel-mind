@@ -821,3 +821,59 @@ async def test_a_fast_model_that_failed_to_classify_is_asked_after_its_fallback_
 
     assert second[0].router_model == "small-older"
     assert len(fast.requests) == 1
+
+
+class SearchesThenFails:
+    """Calls search_docs in its first step, then raises failure on the next request."""
+
+    id = "large"
+
+    def __init__(self, failure: Exception) -> None:
+        self.failure = failure
+        self.requests: list[ChatRequest] = []
+
+    async def stream(self, req: ChatRequest):
+        self.requests.append(req)
+        if len(self.requests) == 1:
+            yield ToolCall(id="c1", name="search_docs", input={"query": "x"})
+            yield Stop(reason="tool_use", usage=ANSWER_USAGE)
+            return
+        raise self.failure
+
+
+@pytest.mark.asyncio
+async def test_a_turn_that_ends_in_an_error_after_its_route_records_the_route_with_the_usage_so_far():
+    fast = ScriptedModel("small", classified('{"route": "slow"}'))
+    slow = SearchesThenFails(ChatModelError("large: HTTP 500"))
+    telemetry = RecordedTelemetry()
+    router = Router(fast, slow, telemetry=telemetry)
+
+    events = await collect(router, [], "Compare X and Y.", tools=tools(FakeSearch(RESULTS)))
+
+    assert isinstance(events[-1], ErrorEvent)
+    assert telemetry.records == [slow_route_line("large", ANSWER_USAGE)]
+
+
+@pytest.mark.asyncio
+async def test_a_turn_whose_path_raises_after_its_route_records_the_route_with_the_usage_so_far():
+    fast = ScriptedModel("small", classified('{"route": "slow"}'))
+    slow = SearchesThenFails(RuntimeError("a bug"))
+    telemetry = RecordedTelemetry()
+    router = Router(fast, slow, telemetry=telemetry)
+
+    with pytest.raises(RuntimeError):
+        await collect(router, [], "Compare X and Y.", tools=tools(FakeSearch(RESULTS)))
+
+    assert telemetry.records == [slow_route_line("large", ANSWER_USAGE)]
+
+
+@pytest.mark.asyncio
+async def test_a_turn_that_raises_while_classifying_records_no_route():
+    fast = ScriptedModel("small", RuntimeError("a bug"))
+    telemetry = RecordedTelemetry()
+    router = Router(fast, ScriptedModel("large"), telemetry=telemetry)
+
+    with pytest.raises(RuntimeError):
+        await collect(router, [], "Hi")
+
+    assert telemetry.records == []
