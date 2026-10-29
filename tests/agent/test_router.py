@@ -706,6 +706,123 @@ async def test_a_turn_cancelled_while_classifying_records_no_route():
     assert telemetry.records == []
 
 
+class Clock:
+    """The router's clock, moved by hand: seconds since an arbitrary start."""
+
+    def __init__(self) -> None:
+        self.now = 1000.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+@pytest.mark.asyncio
+async def test_a_failed_model_is_asked_after_its_fallback_until_the_cool_down_passes():
+    fast = ScriptedModel(
+        "small",
+        classified('{"route": "slow"}'),
+        classified('{"route": "slow"}'),
+        classified('{"route": "slow"}'),
+    )
+    slow = ScriptedModel("large", ChatModelError("large: HTTP 429"), answer("Large again."))
+    fallback = ScriptedModel("large-older", answer("First."), answer("Second."))
+    clock = Clock()
+    router = Router(fast, slow, slow_fallbacks=[fallback], clock=clock)
+
+    first = await collect(router, [], "Compare X and Y.")
+    clock.now += 299
+    second = await collect(router, [], "Compare X and Y.")
+    clock.now += 1  # the default cool-down, 5 minutes, has passed
+    third = await collect(router, [], "Compare X and Y.")
+
+    assert len(slow.requests) == 2
+    assert len(fallback.requests) == 2
+    assert [events[0].model for events in (first, second, third)] == [
+        "large-older",
+        "large-older",
+        "large",
+    ]
+    assert third[1] == TextEvent(text="Large again.")
+
+
+@pytest.mark.asyncio
+async def test_a_failure_with_a_retry_after_is_remembered_until_it_passes():
+    fast = ScriptedModel("small", *[classified('{"route": "slow"}')] * 3)
+    slow = ScriptedModel(
+        "large", ChatModelError("large: HTTP 429", retry_after=3600), answer("Large again.")
+    )
+    fallback = ScriptedModel("large-older", answer("First."), answer("Second."))
+    clock = Clock()
+    router = Router(fast, slow, slow_fallbacks=[fallback], cooldown=60, clock=clock)
+
+    await collect(router, [], "Compare X and Y.")
+    clock.now += 3599
+    second = await collect(router, [], "Compare X and Y.")
+    clock.now += 1
+    third = await collect(router, [], "Compare X and Y.")
+
+    assert (second[0].model, third[0].model) == ("large-older", "large")
+    assert len(slow.requests) == 2
+
+
+@pytest.mark.asyncio
+async def test_a_remembered_model_is_still_asked_when_its_fallbacks_fail():
+    fast = ScriptedModel("small", *[classified('{"route": "slow"}')] * 2)
+    slow = ScriptedModel("large", ChatModelError("large: HTTP 429"), answer("Large after all."))
+    fallback = ScriptedModel(
+        "large-older", answer("First."), ChatModelError("large-older: timed out")
+    )
+    router = Router(fast, slow, slow_fallbacks=[fallback], clock=Clock())
+
+    await collect(router, [], "Compare X and Y.")
+    second = await collect(router, [], "Compare X and Y.")
+
+    assert second[0].model == "large"
+    assert second[1] == TextEvent(text="Large after all.")
+    assert len(fallback.requests) == 2
+
+
+@pytest.mark.asyncio
+async def test_a_model_that_failed_after_it_started_answering_is_not_remembered():
+    class FailsMidAnswerOnce:
+        id = "large"
+
+        def __init__(self) -> None:
+            self.requests = 0
+
+        async def stream(self, req):
+            self.requests += 1
+            yield TextDelta(delta="Half an ")
+            if self.requests == 1:
+                raise ChatModelError("large: timed out")
+            yield Stop(reason="end", usage=ANSWER_USAGE)
+
+    fast = ScriptedModel("small", *[classified('{"route": "slow"}')] * 2)
+    slow = FailsMidAnswerOnce()
+    fallback = ScriptedModel("large-older", answer("Never asked."))
+    router = Router(fast, slow, slow_fallbacks=[fallback], clock=Clock())
+
+    await collect(router, [], "Hello?")
+    second = await collect(router, [], "Hello?")
+
+    assert second[0].model == "large"
+    assert fallback.requests == []
+
+
+@pytest.mark.asyncio
+async def test_a_fast_model_that_failed_to_classify_is_asked_after_its_fallback_next_turn():
+    fast = ScriptedModel("small", ChatModelError("small: HTTP 429"))
+    fallback = ScriptedModel("small-older", *[classified('{"route": "slow"}')] * 2)
+    slow = ScriptedModel("large", answer("One."), answer("Two."))
+    router = Router(fast, slow, fast_fallbacks=[fallback], clock=Clock())
+
+    await collect(router, [], "Hello?")
+    second = await collect(router, [], "Hello?")
+
+    assert second[0].router_model == "small-older"
+    assert len(fast.requests) == 1
+
+
 class SearchesThenFails:
     """Calls search_docs in its first step, then raises failure on the next request."""
 

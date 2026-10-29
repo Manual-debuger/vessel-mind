@@ -10,7 +10,8 @@ the slow path the slow model runs the full tool loop.
 import asyncio
 import json
 import logging
-from collections.abc import AsyncIterator, Sequence
+import time
+from collections.abc import AsyncIterator, Callable, Sequence
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
@@ -78,6 +79,31 @@ class RouteDecision(BaseModel):
     route: Route
 
 
+class _Failures:
+    """The models that failed before answering, remembered across turns (#32).
+
+    A model is remembered from its failure until the wait its failure asked for
+    (a 429's Retry-After) has passed, or, when it asked for none, for the
+    cool-down, in seconds. Until then each turn asks it after the rest of its
+    path, not before.
+    """
+
+    def __init__(self, cooldown: float, clock: Callable[[], float]) -> None:
+        self._cooldown = cooldown
+        self._clock = clock
+        self._until: dict[str, float] = {}
+
+    def remember(self, model: ChatModel, error: ChatModelError) -> None:
+        wait = self._cooldown if error.retry_after is None else error.retry_after
+        self._until[model.id] = self._clock() + wait
+
+    def order(self, models: Sequence[ChatModel]) -> tuple[ChatModel, ...]:
+        """The models with the remembered ones moved to the end, each group in its order."""
+        now = self._clock()
+        failed = [model for model in models if now < self._until.get(model.id, now)]
+        return (*(model for model in models if model not in failed), *failed)
+
+
 class _FirstThatAnswers:
     """One path's models, in order, as one ChatModel for one turn.
 
@@ -87,11 +113,13 @@ class _FirstThatAnswers:
     Once a model has answered, the turn's later steps start from it: the models
     before it, which failed, are not asked again in this turn.
     asking is the id of the model asked now, or asked last; answered is the id of
-    the model that answered last, or None.
+    the model that answered last, or None. failures remembers the models that
+    failed before their first event, for later turns.
     """
 
-    def __init__(self, models: Sequence[ChatModel]) -> None:
+    def __init__(self, models: Sequence[ChatModel], failures: _Failures) -> None:
         self.models = models
+        self.failures = failures
         self.id = models[0].id
         self._asking = 0
         self._answered: int | None = None
@@ -106,7 +134,7 @@ class _FirstThatAnswers:
 
     def from_answered(self) -> "_FirstThatAnswers":
         """The models from the one that answered last on, for another use in this turn."""
-        return _FirstThatAnswers(self.models[self._answered or 0 :])
+        return _FirstThatAnswers(self.models[self._answered or 0 :], self.failures)
 
     async def stream(self, req: ChatRequest) -> AsyncIterator[ChatEvent]:
         for number in range(self._answered or 0, len(self.models)):
@@ -120,6 +148,8 @@ class _FirstThatAnswers:
                         self._answered = number
                     yield event
             except ChatModelError as error:
+                if not started:
+                    self.failures.remember(model, error)
                 if started or number == len(self.models) - 1:
                     raise
                 log.warning("%s failed, trying %s: %s", model.id, self.models[number + 1].id, error)
@@ -138,6 +168,10 @@ class Router:
     (spec §5.1): when a path's model fails after its retries, the next one is
     asked, and the route event names the model that answered.
 
+    A model that fails before answering is asked after the rest of its path in
+    later turns too, until the Retry-After its failure carried has passed, or,
+    without one, cooldown seconds on clock (#32).
+
     telemetry receives each turn's route decision, with both models' usage, when
     the turn ends: done, in an error, cancelled, or raising. A turn that ends
     while it is classified has no route and records none.
@@ -153,6 +187,8 @@ class Router:
         max_tokens: int | None = None,
         fast_fallbacks: Sequence[ChatModel] = (),
         slow_fallbacks: Sequence[ChatModel] = (),
+        cooldown: float = 300.0,
+        clock: Callable[[], float] = time.monotonic,
         telemetry: Telemetry | None = None,
     ) -> None:
         self.telemetry: Telemetry = telemetry if telemetry is not None else NoTelemetry()
@@ -163,6 +199,9 @@ class Router:
         self.enabled = enabled
         self.timeout = timeout
         self.max_tokens = max_tokens
+        self.cooldown = cooldown
+        # Per router: shared by the sessions of its configuration.
+        self._failures = _Failures(cooldown, clock)
 
     async def run(
         self,
@@ -182,14 +221,14 @@ class Router:
         """
         tally = tally if tally is not None else TurnTally()
         registry = tools if tools is not None else CapabilityRegistry()
-        fast = _FirstThatAnswers((self.fast, *self.fast_fallbacks))
+        fast = self._path(self.fast, self.fast_fallbacks)
         route, reason, usage, router_model = await self._decide_route(fast, history, user_text)
         if route == "fast":
             # The fast path's answer starts from the model that classified: the
             # ones before it failed in this turn.
             model = fast.from_answered()
         else:
-            model = _FirstThatAnswers((self.slow, *self.slow_fallbacks))
+            model = self._path(self.slow, self.slow_fallbacks)
         # With a fallback list, which model answers is known only once one has
         # started: the turn's events wait until then, so the route event, which
         # names that model, still comes first.
@@ -243,6 +282,10 @@ class Router:
             # the model it was asking.
             if not recorded:
                 self._record_route(decision or decide(model.asking), tally.usage)
+
+    def _path(self, first: ChatModel, fallbacks: Sequence[ChatModel]) -> _FirstThatAnswers:
+        """One path's models for this turn, the recently failed ones last."""
+        return _FirstThatAnswers(self._failures.order((first, *fallbacks)), self._failures)
 
     def _record_route(self, routed: RouteEvent, answer_usage: Usage) -> None:
         """The turn's route line: its route event and the answering model's usage."""

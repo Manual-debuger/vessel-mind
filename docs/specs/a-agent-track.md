@@ -204,7 +204,9 @@ On HTTP 429, HTTP 503 or a first-byte timeout, the adapter retries with exponent
 honouring `Retry-After` when present, up to a configured limit. Each path then has an ordered
 **fallback list** of models in config (for example `gemini-3.8-flash` → `gemini-3.6-flash`): when
 retries are exhausted, the next model is tried, and the `route` event names the model that
-actually answered. The eval spaces its requests to stay inside free-tier limits; a question that
+actually answered. A model that failed before answering is remembered by the router: later turns
+ask it after its fallbacks until the failure's `Retry-After` has passed, or else for
+`router.cooldown` seconds (#32). The eval spaces its requests to stay inside free-tier limits; a question that
 still fails is reported as *failed*, never dropped.
 
 **Acceptance:** per adapter, a recorded fixture with text plus two tool calls yields the exact
