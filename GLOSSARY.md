@@ -70,6 +70,16 @@ The model that decides, for each key point, whether an answer covers it. It is r
 is chosen separately from the configuration being measured.
 _Avoid_: grader, evaluator
 
+**Human grade**:
+The author's own yes/no, per key point, on one sampled answer, made without seeing the judge's.
+Human grades measure how often the judge agrees with the author; they are not answer scores.
+_Avoid_: label, annotation
+
+**Row**:
+One line of the end-to-end table: a configuration with its router on, or with it off, where
+every turn takes the slow path (`slow-only` is `hosted` with the router off).
+_Avoid_: run, variant
+
 **List-price cost**:
 The cost a run would have at the provider's paid list price on a stated date. Nobody paid it;
 it exists so configurations can be compared on cost.

@@ -1,0 +1,8 @@
+data: {"choices":[{"delta":{"content":"The current weather in","role":"assistant"},"index":0}],"created":1793005565,"id":"_BffaouaI72c0-kPkL-e-AE","model":"gemini-3.5-flash","object":"chat.completion.chunk","usage":{"completion_tokens":4,"prompt_tokens":157,"total_tokens":202}}
+
+data: {"choices":[{"delta":{"content":" both Paris and Tokyo is 18°C.","role":"assistant"},"index":0}],"created":1793005565,"id":"_BffaouaI72c0-kPkL-e-AE","model":"gemini-3.5-flash","object":"chat.completion.chunk","usage":{"completion_tokens":15,"prompt_tokens":157,"total_tokens":213}}
+
+data: {"choices":[{"delta":{"extra_content":{"google":{"thought_signature":"EqQCCqECAWkUfRPmb9x/8eO2aN0G/OSuBVTBXfTehVvuwmIqpCCWSs2w2WDxCz0rboAklnmQ7z780mheP1zm5CtcyflC0X9SmLzEC3lYPb2BGpVe0iHhH1j37kAFlsx5lJ4J2ocp+QYvUrsYrD/x1ZGpPO4XiLipNCHY5YDcDRkJ8jPkhmz5B9Ot2t9W1Psh4HK/9FacKzKVmbqVhQ8ir5vt5Ugrj0uDnmCICxvpZUZRTVaGCK7wqtbxgNAF8W0Tqg6ftWAEUbRjVc6uZ0wsTezQ8ltgZKNWiGazR6OipEqgtDxBqb7zrh4v9x8e256PBfE304AkFPlgNcOZAyJGTlapRg04F2F66lxNYdiYvVthp9QwQAQH+0M/IsdbD1oyu6D/BdrN0g=="}},"role":"assistant"},"finish_reason":"stop","index":0}],"created":1793005565,"id":"_BffaouaI72c0-kPkL-e-AE","model":"gemini-3.5-flash","object":"chat.completion.chunk","usage":{"completion_tokens":15,"prompt_tokens":218,"total_tokens":274}}
+
+data: [DONE]
+

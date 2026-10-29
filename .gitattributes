@@ -1,0 +1,5 @@
+# Files whose exact bytes matter are never converted to CRLF on checkout.
+# Recorded SSE fixtures: the tests split them on b"\n\n".
+*.sse -text
+# The golden set: eval results name the SHA-256 of its bytes.
+eval/golden.yaml -text

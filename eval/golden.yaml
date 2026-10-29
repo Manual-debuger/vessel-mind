@@ -1,0 +1,494 @@
+# Golden set for ticket #12, frozen. The author reviewed every question,
+# including the agent-drafted Traditional Chinese ones, before the set was
+# committed alone (spec a-agent-track.md §5.8). Later changes follow
+# eval/golden-changes.md.
+#
+# Corpus pins (eval/corpus.yaml on spec/3-agent-track):
+#   vessel-mind  09a08904555f6208dab548a8837a24ac78eb54e5  docs/adr/*.md, docs/specs/*.md, GLOSSARY.md
+#   vibeconform  384d89efc764edbabb6475a1644c4a934be64e82  README.md, docs/**/*.md
+# Every expected source is `<source name>/<path>` and was checked to exist at its pin.
+#
+# Route definition (spec §5.7):
+#   slow: the turn needs a tool other than one search, more than one search,
+#         or reasoning beyond the retrieved text.
+#   fast: one retrieval answers it, or it needs no knowledge.
+#
+# Fields: id, question, lang, expected_sources, key_points (2-4),
+# expected_route, rationale (one line, for the route).
+
+questions:
+
+  # --- vessel-mind -------------------------------------------------------
+
+  - id: en-01
+    question: "What does the router's classification output look like, and what happens when the classification times out or returns invalid JSON?"
+    lang: en
+    expected_sources:
+      - vessel-mind/docs/specs/a-agent-track.md
+    key_points:
+      - "The fast model returns JSON {\"route\": \"fast\" | \"slow\"}, validated by pydantic."
+      - "A classification timeout or invalid JSON falls back to the slow path."
+      - "The decision is emitted as a `route` event and logged with both models' usage."
+    expected_route: fast
+    rationale: "One retrieval of spec §5.7 answers it; no synthesis needed."
+
+  - id: en-02
+    question: "What are the three properties of the embodiment contract that every ChatModel adapter and the loop must provide?"
+    lang: en
+    expected_sources:
+      - vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md
+      - vessel-mind/docs/specs/a-agent-track.md
+    key_points:
+      - "Token-level streaming."
+      - "Cancellation mid-generation (barge-in)."
+      - "Tool-call events."
+    expected_route: fast
+    rationale: "A list stated in one place (ADR 0001 §4, repeated in spec §0)."
+
+  - id: en-03
+    question: "In demo mode, what happens when someone clicks Approve on a write proposal?"
+    lang: en
+    expected_sources:
+      - vessel-mind/docs/specs/a-agent-track.md
+      - vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md
+      - vessel-mind/GLOSSARY.md
+    key_points:
+      - "The approve endpoint returns 403 with error code `demo_mode`."
+      - "The write tool never executes."
+      - "The proposal stays pending until it expires or is rejected."
+    expected_route: fast
+    rationale: "Spec §5.5 states the whole behaviour in one paragraph."
+
+  - id: en-04
+    question: "How is the vessel-mind demo exposed to the internet, and which services are never routed through the tunnel?"
+    lang: en
+    expected_sources:
+      - vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md
+    key_points:
+      - "`cloudflared` runs as a compose service and opens an outbound Cloudflare Tunnel; no inbound port is opened."
+      - "Cloudflare Access sits in front of the hostname."
+      - "Only the app server is exposed; `llama-server`, the database and MCP servers stay on the internal network."
+    expected_route: fast
+    rationale: "The decision table of ADR 0002 answers it in one retrieval."
+
+  - id: en-05
+    question: "What independent safeguards stop a Notion write from the public demo hostname, and why is more than one needed?"
+    lang: en
+    expected_sources:
+      - vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md
+      - vessel-mind/docs/specs/a-agent-track.md
+      - vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md
+    key_points:
+      - "Write tools never run without an approval; the loop only makes a proposal."
+      - "On the public host the server refuses every approval (demo mode)."
+      - "The public host's Notion integration has only the \"Read content\" capability, so Notion itself refuses a write if the app's check has a bug."
+      - "Each Notion integration is shared with one demo page only."
+    expected_route: slow
+    rationale: "Combines ADR 0001 §5, ADR 0002's amendments and spec §3/§5.5, and reasons about defence in depth."
+
+  - id: en-06
+    question: "Under the `routed` configuration, which model answers a turn whose router classification times out, and why must vessel-mind also run with no local weights at all?"
+    lang: en
+    expected_sources:
+      - vessel-mind/docs/specs/a-agent-track.md
+      - vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md
+    key_points:
+      - "A timeout falls back to the slow path."
+      - "In `routed`, the slow path is Gemini Flash (the fast path is a small `llama-server` model)."
+      - "The app must start with both paths pointed at hosted models; otherwise the provider-neutral seam is fake."
+    expected_route: slow
+    rationale: "Needs the fallback rule and the configuration table (§5.7) plus ADR 0001 §3, then a combined answer."
+
+  - id: en-07
+    question: "What is a costly misroute, how is it counted in the eval, and why is a slow-path mistake not counted as one?"
+    lang: en
+    expected_sources:
+      - vessel-mind/GLOSSARY.md
+      - vessel-mind/docs/specs/a-agent-track.md
+    key_points:
+      - "A turn routed to the fast path whose answer scores clearly lower than the slow-only answer to the same question."
+      - "Counted as fast-path answers scoring at least 0.25 below the slow-only baseline (answer score 0-1)."
+      - "The slow-only baseline is `--config hosted --no-router`, where every turn takes the slow path."
+      - "A slow-path mistake costs money, not quality."
+    expected_route: slow
+    rationale: "The definition is in GLOSSARY.md and the measurement in spec §5.8; two retrievals."
+
+  - id: en-08
+    question: "Why are sessions and proposals kept in a different SQLite file from the retrieval index, and what happens to them when the server restarts?"
+    lang: en
+    expected_sources:
+      - vessel-mind/docs/specs/a-agent-track.md
+      - vessel-mind/GLOSSARY.md
+    key_points:
+      - "The index can be rebuilt from the corpus; the history cannot."
+      - "On startup every pending proposal is marked expired."
+      - "A turn that was running is not resumed."
+    expected_route: fast
+    rationale: "One paragraph of spec §5.3 answers it."
+
+  - id: en-09
+    question: "Why was the `anthropic` adapter removed from vessel-mind's first pass, and what would adding it back take?"
+    lang: en
+    expected_sources:
+      - vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md
+    key_points:
+      - "The project runs with no paid model API; a Claude subscription does not include API usage."
+      - "It is deferred, not rejected."
+      - "Because the seam's types are provider-neutral, adding it later is one adapter module plus its fixtures."
+    expected_route: fast
+    rationale: "The 2026-10-26 amendment of ADR 0001 answers it in one retrieval."
+
+  - id: en-10
+    question: "How does retrieval reach the agent loop when the `agent` package may not import `rag`, and how is that boundary enforced?"
+    lang: en
+    expected_sources:
+      - vessel-mind/docs/specs/a-agent-track.md
+    key_points:
+      - "`agent` and `rag` import only `core`; `agent` does not import `rag`."
+      - "Retrieval reaches the loop as an injected tool: the server wires the pipeline in as the read tool `search_docs`."
+      - "import-linter contracts in pyproject.toml, run by tests/test_architecture.py inside `task verify`."
+    expected_route: slow
+    rationale: "Needs spec §4 (layout and boundaries) and §5.6 (`search_docs` wiring): more than one search."
+
+  # --- VibeConform -------------------------------------------------------
+
+  - id: en-11
+    question: "What exit codes does `vibe audit` return, and what does each mean?"
+    lang: en
+    expected_sources:
+      - vibeconform/docs/usage.md
+    key_points:
+      - "0: conformant; every MUST rule passed or is not applicable."
+      - "2: not conformant; a MUST rule failed and every other MUST rule was decided."
+      - "1: cannot decide (always with --static), or a configuration or tool error."
+    expected_route: fast
+    rationale: "The exit-code table in usage.md answers it."
+
+  - id: en-12
+    question: "What are VibeConform's three design principles, in priority order?"
+    lang: en
+    expected_sources:
+      - vibeconform/docs/architecture/principles.md
+      - vibeconform/README.md
+    key_points:
+      - "If a rule can be expressed mechanically, do not leave it only in an AI prompt."
+      - "Easy to use, on Windows and Linux alike."
+      - "Easy to install and easy to remove."
+    expected_route: fast
+    rationale: "Listed in one place (README \"Core philosophy\" or principles.md)."
+
+  - id: en-13
+    question: "Why does a conformant repository keep working after VibeConform is removed, and what do you delete to remove it?"
+    lang: en
+    expected_sources:
+      - vibeconform/docs/usage.md
+      - vibeconform/docs/architecture/principles.md
+      - vibeconform/docs/specs/0051-contract-v1.md
+      - vibeconform/docs/adopting.md
+      - vibeconform/README.md
+    key_points:
+      - "Nothing a conformant repository runs calls `vibe` except the audit job (rule R-01); its tooling stands on third-party tools."
+      - "Delete `vibe.yaml`, the audit job (and its required check) and the setup skill."
+      - "`vibe-guard` is a separate binary and can stay; dropping it means removing its hooks and policy.json."
+    expected_route: slow
+    rationale: "Joins principle 3 / rule R-01 with the removal steps in usage.md: more than one search."
+
+  - id: en-14
+    question: "Why did VibeConform choose YAML instead of TOML for `vibe.yaml`?"
+    lang: en
+    expected_sources:
+      - vibeconform/docs/decisions/0004-yaml-manifest-format.md
+    key_points:
+      - "Nested, list-heavy structures such as the component graph read naturally in YAML; TOML needs noisy array-of-tables syntax."
+      - "Every other configuration the project uses (GitHub Actions, dependabot, golangci, lefthook, goreleaser) is already YAML."
+      - "YAML's footguns (the Norway problem, indentation) are mitigated by explicit validation of required fields."
+    expected_route: fast
+    rationale: "One short ADR answers it."
+
+  - id: en-15
+    question: "Why did VibeConform depend on golang.org/x/mod/semver instead of writing its own version comparator?"
+    lang: en
+    expected_sources:
+      - vibeconform/docs/decisions/0010-semver-comparison-dependency.md
+    key_points:
+      - "Semver precedence is subtle: prerelease identifiers compare lexically, so a build 42 commits past a tag orders below one 9 commits past."
+      - "`Compare` returns -1 for invalid input such as \"dev\" instead of an error, which would mark every local build as older."
+      - "The package's build footprint is standard library only, and it is the code `go` itself uses."
+    expected_route: fast
+    rationale: "One ADR (0010) answers it."
+
+  - id: en-16
+    question: "How did the way VibeConform's agent guard recognizes destructive commands change from spec 0047 to ADR 0025, and why?"
+    lang: en
+    expected_sources:
+      - vibeconform/docs/specs/0047-guard-respellings.md
+      - vibeconform/docs/decisions/0025-contract-model.md
+      - vibeconform/docs/decisions/0026-shell-parser-dependency.md
+    key_points:
+      - "Spec 0047 extended regex patterns in one policy.json table, shared by three guard runtimes, to deny other spellings of the same command."
+      - "ADR 0025 replaces that with one Go binary, `vibe-guard`, that parses commands with mvdan.cc/sh and refuses a command it cannot parse."
+      - "A regex cannot follow quoting, so spellings slipped through; three implementations of one parser would not stay in step."
+    expected_route: slow
+    rationale: "Compares two documents from different stages and explains the change."
+
+  - id: en-17
+    question: "What does `vibe doctor` never do?"
+    lang: en
+    expected_sources:
+      - vibeconform/docs/specs/0028-environment-doctor.md
+      - vibeconform/docs/adopting.md
+    key_points:
+      - "It installs nothing, writes no file and changes no git or user configuration."
+      - "It makes no network access and runs no tests or builds."
+      - "It does not check conformance; that is `vibe audit`'s job."
+    expected_route: fast
+    rationale: "Spec 0028 §2.4 lists it in one section."
+
+  - id: en-18
+    question: "Why does a Codex session in a VibeConform repository get no agent guard, and does contract 1.1.0 check Codex at all?"
+    lang: en
+    expected_sources:
+      - vibeconform/docs/decisions/0011-one-module-per-agent-runtime.md
+      - vibeconform/docs/usage.md
+      - vibeconform/docs/decisions/0025-contract-model.md
+      - vibeconform/docs/specs/0051-contract-v1.md
+    key_points:
+      - "A live test of Codex 0.156.1 found that on Windows it ignores exit code 2, so the guard's deny and the Stop gate enforce nothing."
+      - "Background hook stderr never reaches the model on any platform."
+      - "Codex hooks are suspended; the contract's A rules cover Claude Code only, and bringing Codex in would be a MAJOR change."
+    expected_route: slow
+    rationale: "The evidence (ADR 0011) and the contract's exemption (ADR 0025 / spec 0051) are in different documents."
+
+  - id: en-19
+    question: "A full `vibe audit` reports one failed SHOULD rule and one MUST rule it could not decide. What are the verdict and exit code, and could that SHOULD failure be waived?"
+    lang: en
+    expected_sources:
+      - vibeconform/docs/usage.md
+      - vibeconform/docs/specs/0051-contract-v1.md
+      - vibeconform/docs/decisions/0025-contract-model.md
+    key_points:
+      - "The verdict is \"cannot decide\" and the exit code is 1, because a MUST rule is undecided."
+      - "SHOULD results never change the verdict or exit code."
+      - "Only a SHOULD rule can be waived, in vibe.yaml with a reason and an `until` date; an expired waiver is ignored."
+    expected_route: slow
+    rationale: "Applies the verdict rules to a case the documents do not state directly, using two or three sources."
+
+  - id: en-20
+    question: "How are VibeConform release tags named, and what keeps a preview release out of \"Latest release\"?"
+    lang: en
+    expected_sources:
+      - vibeconform/docs/decisions/0007-release-tag-naming.md
+    key_points:
+      - "Plain semver with a `v` prefix: vMAJOR.MINOR.PATCH[-PRERELEASE]; major stays 0 while the project is pre-alpha."
+      - "A preview gets an -alpha.N (later -beta.N or -rc.N) suffix."
+      - "GoReleaser marks a prerelease-suffixed tag \"Pre-release\", which keeps it out of \"Latest release\"."
+    expected_route: fast
+    rationale: "ADR 0007 answers it in one retrieval."
+
+  - id: en-21
+    question: "Why did the first plan to bring the short-mode Go tests under 90 seconds fail, and what actually made the A-05 Stop-hook probe time out?"
+    lang: en
+    expected_sources:
+      - vibeconform/docs/reports/0056-faster-hooks.md
+    key_points:
+      - "Most time went to starting git processes (about 7,000 in internal/cli), so running tests in parallel could not help."
+      - "The A-05 timeout came from go's test cache hashing a huge test log (about 661,000 entries, mostly stat calls), not from a process holding a pipe."
+      - "The fix memoizes lookPath in the cli TestMain, and a regression test fails above 150,000 log entries."
+    expected_route: slow
+    rationale: "Two separate diagnoses in different sections of a long report; the answer has to connect measurements to causes."
+
+  - id: en-22
+    question: "How does a full `vibe audit` prove that `verify` really runs formatting, static analysis and tests, and why does a component with no test file fail?"
+    lang: en
+    expected_sources:
+      - vibeconform/docs/specs/0051-contract-v1.md
+      - vibeconform/docs/decisions/0025-contract-model.md
+      - vibeconform/docs/usage.md
+    key_points:
+      - "It runs `verify` in a probe copy (a temporary Git repository of the tracked files) and never changes the repository."
+      - "It plants one defect of each kind (format, static analysis, test) in each component; `verify` must exit non-zero for each (rule V-01)."
+      - "The static-analysis defect is fixed per language (go vet printf mismatch for Go, undefined name for Python and TypeScript)."
+      - "Probes plant the test defect next to existing tests, so with no test file nothing shows that `verify` runs tests."
+    expected_route: slow
+    rationale: "Combines the probe-copy mechanics, rule V-01 and ADR 0025 decisions 12-13: more than one search."
+
+  # --- Unanswerable --------------------------------------------------------
+
+  - id: un-01
+    question: "What recall@5 did hybrid retrieval with reranking reach on the Traditional Chinese questions?"
+    lang: en
+    expected_sources: []
+    key_points:
+      - "The documents do not cover it: the spec defines the retrieval ablation table but reports no measured numbers."
+    expected_route: fast
+    rationale: "One retrieval shows the table is only specified, not filled; nothing else to combine."
+
+  - id: un-02
+    question: "How many turns per session does the public demo host allow before it refuses more?"
+    lang: en
+    expected_sources: []
+    key_points:
+      - "The documents do not cover it: ADR 0002 mentions a per-session turn limit but gives no number."
+    expected_route: fast
+    rationale: "One retrieval of ADR 0002 is enough to see the number is absent."
+
+  - id: un-03
+    question: "Under which open-source license is vessel-mind published?"
+    lang: en
+    expected_sources: []
+    key_points:
+      - "The documents do not cover it: only VibeConform's license (Apache-2.0) is stated, not vessel-mind's."
+    expected_route: fast
+    rationale: "One retrieval; the correct answer is to say it is not covered."
+
+# --- Traditional Chinese (zh-TW) --------------------------------------------
+# Drafted directly in Chinese by an agent at the author's request, not
+# translated from the English questions; each one is verified and edited by
+# the author before the freeze (see CHANGES.md). Topics avoid the en-xx set.
+# Set reviewed_by_author: true after review.
+zh_hant_questions:
+  - id: zh-01
+    question: "Gemini 串流回來的平行 tool call 片段沒有 `index`，adapter 要怎麼把片段組回正確的呼叫？只用 `index` 來分會出什麼事？"
+    lang: zh-Hant
+    expected_sources:
+      - vessel-mind/docs/specs/a-agent-track.md
+    key_points:
+      - "有 `index` 時依 `index` 分組；沒有時，出現新的 `id` 就開始一個新呼叫；兩者都沒有的片段接到上一個呼叫。"
+      - "每個呼叫只送出一個 `ToolCall`，input 已完整解析。"
+      - "只看 `index` 會把 Gemini 的平行呼叫併成一個、參數被串在一起；兩種 dialect 都要測兩個平行呼叫。"
+    expected_route: fast
+    rationale: "spec §5.1 的同一段就有答案，一次檢索即可。"
+    drafted_by: agent
+    reviewed_by_author: true
+
+  - id: zh-02
+    question: "如果週四的進度 delay 了，reranker 這塊可以先砍什麼？有哪些東西是無論如何都不能砍的？"
+    lang: zh-Hant
+    expected_sources:
+      - vessel-mind/docs/specs/a-agent-track.md
+    key_points:
+      - "第一個砍的是 `llama-server` reranker，保留 CPU（`fastembed`）那個。"
+      - "週四要確認釘住的 `fastembed` 和 `llama-server` 版本有沒有提供 reranking；其中一個不行就出另一個，並記錄下來。"
+      - "絕對不能砍：approval 測試、schema drift 測試、凍結的 golden set、`hosted` 和 slow-only 兩列、demo 影片、README 的數字。"
+    expected_route: slow
+    rationale: "要把 spec §0 的刪減順序和 §5.6 的 reranker 設定兩處合起來回答。"
+    drafted_by: agent
+    reviewed_by_author: true
+
+  - id: zh-03
+    question: "如果 Python 的 `sqlite3` 載不了 `sqlite-vec` extension，spec 要我們怎麼處理？"
+    lang: zh-Hant
+    expected_sources:
+      - vessel-mind/docs/specs/a-agent-track.md
+    key_points:
+      - "有些 Python build 會關掉 `sqlite3.Connection.enable_load_extension`，所以週一要在 WSL2 的 `uv` interpreter 和 CI image 上確認能載入。"
+      - "載不了就改用 `apsw`，並記錄在 `DEVELOPING.md`。"
+      - "不可以因此拿掉 vector store。"
+    expected_route: fast
+    rationale: "spec §2 的 Day-one risk 一段就是答案。"
+    drafted_by: agent
+    reviewed_by_author: true
+
+  - id: zh-04
+    question: "我們明明只用免費額度，結果表為什麼還要列成本？這個數字怎麼算，`local` 那一列又要怎麼填？"
+    lang: zh-Hant
+    expected_sources:
+      - vessel-mind/GLOSSARY.md
+      - vessel-mind/docs/specs/a-agent-track.md
+      - vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md
+    key_points:
+      - "列的是 list-price cost：token 數乘上 provider 付費方案的牌價，日期寫在 config，標成「at list price, YYYY-MM-DD」。"
+      - "沒有人真的付這筆錢，它是為了讓不同 configuration 能比較成本。"
+      - "`local` 那列寫 $0，並註明「GPU electricity not measured」。"
+    expected_route: slow
+    rationale: "要把 GLOSSARY 的定義、spec §5.8 的算法和 ADR 0001 免費額度的修訂合起來推論。"
+    drafted_by: agent
+    reviewed_by_author: true
+
+  - id: zh-05
+    question: "之後 Vessel 語音陪伴的 client 要接上來，ADR 記了哪些目前已知、但第一版先不處理的缺口？"
+    lang: zh-Hant
+    expected_sources:
+      - vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md
+    key_points:
+      - "Barge-in 歷史：被打斷後只保留真的講出來的部分，cancel 之後要加一個選填的「聽到這裡」欄位。"
+      - "Memory 寫入：陪伴型 agent 會一直寫自己的記憶，要分開「寫自己的狀態」和「寫外部世界」，需要另一份 ADR。"
+      - "Router 延遲：router 是串行的，在第一個 token 之前；語音可能需要平行的 handoff 模式，由之後的 ADR 決定。"
+    expected_route: fast
+    rationale: "ADR 0001 Consequences 的同一個清單，一次檢索即可。"
+    drafted_by: agent
+    reviewed_by_author: true
+
+  - id: zh-06
+    question: "我在自己的 terminal 跑了 `vibe unlock` 之後，agent 就可以改 `.claude/hooks/policy.json` 了嗎？這個 unlock 什麼時候會失效？"
+    lang: zh-Hant
+    expected_sources:
+      - vibeconform/docs/usage.md
+      - vibeconform/docs/adopting.md
+      - vibeconform/docs/specs/0051-contract-v1.md
+    key_points:
+      - "不行：unlock 只開放 `.claude/settings.json` 和 `.claude/hooks/` 底下的其他檔案，`policy.json` 即使 unlock 了還是會被擋。"
+      - "`--minutes` 可設 1 到 240，預設 15 分鐘；到期時間寫在 common Git directory 的 `vibe-unlock`，所有 linked worktree 共用。"
+      - "agent 下一次 Stop 時會由 `vibe-guard relock` 重新上鎖，也可以自己先跑 `vibe-guard relock`。"
+    expected_route: slow
+    rationale: "要把 `vibe unlock` 一節和 guard 的 settings 鎖定規則（usage、adopting、規則 A-08）合起來才能答完整。"
+    drafted_by: agent
+    reviewed_by_author: true
+
+  - id: zh-07
+    question: "VibeConform 的 pre-push hook 為什麼要先 `unset GIT_DIR` 那幾個變數再跑 `task verify:fast`？這個問題當初是怎麼被發現的？"
+    lang: zh-Hant
+    expected_sources:
+      - vibeconform/docs/usage.md
+      - vibeconform/docs/reports/0056-faster-hooks.md
+      - vibeconform/docs/specs/0057-hook-stages.md
+    key_points:
+      - "從 linked worktree 觸發的 hook 會被 export `GIT_DIR`，測試在暫存 fixture 裡跑 git 時，會動到真正的 repository。"
+      - "pre-push 在 `task verify:fast` 前清掉 `GIT_DIR`、`GIT_WORK_TREE`、`GIT_INDEX_FILE`、`GIT_COMMON_DIR`。"
+      - "是 spec 0056 多個 agent 平行在 worktree 工作時記下的摩擦之一，由 spec 0057 解決。"
+    expected_route: slow
+    rationale: "原因在 usage 的 Git hooks 一節，發現經過在 0056 報告和 spec 0057，需要多次檢索。"
+    drafted_by: agent
+    reviewed_by_author: true
+
+  - id: zh-08
+    question: "VibeConform 對設定檔和機密（secrets）放在同一個 `.env` 的看法是什麼？現在有工具會幫忙檢查嗎？"
+    lang: zh-Hant
+    expected_sources:
+      - vibeconform/docs/decisions/0005-separate-config-and-secrets.md
+    key_points:
+      - "一般設定放在進版控的檔案；secrets 放在不進版控的機制（gitignore 的專用檔、secrets manager 或部署時注入），不能混在一起。"
+      - "混在一起會逼兩類都用更嚴或更鬆的方式處理：整個檔案 ignore 就失去預設設定，進版控就洩漏 secrets。"
+      - "這份 ADR 只是政策，目前沒有實作檢查。"
+    expected_route: fast
+    rationale: "一份短 ADR（0005）就能回答。"
+    drafted_by: agent
+    reviewed_by_author: true
+
+  - id: zh-09
+    question: "`vibe-guard` 擋得住 `find . -delete` 這種指令嗎？如果機器上根本沒裝 `vibe-guard`，agent 的指令會直接放行嗎？"
+    lang: zh-Hant
+    expected_sources:
+      - vibeconform/docs/usage.md
+      - vibeconform/docs/decisions/0025-contract-model.md
+      - vibeconform/docs/specs/0051-contract-v1.md
+      - vibeconform/docs/architecture/principles.md
+    key_points:
+      - "擋不住：guard 只擋它那些指令的不同寫法，效果相同的其他指令（如 `find . -delete`、`git checkout -f`）會執行；它不是 sandbox。"
+      - "要硬限制請用 Claude Code 的 permission `deny` 規則和 sandbox。"
+      - "沒裝 `vibe-guard` 時會 fail closed：hook 指令印出安裝方式並以 exit 2 拒絕，因為 127 在 Claude Code 會被當成放行。"
+    expected_route: slow
+    rationale: "已知限制在 usage，fail closed 的決定在 ADR 0025 / 規則 A-03，要跨文件合併。"
+    drafted_by: agent
+    reviewed_by_author: true
+
+  - id: zh-10
+    question: "vessel-mind 的 Docker image 是用哪一個 Python base image？"
+    lang: zh-Hant
+    expected_sources: []
+    key_points:
+      - "文件沒有涵蓋：spec 只提到 `deploy/Dockerfile` 和 Notion MCP 的 Docker build stage，沒有指定 base image。"
+    expected_route: fast
+    rationale: "一次檢索就看得出文件沒寫；答案是說明文件未涵蓋。"
+    drafted_by: agent
+    reviewed_by_author: true

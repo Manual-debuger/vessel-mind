@@ -1,0 +1,227 @@
+# vessel-mind agent config. Copy to config/agent.yaml to change it; without
+# that file, the app reads this one. Set VESSEL_MIND_CONFIG to use another.
+#
+# Keys never go in this file: a provider names the env var that holds its key.
+
+# The active configuration: hosted, local or routed.
+configuration: hosted
+
+providers:
+  gemini:
+    # Gemini's OpenAI-compatible endpoint, free tier (no billing account).
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai
+    # Required. Schemes: {scheme: none} for a keyless server such as
+    # llama-server; {scheme: bearer, key_env: NAME} sends
+    # "Authorization: Bearer <key>"; {scheme: header, header_name: x-api-key,
+    # key_env: NAME} sends the key in that header. key_env is the NAME of the
+    # env var, in upper snake case; a pasted key fails validation.
+    auth: {scheme: bearer, key_env: GEMINI_API_KEY}
+  local:
+    # A local OpenAI-compatible server: Ollama on its default port. Any
+    # server that serves /v1/chat/completions works (llama-server: port 8080).
+    base_url: http://127.0.0.1:11434/v1
+    auth: {scheme: none}
+
+# Each configuration is a fixed pair of models: the fast path and the slow
+# path. `chosen` is the date the model id was pinned. The slow path uses
+# gemini-3.6-flash, not 3.8: 3.8 allows only 20 free requests a day.
+#
+# fast_fallbacks and slow_fallbacks (optional, default none) list each path's
+# fallback models in order. When a path's model still fails after the retries
+# (`retry:`), the next one is asked; the route event names the model that
+# answered. A model that has started to answer is never replaced. The eval
+# never uses them: a row measures its configuration's own pair.
+configurations:
+  # The default: needs only GEMINI_API_KEY.
+  hosted:
+    fast: {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-26}
+    # gemini-3.6-flash: Google's deprecations page says gemini-3.5-flash routes every request to it.
+    slow: {provider: gemini, model: gemini-3.6-flash, chosen: 2026-10-26}
+    # Asked when gemini-3.6-flash still fails after the retries (its daily
+    # free quota is spent): the answer is weaker, but the turn is answered.
+    slow_fallbacks:
+      - {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-27}
+  # Both paths on the local server, Ollama tags (Q4_K_M). qwen3.6:35b-a3b is
+  # a mixture of experts (3B active); the pair needs about 28 GB of VRAM.
+  # The fast model does not think: with thinking, qwen3:8b takes about 10 s to
+  # classify a turn, the router's timeout.
+  local:
+    fast: {provider: local, model: "qwen3:8b", chosen: 2026-10-26, reasoning_effort: none}
+    slow: {provider: local, model: "qwen3.6:35b-a3b", chosen: 2026-10-26}
+  # The local small model routes and answers fast turns; Gemini answers slow ones.
+  routed:
+    fast: {provider: local, model: "qwen3:8b", chosen: 2026-10-26, reasoning_effort: none}
+    # gemini-3.6-flash: Google's deprecations page says gemini-3.5-flash routes every request to it.
+    slow: {provider: gemini, model: gemini-3.6-flash, chosen: 2026-10-26}
+    # Asked when gemini-3.6-flash still fails after the retries (its daily
+    # free quota is spent): the answer is weaker, but the turn is answered.
+    slow_fallbacks:
+      - {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-27}
+
+# The router: the fast model classifies each turn as fast or slow. A fast
+# turn is retrieved first and answered by the fast model; a slow turn runs the
+# tool loop on the slow model. A classification slower than `timeout` seconds,
+# or one that is not the expected JSON, goes slow. `enabled: false` sends
+# every turn to the slow path (the eval's slow-only baseline).
+router:
+  enabled: true
+  timeout: 10.0
+  # The classification's token budget; Gemini counts thinking tokens in it.
+  max_tokens: 1024
+
+# HTTP 429 and 503: exponential backoff from backoff_base seconds, honouring
+# Retry-After. A wait longer than backoff_max seconds (Gemini's daily limit
+# asks for about a day) fails the turn at once.
+retry:
+  max_retries: 3
+  backoff_base: 1.0
+  backoff_max: 30.0
+
+agent:
+  system: >-
+    You are vessel-mind, a concise assistant. Answer in plain text. For a
+    question about vessel-mind or VibeConform, call search_docs first, answer
+    only from its results, and cite each claim by its section number, for
+    example [1] or [2][3].
+  # Gemini counts thinking tokens against this budget.
+  max_tokens: 4096
+
+# The SQLite file for sessions, their history and proposals. It is not the
+# retrieval index: the index can be rebuilt, this file cannot. A relative
+# path is relative to the directory the server runs in. It sits in its own
+# directory so the container can keep it in a volume (compose.yaml) apart
+# from the index that the image ships.
+state:
+  path: data/state/state.db
+
+# A session may start at most max_turns turns (cancelled ones count too),
+# so one visitor cannot spend the whole free quota. A new session (a console
+# reload) starts at zero again, so max_turns_per_day bounds the turns of ALL
+# sessions together in one UTC day; past it, POST /turns answers 429 with
+# code daily_turn_limit. These are turns, not model requests: a slow turn can
+# make several. Omit either key for no limit.
+sessions:
+  max_turns: 30
+  max_turns_per_day: 500
+
+# Telemetry: each turn's route decision (route, reason, both models and their
+# token usage) and its summary (status, steps, usage) are appended to this
+# JSONL file, one object per line. It holds no message text. It sits beside
+# the state file, in the volume compose.yaml keeps. `path: null` turns it off.
+telemetry:
+  path: data/state/telemetry.jsonl
+
+# search_docs: the retrieval pipeline. At startup, the server ingests the
+# pinned corpus into the index when the index is missing or unfinished (the
+# first start downloads the embedding model and may fetch a tarball); a
+# complete index is opened as it is. Rebuild it with `task ingest`. The
+# Docker image is built with a complete index and the embedding model, so the
+# container embeds nothing at startup (deploy/Dockerfile).
+retrieval:
+  index: data/index.sqlite
+  corpus: eval/corpus.yaml
+  # vector | keyword | hybrid (reciprocal rank fusion, k = 60).
+  candidates: hybrid
+  # The candidates the reranker reorders; at most 30.
+  candidate_k: 30
+  # The results search_docs returns; at most candidate_k.
+  top_k: 5
+  embedding_model: jinaai/jina-embeddings-v2-base-zh
+  # Reorders the candidates before the top_k cut. cpu: a fastembed
+  # cross-encoder (downloaded on the first search, 0.57 GB); none: no rerank
+  # stage. A multilingual model, since questions may be in Chinese.
+  reranker: cpu
+  reranker_model: BAAI/bge-reranker-v2-m3-int8
+  model_cache: .cache/fastembed
+  tarball_cache: .cache/corpus
+
+# The end-to-end eval (task eval -- --config NAME). Only the eval reads it.
+eval:
+  # The judge: any model from `providers`. The local slow model: the free tier
+  # allows 20 gemini-3.6-flash requests a day, and a row needs about 100. It is
+  # the slow model of local, so results.md says that it shares its model family.
+  judge: {provider: local, model: "qwen3.6:35b-a3b", chosen: 2026-10-26}
+  # Seconds between the starts of two requests (judge included). The free
+  # tier's per-minute limits are shown only in AI Studio; 7 s is about 8.5
+  # requests a minute.
+  request_interval: 7.0
+  # After this many questions fail in a row (a daily quota is spent), the run
+  # stops; the same command resumes it.
+  max_consecutive_failures: 3
+  # Google's paid list prices, USD per 1M tokens (output includes thinking).
+  # Nobody pays them: the eval runs on the free tier. A model without a price
+  # here is reported as unpriced, never estimated.
+  prices:
+    gemini-3.5-flash-lite:
+      input_usd_per_mtok: 0.30
+      output_usd_per_mtok: 2.50
+      as_of: 2026-10-26
+      source: https://ai.google.dev/gemini-api/docs/pricing
+    # The list rate is valid through 2026-12-31; it changes on 2027-01-01.
+    gemini-3.6-flash:
+      input_usd_per_mtok: 0.75
+      output_usd_per_mtok: 3.75
+      as_of: 2026-10-26
+      source: https://ai.google.dev/gemini-api/docs/pricing
+  # Providers on the author's hardware: $0, GPU electricity not measured.
+  self_hosted_providers: [local]
+  # Configurations that are not run, with the reason results.md shows.
+  not_run:
+    hosted: >-
+      Its slow model gemini-3.6-flash allows 20 free-tier requests a day, and
+      a row needs about 100 (answers and tool steps); the author chose to run
+      the eval on free models within three days.
+    routed: >-
+      Its slow model gemini-3.6-flash allows 20 free-tier requests a day; the
+      author chose to run the eval on free models within three days.
+
+# Demo mode (ADR 0002) is for the public hostname. The loop still makes a
+# proposal for each write or irreversible call and the console shows it, but
+# the server refuses every approval (HTTP 403, code demo_mode), so no write
+# tool runs. Keep it false on localhost.
+demo_mode: false
+
+# True only on the public hostname: the console then shows the notice that
+# messages go to Gemini's free tier. It requires demo_mode: true and
+# sessions.max_turns and sessions.max_turns_per_day.
+# config/agent.public.example.yaml sets all three.
+public_host: false
+
+# What the console shows a visitor. demo_page_url links the Notion page the
+# agent reads, published to the web (Share > Publish), so answers can be
+# checked; https only. example_questions fill the question box when clicked.
+# console:
+#   demo_page_url: https://<your-site>.notion.site/<page>
+#   example_questions:
+#     - Which sprint items on the Notion page are still open?
+
+# MCP servers, started over stdio when the app starts. The model sees each
+# tool as <server>_<tool>, for example notion_API-post-search.
+mcp_servers:
+  notion:
+    # The Notion MCP server pinned by deploy/notion-mcp/package-lock.json.
+    # Install it once with `npm ci --ignore-scripts` in deploy/notion-mcp.
+    # It runs with node, never npx: npx would fetch whatever is newest. A
+    # relative path is relative to the directory the server runs in.
+    command: node
+    args: [deploy/notion-mcp/node_modules/@notionhq/notion-mcp-server/bin/cli.mjs]
+    # Set it to true to start the server. It then needs NOTION_TOKEN.
+    enabled: false
+    # The integration's token. Share the integration with ONE demo page only,
+    # never a personal page. The public host uses a read-only integration
+    # (ADR 0002), so Notion itself refuses a write there.
+    auth: {scheme: bearer, key_env: NOTION_TOKEN}
+    # The server process gets the credential as this JSON object of headers.
+    # It inherits no other secret from the app (only PATH, HOME and the like).
+    headers_env: OPENAPI_MCP_HEADERS
+    # Only the tools named here are registered; any other tool the server
+    # lists is refused with a warning. Labels are never defaulted. Page
+    # content is text other people can write, so every tool taints the
+    # context. A write tool only makes a proposal; it runs on Approve.
+    tools:
+      API-post-search: {resource: workspace, effect: read, exfil: false, taints_context: true}
+      API-retrieve-a-page: {resource: workspace, effect: read, exfil: false, taints_context: true}
+      API-get-block-children: {resource: workspace, effect: read, exfil: false, taints_context: true}
+      API-post-page: {resource: workspace, effect: write, exfil: true, taints_context: true}
+      API-patch-page: {resource: workspace, effect: write, exfil: true, taints_context: true}
+      API-patch-block-children: {resource: workspace, effect: write, exfil: true, taints_context: true}

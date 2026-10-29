@@ -39,7 +39,7 @@ table; (5) the public URL (Cloudflare Tunnel and Access; demo mode stays in code
 approval tests, schema drift test, frozen golden set, `hosted` and slow-only rows, the demo video,
 README numbers.
 
-**Golden set:** drafted Wed 10/28; reviewed, and Chinese questions written, by Thu 10/29 evening;
+**Golden set:** drafted Wed 10/28; every question reviewed by Thu 10/29 evening;
 frozen before Fri's first end-to-end run.
 
 ## 1. Context you need
@@ -148,7 +148,9 @@ so it runs inside the managed `task verify`):
 - `core` imports nothing else in `vessel_mind`;
 - `agent` and `rag` import only `core` — **`agent` does not import `rag`**: retrieval reaches
   the loop as an injected `Tool`;
-- `server` may import everything; nothing imports `server`.
+- `server` may import everything; nothing imports `server` except `eval`.
+- `eval` (the harness behind `task eval`) is a second composition root above `server`: it
+  may import `server` for config, and nothing imports `eval` (amended 2026-10-26, ticket #13).
 
 ## 5. Deliverables
 
@@ -200,7 +202,7 @@ bytes.
 
 On HTTP 429, HTTP 503 or a first-byte timeout, the adapter retries with exponential backoff,
 honouring `Retry-After` when present, up to a configured limit. Each path then has an ordered
-**fallback list** of models in config (for example `gemini-3.8-flash` → `gemini-3.5-flash`): when
+**fallback list** of models in config (for example `gemini-3.8-flash` → `gemini-3.6-flash`): when
 retries are exhausted, the next model is tried, and the `route` event names the model that
 actually answered. The eval spaces its requests to stay inside free-tier limits; a question that
 still fails is reported as *failed*, never dropped.
@@ -329,8 +331,9 @@ with fake models.
 Traditional Chinese, so the multilingual claim in §5.6 is measured rather than assumed.
 
 The 30 are 22 in English, ≥5 in Traditional Chinese and 3 unanswerable. The English and
-unanswerable questions may be drafted for the author; the author writes the Chinese ones in
-Chinese, not translated, and reviews every question. Questions come from the corpus at its pin,
+unanswerable questions may be drafted for the author. A model drafts the Chinese ones directly
+in Chinese, not translated, and the author verifies and edits each; the author reviews every
+question, and each records who drafted it and that the author reviewed it. Questions come from the corpus at its pin,
 before any end-to-end run. `golden.jsonl` is committed alone before the first end-to-end run; a
 later change only fixes a real error, says why in the commit message, and triggers a full
 re-run. Unanswerable questions have no expected sources; their correct answer says the documents
@@ -353,8 +356,9 @@ do not cover it.
    baseline on the same question (answer score on a 0–1 scale).
 
 The **judge** is any OpenAI-compatible model set in `config/agent.yaml` under `eval.judge`
-(default Gemini Flash; `llama-server` also works), so changing it is a config change, not a code
-change. For each key point it returns yes/no and the sentence from the answer that covers it.
+(default the local slow model, `qwen3.6:35b-a3b` on Ollama: Gemini's free quota cannot judge a
+full run beside the runs it measures; Gemini Flash also works), so changing it is a config
+change, not a code change. For each key point it returns yes/no and the sentence from the answer that covers it.
 `results.md` names the judge's model id. `eval/human_grades.jsonl` holds the author's hand grades
 for 10 random answers; the README reports judge–human agreement and says when the judge shares a
 model family with a measured configuration.

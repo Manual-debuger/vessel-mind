@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>vessel-mind console</title>
+  <link rel="stylesheet" href="/static/console.css">
+  <script src="/static/vendor/htmx-2.0.11.min.js"></script>
+  <script src="/static/vendor/htmx-ext-sse-2.2.4.min.js"></script>
+  <script src="/static/citations.js" defer></script>
+  <script src="/static/route.js" defer></script>
+  <script src="/static/stream.js" defer></script>
+  <script src="/static/console.js" defer></script>
+</head>
+<body>
+  <header>
+    <h1>vessel-mind</h1>
+    {% if fast_model_id %}
+    <p class="model">fast path: {{ fast_model_id }} · slow path: {{ model_id }}</p>
+    {% else %}
+    <p class="model">model: {{ model_id }}</p>
+    {% endif %}
+  </header>
+  {% if public_host %}
+  <details id="about" open>
+    <summary>About this demo</summary>
+    <p>vessel-mind is an agent runtime. It answers questions from a fixed set of public
+      documents (vessel-mind's own design documents and the VibeConform documentation), and
+      it can use tools: here, one Notion page it may read but not change.</p>
+    <h2>What to try</h2>
+    <ul>
+      <li>Ask about the design: why the agent runtime is separate from its client, how the
+        router picks a model, how this demo is protected.</li>
+      <li>Ask about the Notion page: what is still open on its sprint board, what a term in
+        its glossary means.</li>
+      <li>Ask it to change the Notion page. It makes a proposal that you can see; on this site
+        every approval is refused, so nothing is written.</li>
+      <li>Ask in English or in Traditional Chinese.</li>
+    </ul>
+    <h2>How to read an answer</h2>
+    <ul>
+      <li>The badge under the question shows the route: the fast path (a small model) or the
+        slow path (a larger model).</li>
+      <li>Each [n] mark links to the source passage it cites.</li>
+      <li>A tool card shows one tool call; open it for its input and result.</li>
+      <li>A proposal card shows a change the agent wants to make, with Approve and Reject.</li>
+      <li>Stop ends an answer that is still running. Ctrl+Enter sends the question.</li>
+    </ul>
+    {% if max_turns_per_session or max_turns_per_day %}
+    <h2>Limits</h2>
+    <p>
+      {% if max_turns_per_session %}{{ max_turns_per_session }} questions per session.{% endif %}
+      {% if max_turns_per_day %}{{ max_turns_per_day }} questions a day across all visitors.{% endif %}
+      They protect the free quota of the hosted model.</p>
+    {% endif %}
+  </details>
+  {% endif %}
+  {% if public_host %}
+  <p class="notice" id="free-tier">Messages are sent to Google Gemini's free tier, which may use
+    them to improve its models. Do not enter personal data.</p>
+  {% endif %}
+  {% if demo_mode %}
+  <p class="notice" id="demo-mode">Demo mode: the agent can propose changes, but approvals are
+    turned off here, so nothing is written.</p>
+  {% endif %}
+  {% if demo_page_url %}
+  <p class="notice" id="demo-page">The agent reads
+    <a href="{{ demo_page_url }}" target="_blank" rel="noopener noreferrer">this Notion page</a>;
+    open it to check its answers.</p>
+  {% endif %}
+  {% if example_questions %}
+  <div id="examples">
+    <p class="notice">Try a question:</p>
+    {% for example in example_questions %}
+    <button type="button" class="example">{{ example }}</button>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <main id="turns"></main>
+  <form id="ask">
+    <textarea id="question" name="text" rows="3" maxlength="8000" required
+              placeholder="Ask a question"></textarea>
+    <div class="actions">
+      <button type="submit" id="send">Send</button>
+      <button type="button" id="stop" disabled>Stop</button>
+    </div>
+  </form>
+</body>
+</html>

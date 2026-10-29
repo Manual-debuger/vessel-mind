@@ -1,0 +1,134 @@
+# vessel-mind config for the PUBLIC hostname (ADR 0002): the routed
+# configuration, demo mode, the free-tier notice and a turn limit.
+#
+# On the public host, copy it to config/agent.yaml (git-ignored); compose.yaml
+# mounts config/ into the container, and the app reads config/agent.yaml
+# when it exists. Keys never go in this file: each provider names the env
+# var that holds its key.
+
+# routed: the local small model routes and answers fast turns; Gemini answers
+# slow ones.
+configuration: routed
+
+providers:
+  gemini:
+    # Gemini's OpenAI-compatible endpoint. GEMINI_API_KEY must belong to a
+    # Google Cloud project with NO billing account (ADR 0002), so the public
+    # URL can spend free quota but never money.
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai
+    auth: {scheme: bearer, key_env: GEMINI_API_KEY}
+  local:
+    # Ollama, outside compose. In the container, 127.0.0.1 is the
+    # container itself; host.docker.internal is the Docker host (compose.yaml
+    # maps it on Linux). Ollama must listen on more than loopback
+    # (OLLAMA_HOST=0.0.0.0). If it runs on another machine, put its LAN
+    # address here. The tunnel never routes to this address: only the app
+    # calls it.
+    base_url: http://host.docker.internal:11434/v1
+    auth: {scheme: none}
+
+configurations:
+  hosted:
+    fast: {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-26}
+    # gemini-3.6-flash: Google's deprecations page says gemini-3.5-flash routes every request to it.
+    slow: {provider: gemini, model: gemini-3.6-flash, chosen: 2026-10-26}
+    # Asked when gemini-3.6-flash still fails after the retries (its daily
+    # free quota is spent): the answer is weaker, but the turn is answered.
+    slow_fallbacks:
+      - {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-27}
+  local:
+    fast: {provider: local, model: "qwen3:8b", chosen: 2026-10-26}
+    slow: {provider: local, model: "qwen3.6:35b-a3b", chosen: 2026-10-26}
+  routed:
+    fast: {provider: local, model: "qwen3:8b", chosen: 2026-10-26}
+    # gemini-3.6-flash: Google's deprecations page says gemini-3.5-flash routes every request to it.
+    slow: {provider: gemini, model: gemini-3.6-flash, chosen: 2026-10-26}
+    # Asked when gemini-3.6-flash still fails after the retries (its daily
+    # free quota is spent): the answer is weaker, but the turn is answered.
+    slow_fallbacks:
+      - {provider: gemini, model: gemini-3.5-flash-lite, chosen: 2026-10-27}
+
+router:
+  enabled: true
+  timeout: 10.0
+  max_tokens: 1024
+
+retry:
+  max_retries: 3
+  backoff_base: 1.0
+  backoff_max: 30.0
+
+agent:
+  system: >-
+    You are vessel-mind, a concise assistant. Answer in plain text. For a
+    question about vessel-mind or VibeConform, call search_docs first, answer
+    only from its results, and cite each claim by its section number, for
+    example [1] or [2][3].
+  max_tokens: 4096
+
+# In the volume that compose.yaml mounts at data/state.
+state:
+  path: data/state/state.db
+
+# Required on the public host: one session may start at most max_turns
+# turns, and all sessions together at most max_turns_per_day turns in one
+# UTC day (a reload's new session does not reset it), so visitors cannot
+# spend the whole free quota. Past either, POST /turns answers 429.
+sessions:
+  max_turns: 20
+  max_turns_per_day: 100
+
+# Route decisions and turn summaries, as JSONL, in the state volume. No
+# message text.
+telemetry:
+  path: data/state/telemetry.jsonl
+
+# The image ships a complete index at data/index.sqlite, built with this
+# embedding model, and both models in .cache/fastembed. A different model
+# here needs a rebuild of the image (deploy/Dockerfile).
+retrieval:
+  index: data/index.sqlite
+  corpus: eval/corpus.yaml
+  candidates: hybrid
+  # The candidates the reranker reorders; at most 30.
+  candidate_k: 30
+  top_k: 5
+  embedding_model: jinaai/jina-embeddings-v2-base-zh
+  reranker: cpu
+  reranker_model: BAAI/bge-reranker-v2-m3-int8
+  model_cache: .cache/fastembed
+  tarball_cache: .cache/corpus
+
+# Proposals are shown; every approval is refused with 403 demo_mode.
+demo_mode: true
+
+# The console shows: "Messages are sent to Google Gemini's free tier, which
+# may use them to improve its models. Do not enter personal data."
+public_host: true
+
+# What the console shows a visitor. demo_page_url links the Notion page the
+# agent reads, published to the web (Share > Publish), so answers can be
+# checked; https only. example_questions fill the question box when clicked.
+# console:
+#   demo_page_url: https://<your-site>.notion.site/<page>
+#   example_questions:
+#     - Which sprint items on the Notion page are still open?
+
+mcp_servers:
+  notion:
+    command: node
+    args: [deploy/notion-mcp/node_modules/@notionhq/notion-mcp-server/bin/cli.mjs]
+    enabled: true
+    # The READ-ONLY integration (capability "Read content" only), shared with
+    # one demo page. Never the localhost write integration's token: Notion
+    # itself must refuse a write here even if the app's check had a bug.
+    auth: {scheme: bearer, key_env: NOTION_TOKEN}
+    headers_env: OPENAPI_MCP_HEADERS
+    # The write tools stay labelled, so the console shows their proposals.
+    tools:
+      API-post-search: {resource: workspace, effect: read, exfil: false, taints_context: true}
+      API-retrieve-a-page: {resource: workspace, effect: read, exfil: false, taints_context: true}
+      API-get-block-children: {resource: workspace, effect: read, exfil: false, taints_context: true}
+      API-post-page: {resource: workspace, effect: write, exfil: true, taints_context: true}
+      API-patch-page: {resource: workspace, effect: write, exfil: true, taints_context: true}
+      API-patch-block-children: {resource: workspace, effect: write, exfil: true, taints_context: true}

@@ -1,0 +1,58 @@
+:root {
+  color-scheme: light dark;
+  --fg: #1c1c1c;
+  --bg: #fafafa;
+  --muted: #666;
+  --line: #ddd;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #e8e8e8;
+    --bg: #161616;
+    --muted: #9a9a9a;
+    --line: #333;
+  }
+}
+
+body {
+  margin: 0 auto;
+  max-width: 48rem;
+  padding: 1rem;
+  font: 16px/1.5 system-ui, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+header { display: flex; align-items: baseline; justify-content: space-between; }
+h1 { font-size: 1.25rem; margin: 0; }
+.model, .status, .notice { color: var(--muted); font-size: 0.875rem; }
+.notice { border-left: 3px solid var(--line); padding-left: 0.5rem; }
+#about { border: 1px solid var(--line); border-radius: 0.5rem; padding: 0.5rem 0.75rem; margin: 0.5rem 0; }
+#about summary { cursor: pointer; font-weight: 600; }
+#about h2 { font-size: 0.95rem; margin: 0.75rem 0 0.25rem; }
+#about ul { margin: 0; padding-left: 1.25rem; }
+#examples { display: flex; flex-wrap: wrap; gap: 0.25rem 0.5rem; align-items: center; }
+#examples .notice { flex-basis: 100%; margin: 0; }
+.example { font-size: 0.875rem; text-align: left; }
+.route-badge { display: inline-block; font-size: 0.8rem; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 0.5rem; margin: 0.25rem 0; }
+.route-badge[hidden] { display: none; }
+.route-fast { border-style: dashed; }
+.turn { border-top: 1px solid var(--line); padding: 0.5rem 0; }
+.question { font-weight: 600; margin: 0.25rem 0; }
+.answer { white-space: pre-wrap; margin: 0.25rem 0; }
+.tool { border: 1px solid var(--line); border-radius: 4px; padding: 0.25rem 0.5rem; margin: 0.5rem 0; white-space: normal; }
+.tool summary { cursor: pointer; }
+.tool-state, .tool-label { color: var(--muted); font-size: 0.875rem; }
+.tool-label { margin: 0.25rem 0 0; }
+.tool pre { margin: 0; overflow-x: auto; font-size: 0.8125rem; white-space: pre-wrap; word-break: break-word; }
+.tool-error { border-color: #c33; }
+.citation { font-size: 0.8125rem; vertical-align: super; text-decoration: none; }
+.tool-proposal { border-color: #c90; }
+.proposal { margin: 0.5rem 0 0.25rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.proposal-note { flex-basis: 100%; margin: 0; font-size: 0.875rem; }
+.proposal-outcome:empty { display: none; }
+.proposal-outcome { flex-basis: 100%; }
+form { position: sticky; bottom: 0; background: var(--bg); padding: 0.5rem 0; }
+textarea { width: 100%; box-sizing: border-box; font: inherit; }
+.actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.25rem; }

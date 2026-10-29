@@ -39,6 +39,45 @@ tasks:
     cmds:
       - uv run pytest
 
+  # The project's own tasks. The project is not installed (pyproject.toml:
+  # package = false), so each sets PYTHONPATH to the src layout.
+  dev:
+    desc: Run the server and console on http://127.0.0.1:8000 with config/agent.yaml.
+    env:
+      PYTHONPATH: src
+    cmds:
+      - uv run uvicorn --factory vessel_mind.server.main:app_from_config --host 127.0.0.1 --port 8000 {{.CLI_ARGS}}
+
+  schema:export:
+    desc: Regenerate schema/events.schema.json from the event models.
+    env:
+      PYTHONPATH: src
+    cmds:
+      - uv run python -m vessel_mind.core.events schema/events.schema.json
+
+  # Reads eval/corpus.yaml at its pins and updates data/index.sqlite.
+  # Unchanged files are a no-op. Refuses (exit 2) when a source cannot be
+  # pinned.
+  ingest:
+    desc: Ingest the pinned corpus into the retrieval index.
+    env:
+      PYTHONPATH: src
+    cmds:
+      - uv run python -m vessel_mind.rag.ingest {{.CLI_ARGS}}
+
+  # The eval (spec §5.8). --retrieval-only writes table 1 (no LLM calls) to
+  # eval/results/; --config hosted|local|routed [--no-router] runs one row
+  # of table 2 (resumable: the same command continues a stopped run);
+  # --grade asks the author to grade sampled answers; --render regenerates
+  # results.md from the stored results. Refuses (exit 2) when a corpus
+  # source cannot be pinned.
+  eval:
+    desc: Run the eval and regenerate eval/results/results.md.
+    env:
+      PYTHONPATH: src
+    cmds:
+      - uv run python -m vessel_mind.eval {{.CLI_ARGS}}
+
   # The agent hooks. .claude/settings.json calls them as
   # "task -x hook:<name>": without -x, Task reports a script's exit 2 as
   # 201, and Claude Code shows the model only exit 2. No desc, so they

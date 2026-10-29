@@ -1,0 +1,63 @@
+# vessel-mind with Docker Compose (ADR 0002).
+#
+#   GEMINI_API_KEY=... docker compose up
+#       The console on http://127.0.0.1:8000, on the configuration that
+#       config/agent.yaml selects (without that file, the example's `hosted`).
+#
+#   GEMINI_API_KEY=... NOTION_TOKEN=... TUNNEL_TOKEN=... docker compose --profile tunnel up -d
+#       The public host: also starts cloudflared. Put config/agent.public.example.yaml
+#       at config/agent.yaml first.
+#
+# Secrets come from the shell's environment (or a git-ignored .env file next to
+# this one). No file in the repository holds one.
+#
+# The local model server (Ollama) stays outside compose. The tunnel reaches only
+# the app; the state file, the MCP servers (stdio children of the app) and the
+# model server never have a route from the public hostname.
+
+name: vessel-mind
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    image: vessel-mind:local
+    environment:
+      # Bare names: compose passes the shell's value through.
+      - GEMINI_API_KEY
+      # Only when config/agent.yaml enables the Notion MCP server. On the public
+      # host, the read-only integration's token.
+      - NOTION_TOKEN
+      # Which file under config/ the app reads, for example
+      # config/agent.public.yaml; unset, config/agent.yaml, else the example.
+      - VESSEL_MIND_CONFIG
+    ports:
+      # Loopback only: the LAN cannot reach the app; the tunnel reaches it as app:8000.
+      - "127.0.0.1:8000:8000"
+    volumes:
+      # Sessions, history and proposals; they survive a rebuild. The retrieval
+      # index stays in the image, so a new corpus pin is a rebuild.
+      - state:/app/data/state
+      # config/agent.yaml (git-ignored) when it exists, else the example.
+      - ./config:/app/config:ro
+    extra_hosts:
+      # Ollama on the Docker host, for the `local` and `routed` configurations.
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.10.3@sha256:faa8e0a1475f137c910be6025f43c8e4092fdd35461b31e19fd1390657a1ff39
+    profiles: [tunnel]
+    # A remotely managed tunnel: its public hostname maps to http://app:8000 in
+    # the Cloudflare dashboard. cloudflared reads the token from TUNNEL_TOKEN.
+    command: [tunnel, --no-autoupdate, run]
+    environment:
+      - TUNNEL_TOKEN
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  state:

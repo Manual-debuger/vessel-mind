@@ -1,0 +1,2404 @@
+{
+  "status": "run",
+  "row": "local-slow-only",
+  "configuration": "local",
+  "router": false,
+  "fast_model": "qwen3:8b",
+  "slow_model": "qwen3.6:35b-a3b",
+  "generated": "2026-10-27",
+  "golden_path": "eval/golden.yaml",
+  "golden_sha256": "80d4880e90641b67d0d31e09b6d399963f91fb16dcfaf6254dee4c9d2e51ae11",
+  "questions_total": 35,
+  "top_k": 5,
+  "judge_model": "qwen3.6:35b-a3b",
+  "prices": {},
+  "self_hosted_models": [
+    "qwen3.6:35b-a3b"
+  ],
+  "records": [
+    {
+      "id": "en-01",
+      "lang": "en",
+      "question": "What does the router's classification output look like, and what happens when the classification times out or returns invalid JSON?",
+      "key_points": [
+        "The fast model returns JSON {\"route\": \"fast\" | \"slow\"}, validated by pydantic.",
+        "A classification timeout or invalid JSON falls back to the slow path.",
+        "The decision is emitted as a `route` event and logged with both models' usage."
+      ],
+      "expected_sources": [
+        "vessel-mind/docs/specs/a-agent-track.md"
+      ],
+      "expected_route": "fast",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 4593,
+          "output_tokens": 552,
+          "thinking_tokens": 0
+        },
+        "answer": "The router's classification output is a JSON object with the key `route`, containing either `\"fast\"` or `\"slow\"`. This output is validated by Pydantic [1]. \n\nWhen the classification times out or returns invalid JSON, the system falls back to the **slow path** [1].\n\nAdditionally, the routing decision is emitted as a `route` event and logged along with the usage statistics for both the fast and slow models [1].",
+        "searches": [
+          [
+            "vessel-mind/docs/specs/a-agent-track.md#57-router-a4",
+            "vibeconform/docs/plans/0023-agent-lifecycle-hooks.md#c2-the-four-hook-tasks",
+            "vibeconform/docs/specs/0053-contract-probes-and-guard.md#vibe-guard-105",
+            "vibeconform/docs/usage.md#vibe-guard-the-reference-guard",
+            "vibeconform/docs/specs/0023-agent-lifecycle-hooks.md#resolved-questions"
+          ]
+        ],
+        "citations": [
+          "vessel-mind/docs/specs/a-agent-track.md#57-router-a4"
+        ],
+        "latency_ms": 17906.638603075407,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "The router's classification output is a JSON object with the key `route`, containing either `\"fast\"` or `\"slow\"`."
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "When the classification times out or returns invalid JSON, the system falls back to the **slow path** [1]."
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "Additionally, the routing decision is emitted as a `route` event and logged along with the usage statistics for both the fast and slow models [1]."
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-02",
+      "lang": "en",
+      "question": "What are the three properties of the embodiment contract that every ChatModel adapter and the loop must provide?",
+      "key_points": [
+        "Token-level streaming.",
+        "Cancellation mid-generation (barge-in).",
+        "Tool-call events."
+      ],
+      "expected_sources": [
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md",
+        "vessel-mind/docs/specs/a-agent-track.md"
+      ],
+      "expected_route": "fast",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 4152,
+          "output_tokens": 339,
+          "thinking_tokens": 0
+        },
+        "answer": "According to ADR 0001 [1][2], the three properties of the embodiment contract that every `ChatModel` adapter and the loop must provide are:\n\n1. **Token-level streaming** – so speech can start on the first sentence.\n2. **Cancellation mid-generation** – supporting barge-in.\n3. **Tool-call events** – allowing the voice to speak (e.g., \"let me check\") while a tool runs.",
+        "searches": [
+          [
+            "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#4-the-embodiment-contract",
+            "vessel-mind/docs/specs/a-agent-track.md#0-read-this-first",
+            "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+            "vessel-mind/docs/specs/a-agent-track.md#51-chatmodel-seam-a1",
+            "vessel-mind/docs/specs/a-agent-track.md#52-the-loop-a1"
+          ]
+        ],
+        "citations": [
+          "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#4-the-embodiment-contract",
+          "vessel-mind/docs/specs/a-agent-track.md#0-read-this-first"
+        ],
+        "latency_ms": 14405.895793926902,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "**Token-level streaming** – so speech can start on the first sentence."
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "**Cancellation mid-generation** – supporting barge-in."
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "**Tool-call events** – allowing the voice to speak (e.g., \"let me check\") while a tool runs."
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-03",
+      "lang": "en",
+      "question": "In demo mode, what happens when someone clicks Approve on a write proposal?",
+      "key_points": [
+        "The approve endpoint returns 403 with error code `demo_mode`.",
+        "The write tool never executes.",
+        "The proposal stays pending until it expires or is rejected."
+      ],
+      "expected_sources": [
+        "vessel-mind/docs/specs/a-agent-track.md",
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md",
+        "vessel-mind/GLOSSARY.md"
+      ],
+      "expected_route": "fast",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 3584,
+          "output_tokens": 401,
+          "thinking_tokens": 0
+        },
+        "answer": "In demo mode, when someone clicks Approve on a write proposal, the system refuses it with a **403 status code and error code `demo_mode`** [[1]][[5]]. \n\nThe proposal remains in a **pending state** until it eventually expires after 10 minutes or is explicitly rejected [[1]]. The tool call never executes.\n\nThis safety design allows reviewers to see the full approval flow via the public demo URL while ensuring no actual writes take place, which protects against accidental data mutations during demos [[2]][[5]].",
+        "searches": [
+          [
+            "vessel-mind/docs/specs/a-agent-track.md#55-mcp-and-proposals-a2",
+            "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#amendments",
+            "vessel-mind/GLOSSARY.md#side-effects",
+            "vessel-mind/docs/specs/a-agent-track.md#7-definition-of-done",
+            "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access"
+          ]
+        ],
+        "citations": [
+          "vessel-mind/docs/specs/a-agent-track.md#55-mcp-and-proposals-a2",
+          "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access",
+          "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#amendments"
+        ],
+        "latency_ms": 13171.163057908416,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "In demo mode, when someone clicks Approve on a write proposal, the system refuses it with a **403 status code and error code `demo_mode`** [[1]][[5]]."
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "The tool call never executes."
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "The proposal remains in a **pending state** until it eventually expires after 10 minutes or is explicitly rejected [[1]]."
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-04",
+      "lang": "en",
+      "question": "How is the vessel-mind demo exposed to the internet, and which services are never routed through the tunnel?",
+      "key_points": [
+        "`cloudflared` runs as a compose service and opens an outbound Cloudflare Tunnel; no inbound port is opened.",
+        "Cloudflare Access sits in front of the hostname.",
+        "Only the app server is exposed; `llama-server`, the database and MCP servers stay on the internal network."
+      ],
+      "expected_sources": [
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md"
+      ],
+      "expected_route": "fast",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 4295,
+          "output_tokens": 619,
+          "thinking_tokens": 0
+        },
+        "answer": "The vessel-mind demo is exposed to the internet using a Cloudflare Tunnel (`cloudflared` running as a compose service) with **Cloudflare Access** authentication in front of it. The tunnel allows HTTPS access (required for browser microphone usage) without opening any inbound ports on the home network.\n\nServices that stay on the internal network and are **never routed through the tunnel** include:\n*   `llama-server`\n*   The database (SQLite)\n*   MCP servers",
+        "searches": [
+          [
+            "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+            "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access",
+            "vessel-mind/docs/specs/a-agent-track.md#a1a4--agent-track--implementation-requirements",
+            "vessel-mind/docs/specs/a-agent-track.md#3-human-only-prerequisites--do-not-attempt-these",
+            "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints"
+          ]
+        ],
+        "citations": [],
+        "latency_ms": 15789.469526032917,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "The vessel-mind demo is exposed to the internet using a Cloudflare Tunnel (`cloudflared` running as a compose service) with **Cloudflare Access** authentication in front of it."
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "The vessel-mind demo is exposed to the internet using a Cloudflare Tunnel (`cloudflared` running as a compose service) with **Cloudflare Access** authentication in front of it."
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "Services that stay on the internal network and are **never routed through the tunnel** include:\n*   `llama-server`\n*   The database (SQLite)\n*   MCP servers"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-05",
+      "lang": "en",
+      "question": "What independent safeguards stop a Notion write from the public demo hostname, and why is more than one needed?",
+      "key_points": [
+        "Write tools never run without an approval; the loop only makes a proposal.",
+        "On the public host the server refuses every approval (demo mode).",
+        "The public host's Notion integration has only the \"Read content\" capability, so Notion itself refuses a write if the app's check has a bug.",
+        "Each Notion integration is shared with one demo page only."
+      ],
+      "expected_sources": [
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md",
+        "vessel-mind/docs/specs/a-agent-track.md",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md"
+      ],
+      "expected_route": "slow",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 3753,
+          "output_tokens": 1168,
+          "thinking_tokens": 0
+        },
+        "answer": "Based on the project's ADRs [1][2], two independent safeguards stop a Notion write from the public demo hostname [5]:\n\n1. **App-level refusal (Software control):** The server runs in \"demo mode\" on the public hostname and explicitly refuses all approval actions with a \"demo mode\" error. While proposals are still generated and shown to simulate the full user flow, the application never executes them [5].\n2. **Read-only Notion integration (External enforcement):** The public host is configured with a dedicated Notion integration token that has only \"Read content\" capabilities. Even if an API call were somehow triggered, Notion itself would block any write attempts at the external API level.\n\n**Why more than one safeguard is needed:** \nRelying on a single check is risky because \"a bug there would open a write path to the author's Notion\" [1]. The first safeguard (the application refusing the approval) operates within your own codebase; therefore, the second safeguard (Notion’s permission system) serves as an independent fail-safe. If the app's logic fails or is bypassed, Notion's native permissions ensure no data can be written to the public demo page or any other workspace [1].",
+        "searches": [
+          [
+            "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#amendments",
+            "vessel-mind/docs/specs/a-agent-track.md#7-definition-of-done",
+            "vessel-mind/docs/specs/a-agent-track.md#a1a4--agent-track--implementation-requirements",
+            "vessel-mind/docs/specs/a-agent-track.md#3-human-only-prerequisites--do-not-attempt-these",
+            "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access"
+          ]
+        ],
+        "citations": [
+          "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#amendments",
+          "vessel-mind/docs/specs/a-agent-track.md#7-definition-of-done",
+          "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access"
+        ],
+        "latency_ms": 18766.4038289804,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "While proposals are still generated and shown to simulate the full user flow, the application never executes them [5]."
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "The server runs in \"demo mode\" on the public hostname and explicitly refuses all approval actions with a \"demo mode\" error."
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "The public host is configured with a dedicated Notion integration token that has only \"Read content\" capabilities."
+          },
+          {
+            "key_point": 4,
+            "covered": false,
+            "quote": null
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-06",
+      "lang": "en",
+      "question": "Under the `routed` configuration, which model answers a turn whose router classification times out, and why must vessel-mind also run with no local weights at all?",
+      "key_points": [
+        "A timeout falls back to the slow path.",
+        "In `routed`, the slow path is Gemini Flash (the fast path is a small `llama-server` model).",
+        "The app must start with both paths pointed at hosted models; otherwise the provider-neutral seam is fake."
+      ],
+      "expected_sources": [
+        "vessel-mind/docs/specs/a-agent-track.md",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md"
+      ],
+      "expected_route": "slow",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 3934,
+          "output_tokens": 434,
+          "thinking_tokens": 0
+        },
+        "answer": "Under the `routed` configuration, the **slow path** model (Gemini Flash) answers a turn whose router classification times out [2].\n\nVessel-mind must be able to run with no local weights at all because the seam between the runtime and its embodiment (Vessel) is a wire protocol, not a shared library or hardcoded dependency. ADR 0001 specifies that **\"The app must start with both paths pointed at hosted models\"** to prove that the agent runtime is truly standalone and independent of Vessel's specific hardware (like its GPU) or local model capabilities [3]. This ensures that vessel-mind does not rely on local weights to function, as \"if it cannot run without local weights, the seam is fake\" [3].",
+        "searches": [
+          [
+            "vessel-mind/GLOSSARY.md#vessel-mind",
+            "vessel-mind/docs/specs/a-agent-track.md#57-router-a4",
+            "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#3-route-by-what-the-turn-needs-not-by-where-the-model-lives",
+            "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+            "vessel-mind/docs/specs/a-agent-track.md#a1a4--agent-track--implementation-requirements"
+          ]
+        ],
+        "citations": [
+          "vessel-mind/docs/specs/a-agent-track.md#57-router-a4",
+          "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#3-route-by-what-the-turn-needs-not-by-where-the-model-lives"
+        ],
+        "latency_ms": 13341.13444108516,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "Under the `routed` configuration, the **slow path** model (Gemini Flash) answers a turn whose router classification times out [2]."
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "Under the `routed` configuration, the **slow path** model (Gemini Flash) answers a turn whose router classification times out [2]."
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "ADR 0001 specifies that **\"The app must start with both paths pointed at hosted models\"** to prove that the agent runtime is truly standalone and independent of Vessel's specific hardware (like its GPU) or local model capabilities [3]."
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-07",
+      "lang": "en",
+      "question": "What is a costly misroute, how is it counted in the eval, and why is a slow-path mistake not counted as one?",
+      "key_points": [
+        "A turn routed to the fast path whose answer scores clearly lower than the slow-only answer to the same question.",
+        "Counted as fast-path answers scoring at least 0.25 below the slow-only baseline (answer score 0-1).",
+        "The slow-only baseline is `--config hosted --no-router`, where every turn takes the slow path.",
+        "A slow-path mistake costs money, not quality."
+      ],
+      "expected_sources": [
+        "vessel-mind/GLOSSARY.md",
+        "vessel-mind/docs/specs/a-agent-track.md"
+      ],
+      "expected_route": "slow",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 4672,
+          "output_tokens": 695,
+          "thinking_tokens": 0
+        },
+        "answer": "A **costly misroute** is a turn that the router sends to the fast path but whose answer scores clearly lower than the slow-only answer to the same question [2].\n\nIt is counted in the eval as follows: it is recorded when the routed rows are evaluated against the `slow-only` baseline (where every turn takes the slow path). Specifically, a misroute occurs if the fast-path answer on that question has an **answer score** at least **0.25 lower** than the slow-only baseline's score for that same question [1].\n\nA slow-path mistake is not counted as a costly misroute because:\n*   The term \"misroute\" specifically refers to errors in the **routing decision** (i.e., deciding to use the fast path when you shouldn't have). A slow-path mistake is an error in execution or reasoning by the slow model itself, not in the router's classification [2].\n*   The glossary explicitly avoids using \"wrong route\" because it is too vague; a mistake while on the slow path has different cost/quality implications (cost is high due to the expensive model, but quality may still be good) than a misroute (where cost was saved but quality suffered) [2].",
+        "searches": [
+          [
+            "vessel-mind/docs/specs/a-agent-track.md#58-eval-harness-a4",
+            "vessel-mind/GLOSSARY.md#vessel-mind",
+            "vessel-mind/docs/specs/a-agent-track.md#57-router-a4",
+            "vibeconform/docs/reports/0056-faster-hooks.md#contract-rule-a-05-the-test-cache-not-a-process",
+            "vessel-mind/docs/specs/a-agent-track.md#0-read-this-first"
+          ]
+        ],
+        "citations": [
+          "vessel-mind/GLOSSARY.md#vessel-mind",
+          "vessel-mind/docs/specs/a-agent-track.md#58-eval-harness-a4"
+        ],
+        "latency_ms": 14878.030882100575,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "A **costly misroute** is a turn that the router sends to the fast path but whose answer scores clearly lower than the slow-only answer to the same question [2]."
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "Specifically, a misroute occurs if the fast-path answer on that question has an **answer score** at least **0.25 lower** than the slow-only baseline's score for that same question [1]."
+          },
+          {
+            "key_point": 3,
+            "covered": false,
+            "quote": null
+          },
+          {
+            "key_point": 4,
+            "covered": true,
+            "quote": "The glossary explicitly avoids using \"wrong route\" because it is too vague; a mistake while on the slow path has different cost/quality implications (cost is high due to the expensive model, but quality may still be good) than a misroute (where cost was saved but quality suffered) [2]."
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-08",
+      "lang": "en",
+      "question": "Why are sessions and proposals kept in a different SQLite file from the retrieval index, and what happens to them when the server restarts?",
+      "key_points": [
+        "The index can be rebuilt from the corpus; the history cannot.",
+        "On startup every pending proposal is marked expired.",
+        "A turn that was running is not resumed."
+      ],
+      "expected_sources": [
+        "vessel-mind/docs/specs/a-agent-track.md",
+        "vessel-mind/GLOSSARY.md"
+      ],
+      "expected_route": "fast",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 4586,
+          "output_tokens": 2011,
+          "thinking_tokens": 0
+        },
+        "answer": "Sessions and proposals are kept in a separate SQLite file because the retrieval index can be rebuilt from the corpus, but session history cannot [1].\n\nWhen the server restarts:\n1. **Every pending proposal is marked expired**.\n2. Any turn that was running is **not resumed** [1].",
+        "searches": [
+          [
+            "vessel-mind/docs/specs/a-agent-track.md#53-protocol-a1",
+            "vessel-mind/docs/specs/a-agent-track.md#56-retrieval-a3",
+            "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+            "vessel-mind/docs/specs/a-agent-track.md#0-read-this-first",
+            "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access"
+          ]
+        ],
+        "citations": [
+          "vessel-mind/docs/specs/a-agent-track.md#53-protocol-a1"
+        ],
+        "latency_ms": 22801.072321017273,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "Sessions and proposals are kept in a separate SQLite file because the retrieval index can be rebuilt from the corpus, but session history cannot [1]."
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "**Every pending proposal is marked expired**."
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "Any turn that was running is **not resumed** [1]."
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-09",
+      "lang": "en",
+      "question": "Why was the `anthropic` adapter removed from vessel-mind's first pass, and what would adding it back take?",
+      "key_points": [
+        "The project runs with no paid model API; a Claude subscription does not include API usage.",
+        "It is deferred, not rejected.",
+        "Because the seam's types are provider-neutral, adding it later is one adapter module plus its fixtures."
+      ],
+      "expected_sources": [
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md"
+      ],
+      "expected_route": "fast",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 4452,
+          "output_tokens": 607,
+          "thinking_tokens": 0
+        },
+        "answer": "The `anthropic` adapter was **deferred (not rejected)** from the first pass because the project follows a no-extra-payment rule: running Claude via API requires paid credits that are not covered by a Claude subscription [1]. Both the fast and slow paths instead use hosted free-tier models through the `openai-compatible` adapter, served by `llama-server` or similar runtimes [2].\n\nAdding it back later is described as simply **one adapter module plus its fixtures** [1]. This is possible because:\n\n- The seam's types between the loop and the provider are provider-neutral, so adding an adapter never changes the loop itself [2].\n- A provider SDK is treated as an adapter, not a dependency of the core loop; **a local model can answer any turn the router sends it** [2].\n- In practice this means implementing an `anthropic` adapter that wraps Claude's Messages API (via the `anthropic` SDK) against the same `ChatModel` interface used by `openai-compatible`—messages and tool definitions go in, an async stream of `text`, `tool_call`, and `stop` events comes out.",
+        "searches": [
+          [
+            "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#amendments",
+            "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+            "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+            "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#consequences",
+            "vessel-mind/GLOSSARY.md#vessel-mind"
+          ]
+        ],
+        "citations": [
+          "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#amendments",
+          "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment"
+        ],
+        "latency_ms": 16390.31370403245,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "The `anthropic` adapter was **deferred (not rejected)** from the first pass because the project follows a no-extra-payment rule: running Claude via API requires paid credits that are not covered by a Claude subscription [1]."
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "The `anthropic` adapter was **deferred (not rejected)** from the first pass because the project follows a no-extra-payment rule: running Claude via API requires paid credits that are not covered by a Claude subscription [1]."
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "Adding it back later is described as simply **one adapter module plus its fixtures** [1]."
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-10",
+      "lang": "en",
+      "question": "How does retrieval reach the agent loop when the `agent` package may not import `rag`, and how is that boundary enforced?",
+      "key_points": [
+        "`agent` and `rag` import only `core`; `agent` does not import `rag`.",
+        "Retrieval reaches the loop as an injected tool: the server wires the pipeline in as the read tool `search_docs`.",
+        "import-linter contracts in pyproject.toml, run by tests/test_architecture.py inside `task verify`."
+      ],
+      "expected_sources": [
+        "vessel-mind/docs/specs/a-agent-track.md"
+      ],
+      "expected_route": "slow",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 4555,
+          "output_tokens": 408,
+          "thinking_tokens": 0
+        },
+        "answer": "Retrieval reaches the agent loop via an injected `Tool`, so the `rag` package does not import directly into `agent`. The `server` layer wires this connection up [1].\n\nThe boundary is enforced by **import-linter contracts** defined in `pyproject.toml`, which are run inside a pytest test (`tests/test_architecture.py`) as part of the `task verify` command [2][1]. If `agent` were to import `rag`, the architecture test would fail [2].",
+        "searches": [
+          [
+            "vessel-mind/docs/specs/a-agent-track.md#4-repository-layout-to-create",
+            "vessel-mind/docs/specs/a-agent-track.md#7-definition-of-done",
+            "vibeconform/docs/plans/0024-claude-first-agent-modules.md#repository-impact",
+            "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+            "vessel-mind/docs/specs/a-agent-track.md#58-eval-harness-a4"
+          ]
+        ],
+        "citations": [
+          "vessel-mind/docs/specs/a-agent-track.md#4-repository-layout-to-create",
+          "vessel-mind/docs/specs/a-agent-track.md#7-definition-of-done"
+        ],
+        "latency_ms": 15717.978755012155,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": false,
+            "quote": null
+          },
+          {
+            "key_point": 2,
+            "covered": false,
+            "quote": null
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "The boundary is enforced by **import-linter contracts** defined in `pyproject.toml`, which are run inside a pytest test (`tests/test_architecture.py`) as part of the `task verify` command [2][1]."
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-11",
+      "lang": "en",
+      "question": "What exit codes does `vibe audit` return, and what does each mean?",
+      "key_points": [
+        "0: conformant; every MUST rule passed or is not applicable.",
+        "2: not conformant; a MUST rule failed and every other MUST rule was decided.",
+        "1: cannot decide (always with --static), or a configuration or tool error."
+      ],
+      "expected_sources": [
+        "vibeconform/docs/usage.md"
+      ],
+      "expected_route": "fast",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 4121,
+          "output_tokens": 3448,
+          "thinking_tokens": 0
+        },
+        "answer": "Based on the VibeConform documentation, the `vibe audit` command uses exit codes **0**, **1**, and **2** to communicate its verdicts or status [4]:\n\n* **Exit code `0` (Conformant)**: The project is conformant, meaning every **MUST** rule passed or was determined to be not applicable. SHOULD results do not affect this outcome.\n* **Exit code `1` (Cannot decide)**: A definitive verdict cannot be given. This occurs if any MUST rule could not be decided or did not run (such as always using `--static`), or due to configuration errors like an invalid format, missing `vibe.yaml`, unsupported contract versions, or other tool failures. If the audit finds both failed rules and undecided rules simultaneously, it also exits with code 1 because the full picture is incomplete [4].\n* **Exit code `2` (Not conformant)**: The project is not conformant because at least one MUST rule failed, while every other MUST rule was successfully decided.\n\nAdditionally, internal development plans for drift classification have introduced an exit code `3` to specifically indicate that a state is \"out-of-date-only,\" distinguishing it from other types of drift [5].",
+        "searches": [
+          [
+            "vibeconform/docs/usage.md#vibe-doctor",
+            "vibeconform/docs/specs/0052-contract-audit-static.md#acceptance-criteria",
+            "vibeconform/docs/plans/0009-vibe-audit-v2.md#plan-0009-vibe-audit-v2--strict-conformance-gate",
+            "vibeconform/docs/usage.md#vibe-audit",
+            "vibeconform/docs/specs/0009-vibe-audit-v2.md#spec-0009-vibe-audit-v2--strict-conformance-gate"
+          ]
+        ],
+        "citations": [
+          "vibeconform/docs/usage.md#vibe-audit",
+          "vibeconform/docs/specs/0009-vibe-audit-v2.md#spec-0009-vibe-audit-v2--strict-conformance-gate"
+        ],
+        "latency_ms": 26040.015976992436,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "The project is conformant, meaning every **MUST** rule passed or was determined to be not applicable."
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "The project is not conformant because at least one MUST rule failed, while every other MUST rule was successfully decided."
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "This occurs if any MUST rule could not be decided or did not run (such as always using `--static`), or due to configuration errors like an invalid format, missing `vibe.yaml`, unsupported contract versions, or other tool failures."
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-12",
+      "lang": "en",
+      "question": "What are VibeConform's three design principles, in priority order?",
+      "key_points": [
+        "If a rule can be expressed mechanically, do not leave it only in an AI prompt.",
+        "Easy to use, on Windows and Linux alike.",
+        "Easy to install and easy to remove."
+      ],
+      "expected_sources": [
+        "vibeconform/docs/architecture/principles.md",
+        "vibeconform/README.md"
+      ],
+      "expected_route": "fast",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 3927,
+          "output_tokens": 718,
+          "thinking_tokens": 0
+        },
+        "answer": "Based on VibeConform documents, the three design principles in priority order are:\n\n1. **If a rule can be expressed mechanically, do not leave it only in an AI prompt. [1][4]**\n   Mechanical rules belong in deterministic tooling (like `Taskfile.yml`, CI, linters, or `vibe audit`), while procedural guidance belongs in agent instructions [1][4].\n\n2. **Easy to use, cross-platform.** [4]\n   Windows and Linux are both first-class; a repository that conforms on one platform must also conform on the other [3][4].\n\n3. **Easy to install and easy to remove.** [4]\n   VibeConform tooling stands on third-party tools already in use (like `task`, `lefthook`, or language-specific linters), so removing VibeConform leaves the repository working without it [3][4]. Nothing a conformant repository runs calls `vibe` except the audit job [3].",
+        "searches": [
+          [
+            "vibeconform/docs/architecture/principles.md#vibeconform-design-principles",
+            "vibeconform/docs/architecture/overview.md#vibeconform-architecture-overview",
+            "vibeconform/docs/architecture/principles.md#where-these-principles-already-show-up",
+            "vibeconform/README.md#core-philosophy",
+            "vibeconform/docs/architecture/principles.md#3-easy-to-install-and-easy-to-remove"
+          ]
+        ],
+        "citations": [
+          "vibeconform/docs/architecture/principles.md#vibeconform-design-principles",
+          "vibeconform/README.md#core-philosophy",
+          "vibeconform/docs/architecture/principles.md#where-these-principles-already-show-up"
+        ],
+        "latency_ms": 15196.132207056507,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "**If a rule can be expressed mechanically, do not leave it only in an AI prompt.**"
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "**Easy to use, cross-platform.**"
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "**Easy to install and easy to remove.**"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-13",
+      "lang": "en",
+      "question": "Why does a conformant repository keep working after VibeConform is removed, and what do you delete to remove it?",
+      "key_points": [
+        "Nothing a conformant repository runs calls `vibe` except the audit job (rule R-01); its tooling stands on third-party tools.",
+        "Delete `vibe.yaml`, the audit job (and its required check) and the setup skill.",
+        "`vibe-guard` is a separate binary and can stay; dropping it means removing its hooks and policy.json."
+      ],
+      "expected_sources": [
+        "vibeconform/docs/usage.md",
+        "vibeconform/docs/architecture/principles.md",
+        "vibeconform/docs/specs/0051-contract-v1.md",
+        "vibeconform/docs/adopting.md",
+        "vibeconform/README.md"
+      ],
+      "expected_route": "slow",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 3276,
+          "output_tokens": 630,
+          "thinking_tokens": 0
+        },
+        "answer": "A conformant repository keeps working after VibeConform is removed because of rule R-01, which mandates that nothing a conformant repository runs calls `vibe` [1][6]. The tooling stands on third-party tools (such as `task`, `lefthook`, CI, linters, etc.) rather than on `vibe` itself [1][3]. VibeConform checks this configuration but does not become a runtime dependency of the repository [3].\n\nTo remove VibeConform from a repository, you should delete:\n\n*   **`vibe.yaml`** [1]\n*   The **audit job**: `.github/workflows/audit.yml` (for GitHub Actions) or the audit job in `.gitlab-ci.yml` (for GitLab CI). You must also remove its check from branch protection's required checks so that pull requests do not wait for a check that no longer runs [1].\n*   The **setup skill**: `.claude/skills/vibeconform-setup/` and/or `.agents/skills/vibeconform-setup/` [1].\n\nIf you also want to remove the agent guard (`vibe-guard`), you need to additionally:\n*   Remove the PreToolUse hook that runs it.\n*   Remove the `vibe-guard relock` command at the start of the Stop hook from `.claude/settings.json`.\n*   Remove `.claude/hooks/policy.json` [1].",
+        "searches": [
+          [
+            "vibeconform/docs/usage.md#removing-vibeconform",
+            "vibeconform/README.md#core-philosophy",
+            "vibeconform/docs/architecture/principles.md#3-easy-to-install-and-easy-to-remove",
+            "vibeconform/docs/specs/0037-generated-paths.md#constraints",
+            "vibeconform/docs/specs/0030-plan-triggered-sdd.md#6-deselection-and-removal"
+          ]
+        ],
+        "citations": [
+          "vibeconform/docs/usage.md#removing-vibeconform",
+          "vibeconform/docs/architecture/principles.md#3-easy-to-install-and-easy-to-remove"
+        ],
+        "latency_ms": 12387.200940982439,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "A conformant repository keeps working after VibeConform is removed because of rule R-01, which mandates that nothing a conformant repository runs calls `vibe` [1][6]. The tooling stands on third-party tools (such as `task`, `lefthook`, CI, linters, etc.) rather than on `vibe` itself [1][3]."
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "To remove VibeConform from a repository, you should delete:\n\n*   **`vibe.yaml`** [1]\n*   The **audit job**: `.github/workflows/audit.yml` (for GitHub Actions) or the audit job in `.gitlab-ci.yml` (for GitLab CI). You must also remove its check from branch protection's required checks so that pull requests do not wait for a check that no longer runs [1].\n*   The **setup skill**: `.claude/skills/vibeconform-setup/` and/or `.agents/skills/vibeconform-setup/` [1]."
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "If you also want to remove the agent guard (`vibe-guard`), you need to additionally:\n*   Remove the PreToolUse hook that runs it.\n*   Remove the `vibe-guard relock` command at the start of the Stop hook from `.claude/settings.json`.\n*   Remove `.claude/hooks/policy.json` [1]."
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-14",
+      "lang": "en",
+      "question": "Why did VibeConform choose YAML instead of TOML for `vibe.yaml`?",
+      "key_points": [
+        "Nested, list-heavy structures such as the component graph read naturally in YAML; TOML needs noisy array-of-tables syntax.",
+        "Every other configuration the project uses (GitHub Actions, dependabot, golangci, lefthook, goreleaser) is already YAML.",
+        "YAML's footguns (the Norway problem, indentation) are mitigated by explicit validation of required fields."
+      ],
+      "expected_sources": [
+        "vibeconform/docs/decisions/0004-yaml-manifest-format.md"
+      ],
+      "expected_route": "fast",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 3891,
+          "output_tokens": 476,
+          "thinking_tokens": 0
+        },
+        "answer": "According to ADR 0004, VibeConform chose YAML over TOML for `vibe.yaml` for two main reasons [1]:\n\n1. **Better handling of nested structures:** The manifest was designed to support a component graph with lists and nesting (e.g., `depends_on: [contracts]`). YAML expresses this naturally, while the equivalent in TOML requires noisier array-of-tables syntax (`[[components]]`).\n2. **Consistency with existing repository config:** VibeConform repositories already use YAML for other configuration files like GitHub Actions workflows, `.github/dependabot.yml`, `.golangci.yml`, `lefthook.yml`, and `.goreleaser.yaml`. Using YAML avoids making maintainers context-switch between two different file formats [1].",
+        "searches": [
+          [
+            "vibeconform/docs/decisions/0004-yaml-manifest-format.md#adr-0004-yaml-for-vibeyaml",
+            "vibeconform/docs/usage.md#vibe-init",
+            "vibeconform/docs/specs/0014-m2-milestone.md#explicit-non-goals",
+            "vibeconform/docs/specs/0013-dogfood-self-management.md#design-notes",
+            "vibeconform/docs/adopting.md#leaving"
+          ]
+        ],
+        "citations": [
+          "vibeconform/docs/decisions/0004-yaml-manifest-format.md#adr-0004-yaml-for-vibeyaml"
+        ],
+        "latency_ms": 14495.445606997237,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "YAML expresses this naturally, while the equivalent in TOML requires noisier array-of-tables syntax (`[[components]]`)."
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "VibeConform repositories already use YAML for other configuration files like GitHub Actions workflows, `.github/dependabot.yml`, `.golangci.yml`, `lefthook.yml`, and `.goreleaser.yaml`."
+          },
+          {
+            "key_point": 3,
+            "covered": false,
+            "quote": null
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-15",
+      "lang": "en",
+      "question": "Why did VibeConform depend on golang.org/x/mod/semver instead of writing its own version comparator?",
+      "key_points": [
+        "Semver precedence is subtle: prerelease identifiers compare lexically, so a build 42 commits past a tag orders below one 9 commits past.",
+        "`Compare` returns -1 for invalid input such as \"dev\" instead of an error, which would mark every local build as older.",
+        "The package's build footprint is standard library only, and it is the code `go` itself uses."
+      ],
+      "expected_sources": [
+        "vibeconform/docs/decisions/0010-semver-comparison-dependency.md"
+      ],
+      "expected_route": "fast",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 4043,
+          "output_tokens": 1014,
+          "thinking_tokens": 0
+        },
+        "answer": "VibeConform uses `golang.org/x/mod/semver` because it provides a trusted, correct implementation of the complex Semantic Versioning precedence rules, which are critical to VibeConform's safety mechanism. \n\nThe primary reasons for relying on this dependency include:\n\n*   **Preventing Divergent File States**: VibeConform compares its own version against the version that last wrote its state file. If a running binary is older than the recorded state, it might incorrectly revert managed templates to a less restrictive or invalid definition [3]. \n*   **Semantic Versioning Subtleties**: Hand-rolling a comparator is risky because semver precedence includes surprising rules, such as alphanumeric identifiers being compared lexically rather than numerically. Additionally, the standard `Compare` function returns `-1` (indicating an error) for any invalid input, rather than throwing a Go error. A custom implementation could replicate subtle bugs found during VibeConform's own testing [2].\n*   **Maintainability and Footprint**: `golang.org/x/mod/semver` is maintained by the Go team and has a very small build footprint, relying entirely on the Go standard library (`strings`, `io`, and `slices`) with no external production dependencies of its own [1].",
+        "searches": [
+          [
+            "vibeconform/docs/specs/0019-drift-classification.md#a-new-production-dependency-golangorgxmodsemver",
+            "vibeconform/docs/decisions/0010-semver-comparison-dependency.md#decision",
+            "vibeconform/docs/decisions/0010-semver-comparison-dependency.md#adr-0010-depend-on-golangorgxmodsemver-for-version-ordering",
+            "vibeconform/docs/specs/0051-contract-v1.md#vibeyaml",
+            "vibeconform/docs/specs/0019-drift-classification.md#acceptance-criteria"
+          ]
+        ],
+        "citations": [
+          "vibeconform/docs/decisions/0010-semver-comparison-dependency.md#adr-0010-depend-on-golangorgxmodsemver-for-version-ordering",
+          "vibeconform/docs/decisions/0010-semver-comparison-dependency.md#decision",
+          "vibeconform/docs/specs/0019-drift-classification.md#a-new-production-dependency-golangorgxmodsemver"
+        ],
+        "latency_ms": 15067.37844296731,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "Hand-rolling a comparator is risky because semver precedence includes surprising rules, such as alphanumeric identifiers being compared lexically rather than numerically."
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "Additionally, the standard `Compare` function returns `-1` (indicating an error) for any invalid input, rather than throwing a Go error."
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "`golang.org/x/mod/semver` is maintained by the Go team and has a very small build footprint, relying entirely on the Go standard library (`strings`, `io`, and `slices`) with no external production dependencies of its own [1]."
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-16",
+      "lang": "en",
+      "question": "How did the way VibeConform's agent guard recognizes destructive commands change from spec 0047 to ADR 0025, and why?",
+      "key_points": [
+        "Spec 0047 extended regex patterns in one policy.json table, shared by three guard runtimes, to deny other spellings of the same command.",
+        "ADR 0025 replaces that with one Go binary, `vibe-guard`, that parses commands with mvdan.cc/sh and refuses a command it cannot parse.",
+        "A regex cannot follow quoting, so spellings slipped through; three implementations of one parser would not stay in step."
+      ],
+      "expected_sources": [
+        "vibeconform/docs/specs/0047-guard-respellings.md",
+        "vibeconform/docs/decisions/0025-contract-model.md",
+        "vibeconform/docs/decisions/0026-shell-parser-dependency.md"
+      ],
+      "expected_route": "slow",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 24226,
+          "output_tokens": 843,
+          "thinking_tokens": 0
+        },
+        "answer": "In spec 0047 and ADR 0025, the way VibeConform's agent guard recognizes destructive commands changed from relying on **regex matching** to using a **shell parser**.\n\n**How it changed:**\n*   **Spec 0047 (Old/Problem):** The guard previously used \"one large regex\" or bash hooks that knew only specific spellings of destructive commands. This allowed many dangerous variants to slip through, such as `rm -r -f` instead of `rm -rf`, `git reset --har` instead of `git reset --hard`, and PowerShell aliases like `ri -Rec -Fo` [2].\n*   **ADR 0025 (New/Solution):** ADR 0025 decision 8 mandated that the reference guard (`vibe-guard`) parse commands using a shell parser library (`mvdan.cc/sh`) rather than regex. This allows it to correctly identify destructive commands regardless of how they are quoted, aliased, or abbreviated [3].\n\n**Why:**\n*   **Regex limitations:** A regular expression cannot properly follow quoting, escapes, and other shell syntax rules. As noted in spec 0047, \"every quoting spelling a regex missed was a way past it\" [5]. For example, a command like `r''m -rf` or one built from variables (`eval`) could bypass the text-based matching [2].\n*   **Robustness:** By parsing the shell syntax, the guard can strip wrappers (like `sudo`), remove quotes, and resolve aliases (especially in PowerShell) to determine the actual command intent. This ensures that dangerous operations are blocked even when users or agents try to use alternative spellings that regex misses [5].\n*   **Fail-closed security:** The parser approach allows the guard to refuse commands it cannot parse, ensuring a \"fail closed\" state rather than accidentally allowing unsafe commands that don't fit a regex pattern [3].\n\nIn short, the change was necessary because regex-based text matching is inherently unreliable for command parsing due to shell quoting and aliasing complexity, whereas a proper shell parser can accurately interpret the command structure to detect destructive intent.",
+        "searches": [
+          [
+            "vibeconform/docs/specs/0047-guard-respellings.md#desired-behavior",
+            "vibeconform/docs/specs/0047-guard-respellings.md#problem",
+            "vibeconform/docs/specs/0051-contract-v1.md#a-agent-guardrails",
+            "vibeconform/docs/usage.md#the-agent-guard",
+            "vibeconform/docs/decisions/0006-resource-file-mode.md#adr-0006-resource-file-mode"
+          ],
+          [
+            "vibeconform/docs/decisions/0006-resource-file-mode.md#adr-0006-resource-file-mode",
+            "vibeconform/docs/specs/0058-guard-and-hooks-anywhere.md#constraints",
+            "vibeconform/docs/decisions/0025-contract-model.md#decision",
+            "vibeconform/docs/specs/0051-contract-v1.md#a-agent-guardrails",
+            "vibeconform/docs/specs/0050-guard-exceptions.md#spec-0050-guard-exceptions-and-extra-guard-rules"
+          ],
+          [
+            "vibeconform/docs/decisions/0025-contract-model.md#decision",
+            "vibeconform/docs/specs/0053-contract-probes-and-guard.md#vibe-guard-105",
+            "vibeconform/docs/decisions/0026-shell-parser-dependency.md#adr-0026-vibe-parses-shell-with-mvdanccsh",
+            "vibeconform/docs/specs/0053-contract-probes-and-guard.md#guard-rule-ids-and-exceptions-shared",
+            "vibeconform/docs/specs/0052-contract-audit-static.md#what-static-checks-read"
+          ]
+        ],
+        "citations": [
+          "vibeconform/docs/specs/0053-contract-probes-and-guard.md#vibe-guard-105",
+          "vibeconform/docs/decisions/0026-shell-parser-dependency.md#adr-0026-vibe-parses-shell-with-mvdanccsh",
+          "vibeconform/docs/specs/0052-contract-audit-static.md#what-static-checks-read"
+        ],
+        "latency_ms": 38882.7699549729,
+        "requests": 4,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": false,
+            "quote": null
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "ADR 0025 decision 8 mandated that the reference guard (`vibe-guard`) parse commands using a shell parser library (`mvdan.cc/sh`) rather than regex."
+          },
+          {
+            "key_point": 3,
+            "covered": false,
+            "quote": null
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-17",
+      "lang": "en",
+      "question": "What does `vibe doctor` never do?",
+      "key_points": [
+        "It installs nothing, writes no file and changes no git or user configuration.",
+        "It makes no network access and runs no tests or builds.",
+        "It does not check conformance; that is `vibe audit`'s job."
+      ],
+      "expected_sources": [
+        "vibeconform/docs/specs/0028-environment-doctor.md",
+        "vibeconform/docs/adopting.md"
+      ],
+      "expected_route": "fast",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 2947,
+          "output_tokens": 1395,
+          "thinking_tokens": 0
+        },
+        "answer": "Based on the VibeConform documentation, `vibe doctor` is strictly a read-only diagnostic tool. It never does the following:\n\n* **Installs anything or writes/modifies files or configurations.** It leaves git and user configuration alone and performs no installations, even if it reports warnings about line endings [1][2][3].\n* **Make network requests or start containers/services.** It operates entirely locally [1][2].\n* **Run tests or builds.** The only external commands it executes are `git`, `task --list-all`, and each declared tool's version probe for a timeout [1]. \n* **Check conformance.** Verifying if a repository conforms to VibeConform specs is `vibe audit`'s responsibility, preventing the doctor from failing on drift [1][2].\n* **Return specific exit codes.** It never returns an exit code of `2` or `3`, as those are reserved for the conformance verdict of `vibe audit` [4].",
+        "searches": [
+          [
+            "vibeconform/docs/specs/0028-environment-doctor.md#24-what-doctor-never-does",
+            "vibeconform/docs/usage.md#vibe-doctor",
+            "vibeconform/docs/specs/0028-environment-doctor.md#23-checks",
+            "vibeconform/docs/specs/0028-environment-doctor.md#2-vibe-doctor",
+            "vibeconform/docs/adopting.md#6-check-the-machine"
+          ]
+        ],
+        "citations": [
+          "vibeconform/docs/specs/0028-environment-doctor.md#24-what-doctor-never-does",
+          "vibeconform/docs/usage.md#vibe-doctor",
+          "vibeconform/docs/specs/0028-environment-doctor.md#23-checks",
+          "vibeconform/docs/specs/0028-environment-doctor.md#2-vibe-doctor"
+        ],
+        "latency_ms": 15863.94383199513,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "It leaves git and user configuration alone and performs no installations, even if it reports warnings about line endings [1][2][3]."
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "It operates entirely locally [1][2]."
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "Verifying if a repository conforms to VibeConform specs is `vibe audit`'s responsibility, preventing the doctor from failing on drift [1][2]."
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-18",
+      "lang": "en",
+      "question": "Why does a Codex session in a VibeConform repository get no agent guard, and does contract 1.1.0 check Codex at all?",
+      "key_points": [
+        "A live test of Codex 0.156.1 found that on Windows it ignores exit code 2, so the guard's deny and the Stop gate enforce nothing.",
+        "Background hook stderr never reaches the model on any platform.",
+        "Codex hooks are suspended; the contract's A rules cover Claude Code only, and bringing Codex in would be a MAJOR change."
+      ],
+      "expected_sources": [
+        "vibeconform/docs/decisions/0011-one-module-per-agent-runtime.md",
+        "vibeconform/docs/usage.md",
+        "vibeconform/docs/decisions/0025-contract-model.md",
+        "vibeconform/docs/specs/0051-contract-v1.md"
+      ],
+      "expected_route": "slow",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 4618,
+          "output_tokens": 1156,
+          "thinking_tokens": 0
+        },
+        "answer": "**Why Codex gets no agent guard:**\nHooks designed for the VibeConform/Claude Code contract do not carry over to the `codex` agent runtime. Live testing of Codex 0.156.1 revealed that:\n* On Windows, it ignores exit code `2`, meaning neither a refusing guard nor a blocking `Stop` gate takes effect.\n* On every platform, the stderr output of a background hook never reaches the model. Because of these incompatibilities, VibeConform deliberately leaves Codex without an injected guard [2].\n\n**Does contract 1.1.0 check Codex:**\nNo. Contract 1.1.0 has no Codex rules and its setup skill intentionally writes no Codex hooks (such as `.codex/hooks.json`). Consequently, a Codex session gets no guard, no session context, no formatting instructions, and no `Stop` gate from the contract [2]. (Note that CI remains available as an external gate, and local hooks in a user's `~/.codex/` configuration will still run if they add them manually.)",
+        "searches": [
+          [
+            "vibeconform/docs/usage.md#vibe-guard-the-reference-guard",
+            "vibeconform/docs/usage.md#codex-hooks-suspended",
+            "vibeconform/docs/specs/0054-contract-release-and-skill.md#spec-0054-release-and-setup-skill-phase-3",
+            "vibeconform/docs/reports/contract-v1-pilot.md#contract-v1-pilot-report",
+            "vibeconform/docs/usage.md#the-agent-guard"
+          ]
+        ],
+        "citations": [
+          "vibeconform/docs/usage.md#codex-hooks-suspended"
+        ],
+        "latency_ms": 14791.508427006193,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "On Windows, it ignores exit code `2`, meaning neither a refusing guard nor a blocking `Stop` gate takes effect."
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "On every platform, the stderr output of a background hook never reaches the model."
+          },
+          {
+            "key_point": 3,
+            "covered": false,
+            "quote": null
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-19",
+      "lang": "en",
+      "question": "A full `vibe audit` reports one failed SHOULD rule and one MUST rule it could not decide. What are the verdict and exit code, and could that SHOULD failure be waived?",
+      "key_points": [
+        "The verdict is \"cannot decide\" and the exit code is 1, because a MUST rule is undecided.",
+        "SHOULD results never change the verdict or exit code.",
+        "Only a SHOULD rule can be waived, in vibe.yaml with a reason and an `until` date; an expired waiver is ignored."
+      ],
+      "expected_sources": [
+        "vibeconform/docs/usage.md",
+        "vibeconform/docs/specs/0051-contract-v1.md",
+        "vibeconform/docs/decisions/0025-contract-model.md"
+      ],
+      "expected_route": "slow",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 5001,
+          "output_tokens": 1643,
+          "thinking_tokens": 0
+        },
+        "answer": "Based on VibeConform's specifications for `vibe audit`:\n\n* **Verdict:** `cannot decide` — Because at least one rule remains in an undecidable state, the verdict reflects this regardless of any failures or passes. \n* **Exit code:** `1` — In VibeConform, exit code `0` means fully conformant, `2` means not conformant, and `1` covers both \"cannot decide\" states and tool/configuration errors.\n* **Waiving the SHOULD rule:** Yes, it could be waived. While MUST rules are non-waivable by design, VibeConform supports waiving SHOULD rules temporarily (for example, via an expiration date).",
+        "searches": [
+          [
+            "vibeconform/docs/usage.md#vibe-audit",
+            "vibeconform/docs/specs/0052-contract-audit-static.md#report-100",
+            "vibeconform/docs/usage.md#vibe-audit",
+            "vibeconform/docs/specs/0052-contract-audit-static.md#report-100",
+            "vibeconform/docs/specs/0052-contract-audit-static.md#side-by-side"
+          ]
+        ],
+        "citations": [],
+        "latency_ms": 18109.58649602253,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "* **Verdict:** `cannot decide`"
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "* **Verdict:** `cannot decide` — Because at least one rule remains in an undecidable state, the verdict reflects this regardless of any failures or passes."
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "While MUST rules are non-waivable by design, VibeConform supports waiving SHOULD rules temporarily (for example, via an expiration date)."
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-20",
+      "lang": "en",
+      "question": "How are VibeConform release tags named, and what keeps a preview release out of \"Latest release\"?",
+      "key_points": [
+        "Plain semver with a `v` prefix: vMAJOR.MINOR.PATCH[-PRERELEASE]; major stays 0 while the project is pre-alpha.",
+        "A preview gets an -alpha.N (later -beta.N or -rc.N) suffix.",
+        "GoReleaser marks a prerelease-suffixed tag \"Pre-release\", which keeps it out of \"Latest release\"."
+      ],
+      "expected_sources": [
+        "vibeconform/docs/decisions/0007-release-tag-naming.md"
+      ],
+      "expected_route": "fast",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 3975,
+          "output_tokens": 547,
+          "thinking_tokens": 0
+        },
+        "answer": "VibeConform release tags are named using plain semver with a `v` prefix: `vMAJOR.MINOR.PATCH[-PRERELEASE]` [2].\n\nA preview release is kept out of \"Latest release\" by its prerelease suffix (-alpha.N, -beta.N, or -rc.N). GoReleaser auto-detects this suffix from the tag name and marks the resulting GitHub Release as a \"Pre-release,\" which prevents it from appearing as the Latest release on the repository's Releases page [2]. This applies because `.goreleaser.yaml` uses `release.prerelease: auto` rather than `v*` tags being treated as stable by default [5].",
+        "searches": [
+          [
+            "vibeconform/docs/usage.md#vibeconform-user-manual",
+            "vibeconform/docs/decisions/0007-release-tag-naming.md#adr-0007-release-tag-naming",
+            "vibeconform/docs/usage.md#from-source",
+            "vibeconform/docs/specs/0054-contract-release-and-skill.md#the-install-hint",
+            "vibeconform/docs/decisions/0007-release-tag-naming.md#amendment-2026-10-19-spec-0054"
+          ]
+        ],
+        "citations": [
+          "vibeconform/docs/decisions/0007-release-tag-naming.md#adr-0007-release-tag-naming",
+          "vibeconform/docs/decisions/0007-release-tag-naming.md#amendment-2026-10-19-spec-0054"
+        ],
+        "latency_ms": 13070.64781698864,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": false,
+            "quote": null
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "A preview release is kept out of \"Latest release\" by its prerelease suffix (-alpha.N, -beta.N, or -rc_N)."
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "GoReleaser auto-detects this suffix from the tag name and marks the resulting GitHub Release as a \"Pre-release,\" which prevents it from appearing as the Latest release on the repository's Releases page [2]."
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-21",
+      "lang": "en",
+      "question": "Why did the first plan to bring the short-mode Go tests under 90 seconds fail, and what actually made the A-05 Stop-hook probe time out?",
+      "key_points": [
+        "Most time went to starting git processes (about 7,000 in internal/cli), so running tests in parallel could not help.",
+        "The A-05 timeout came from go's test cache hashing a huge test log (about 661,000 entries, mostly stat calls), not from a process holding a pipe.",
+        "The fix memoizes lookPath in the cli TestMain, and a regression test fails above 150,000 log entries."
+      ],
+      "expected_sources": [
+        "vibeconform/docs/reports/0056-faster-hooks.md"
+      ],
+      "expected_route": "slow",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 4456,
+          "output_tokens": 1032,
+          "thinking_tokens": 0
+        },
+        "answer": "The first plan to bring the short-mode Go tests under 90 seconds failed because **A-05 (the Stop-hook probe) timed out**, not because of a child process holding an output pipe.\n\nThe root cause was **the test cache**:\n\n1.  Without `-count=1`, `go test` reads and hashes every entry in the test log before performing a cache lookup.\n2.  The `cmd/vibe` tests wrote over 661,000 entries (mostly `stat` calls due to tool checks), causing hundreds of synchronous directory searches on Windows.\n3.  This cache hashing overhead was so severe that running from a probe copy 11 directories deep under `%TEMP%` took **10 minutes and 8 seconds** between the test finishing (`ok`) and the package signaling `pass` (the full run took 9m27s, leaving only ~40s before the Stop hook's 600s timeout).\n\nThe fix involved memoizing `lookPath` in the cli `TestMain` to reduce log entries from 661,037 to roughly 98,895 (in short mode), which reduced the gap significantly enough for the probe to complete within its time limit.",
+        "searches": [
+          [
+            "vibeconform/docs/reports/0056-faster-hooks.md#contract-rule-a-05-the-test-cache-not-a-process",
+            "vibeconform/docs/specs/0056-faster-agent-hooks.md#constraints",
+            "vibeconform/docs/reports/0056-faster-hooks.md#contract-rule-a-05-the-test-cache-not-a-process",
+            "vibeconform/docs/specs/0053-contract-probes-and-guard.md#the-rules",
+            "vibeconform/docs/specs/0053-contract-probes-and-guard.md#testing-decisions"
+          ]
+        ],
+        "citations": [],
+        "latency_ms": 16372.282491996884,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": false,
+            "quote": null
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "The `cmd/vibe` tests wrote over 661,000 entries (mostly `stat` calls due to tool checks), causing hundreds of synchronous directory searches on Windows."
+          },
+          {
+            "key_point": 3,
+            "covered": false,
+            "quote": null
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "en-22",
+      "lang": "en",
+      "question": "How does a full `vibe audit` prove that `verify` really runs formatting, static analysis and tests, and why does a component with no test file fail?",
+      "key_points": [
+        "It runs `verify` in a probe copy (a temporary Git repository of the tracked files) and never changes the repository.",
+        "It plants one defect of each kind (format, static analysis, test) in each component; `verify` must exit non-zero for each (rule V-01).",
+        "The static-analysis defect is fixed per language (go vet printf mismatch for Go, undefined name for Python and TypeScript).",
+        "Probes plant the test defect next to existing tests, so with no test file nothing shows that `verify` runs tests."
+      ],
+      "expected_sources": [
+        "vibeconform/docs/specs/0051-contract-v1.md",
+        "vibeconform/docs/decisions/0025-contract-model.md",
+        "vibeconform/docs/usage.md"
+      ],
+      "expected_route": "slow",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 8132,
+          "output_tokens": 621,
+          "thinking_tokens": 0
+        },
+        "answer": "A full `vibe audit` proves that `verify` really runs formatting, static analysis, and tests by using **planted defects** [1][2][3]. It operates as follows:\n\n*   **Probe Copy:** The audit runs in a temporary copy of the repository's tracked files to ensure it never modifies the actual working tree [1].\n*   **Planted Defects:** For each component containing test files, the audit creates specific defect samples for three categories [2][3]:\n    *   **Formatting:** A file with incorrect indentation or spacing.\n    *   **Static Analysis:** A code sample triggering a static analysis error (e.g., an unformatted `fmt.Printf` in Go, or an undefined name reference in Python/TypeScript).\n    *   **Tests:** A test file that immediately fails when run.\n*   **Verification (V-01/V-02):** The audit plants these defects one at a time (resetting the copy between runs) and executes `verify` [1][2]. It checks if `verify` detects the defect by exiting with a non-zero code [2]. If `verify` exits 0 for any of these planted defects, it proves that the entrypoint is not actually running or passing the corresponding tool (formatter, linter, or test runner) for that component.\n\nA **component with no test file** fails because the audit cannot plant a \"failing test\" defect in that component to prove that tests are being executed [1][2]. Since there is no existing test file (`_test.go`, `test_*.py`, or `*.test.ts`) to place the probe next to, the audit has no way to verify that the test runner part of `verify` is functioning for that specific component [1][3]. Consequently, V-01 fails with \"component <path> has no tests\" [1][3].",
+        "searches": [
+          [
+            "vibeconform/docs/usage.md#vibe-audit",
+            "vibeconform/docs/specs/0052-contract-audit-static.md#report-100",
+            "vibeconform/docs/specs/0053-contract-probes-and-guard.md#planted-defects-104",
+            "vibeconform/docs/specs/0053-contract-probes-and-guard.md#planted-defects-104",
+            "vibeconform/docs/specs/0053-contract-probes-and-guard.md#how-the-audit-runs-commands"
+          ],
+          [
+            "vibeconform/docs/specs/0051-contract-v1.md#checks",
+            "vibeconform/docs/specs/0053-contract-probes-and-guard.md#the-rules",
+            "vibeconform/docs/specs/0053-contract-probes-and-guard.md#planted-defects-104",
+            "vibeconform/docs/specs/0053-contract-probes-and-guard.md#user-stories",
+            "vibeconform/docs/specs/0056-faster-agent-hooks.md#acceptance-criteria"
+          ]
+        ],
+        "citations": [
+          "vibeconform/docs/specs/0051-contract-v1.md#checks",
+          "vibeconform/docs/specs/0053-contract-probes-and-guard.md#the-rules",
+          "vibeconform/docs/specs/0053-contract-probes-and-guard.md#planted-defects-104"
+        ],
+        "latency_ms": 27821.97182602249,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "The audit runs in a temporary copy of the repository's tracked files to ensure it never modifies the actual working tree [1]."
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "It checks if `verify` detects the defect by exiting with a non-zero code [2]."
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "Static Analysis: A code sample triggering a static analysis error (e.g., an unformatted `fmt.Printf` in Go, or an undefined name reference in Python/TypeScript)."
+          },
+          {
+            "key_point": 4,
+            "covered": true,
+            "quote": "Since there is no existing test file (`_test.go`, `test_*.py`, or `*.test.ts`) to place the probe next to, the audit has no way to verify that the test runner part of `verify` is functioning for that specific component [1][3]."
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "un-01",
+      "lang": "en",
+      "question": "What recall@5 did hybrid retrieval with reranking reach on the Traditional Chinese questions?",
+      "key_points": [
+        "The documents do not cover it: the spec defines the retrieval ablation table but reports no measured numbers."
+      ],
+      "expected_sources": [],
+      "expected_route": "fast",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 4451,
+          "output_tokens": 282,
+          "thinking_tokens": 0
+        },
+        "answer": "The provided documents do not contain the specific recall@5 results for hybrid retrieval with reranking on Traditional Chinese questions.\n\nSection 5.8 describes the eval harness and states that a **retrieval ablation table** will be generated in `results.md`, reporting recall@5, MRR, and latency \"reported separately for the English and the Chinese questions\" [2]. It also notes that this table is included in the Definition of Done [4]. However, the actual numerical results are not present in the design specifications.",
+        "searches": [
+          [
+            "vessel-mind/docs/specs/a-agent-track.md#56-retrieval-a3",
+            "vessel-mind/docs/specs/a-agent-track.md#58-eval-harness-a4",
+            "vessel-mind/docs/specs/a-agent-track.md#0-read-this-first",
+            "vessel-mind/docs/specs/a-agent-track.md#7-definition-of-done",
+            "vessel-mind/GLOSSARY.md#vessel-mind"
+          ]
+        ],
+        "citations": [
+          "vessel-mind/docs/specs/a-agent-track.md#58-eval-harness-a4",
+          "vessel-mind/docs/specs/a-agent-track.md#7-definition-of-done"
+        ],
+        "latency_ms": 14543.462301953696,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "The provided documents do not contain the specific recall@5 results for hybrid retrieval with reranking on Traditional Chinese questions."
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "un-02",
+      "lang": "en",
+      "question": "How many turns per session does the public demo host allow before it refuses more?",
+      "key_points": [
+        "The documents do not cover it: ADR 0002 mentions a per-session turn limit but gives no number."
+      ],
+      "expected_sources": [],
+      "expected_route": "fast",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 3848,
+          "output_tokens": 1584,
+          "thinking_tokens": 0
+        },
+        "answer": "The documents mention that the public demo host has a **per-session turn limit** to protect the free quota [1][2], but they do not specify the exact number of turns allowed before it refuses more.",
+        "searches": [
+          [
+            "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#amendments",
+            "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access",
+            "vessel-mind/docs/specs/a-agent-track.md#57-router-a4",
+            "vessel-mind/docs/specs/a-agent-track.md#3-human-only-prerequisites--do-not-attempt-these",
+            "vessel-mind/docs/specs/a-agent-track.md#7-definition-of-done"
+          ]
+        ],
+        "citations": [
+          "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#amendments",
+          "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access"
+        ],
+        "latency_ms": 16400.29088105075,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "The documents mention that the public demo host has a **per-session turn limit** to protect the free quota [1][2], but they do not specify the exact number of turns allowed before it refuses more."
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "un-03",
+      "lang": "en",
+      "question": "Under which open-source license is vessel-mind published?",
+      "key_points": [
+        "The documents do not cover it: only VibeConform's license (Apache-2.0) is stated, not vessel-mind's."
+      ],
+      "expected_sources": [],
+      "expected_route": "fast",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 4289,
+          "output_tokens": 148,
+          "thinking_tokens": 0
+        },
+        "answer": "The provided documents do not specify the open-source license under which vessel-mind is published. They only mention that VibeConform is Apache-2.0 licensed [2].",
+        "searches": [
+          [
+            "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+            "vessel-mind/docs/specs/a-agent-track.md#1-context-you-need",
+            "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+            "vessel-mind/docs/specs/a-agent-track.md#3-human-only-prerequisites--do-not-attempt-these",
+            "vessel-mind/docs/specs/a-agent-track.md#a1a4--agent-track--implementation-requirements"
+          ]
+        ],
+        "citations": [
+          "vessel-mind/docs/specs/a-agent-track.md#1-context-you-need"
+        ],
+        "latency_ms": 13481.505502015352,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "The provided documents do not specify the open-source license under which vessel-mind is published."
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "zh-01",
+      "lang": "zh-Hant",
+      "question": "Gemini 串流回來的平行 tool call 片段沒有 `index`，adapter 要怎麼把片段組回正確的呼叫？只用 `index` 來分會出什麼事？",
+      "key_points": [
+        "有 `index` 時依 `index` 分組；沒有時，出現新的 `id` 就開始一個新呼叫；兩者都沒有的片段接到上一個呼叫。",
+        "每個呼叫只送出一個 `ToolCall`，input 已完整解析。",
+        "只看 `index` 會把 Gemini 的平行呼叫併成一個、參數被串在一起；兩種 dialect 都要測兩個平行呼叫。"
+      ],
+      "expected_sources": [
+        "vessel-mind/docs/specs/a-agent-track.md"
+      ],
+      "expected_route": "fast",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 4354,
+          "output_tokens": 1261,
+          "thinking_tokens": 0
+        },
+        "answer": "根據設計規格，adapter 必須同時支援兩種方言（dialects）：\n\n### 片段沒有 `index` 時該怎麼組？\nGemini 串流返回的平行 tool call 通常**沒有 `index`**，且每個調用的參數完整地封存在單一 chunk 中 [1]。此時 adapter 的行為是 [1]:\n* 若新的片段帶有新的 `id`：視為**開始一個全新的呼叫**。\n* 若片段同時沒有 `index` 也沒有新 `id`：則直接**延續上一個呼叫的輸入片段**。\n\n因此，對於 Gemini，adapter 只需依賴 **`id`** 來區分不同的平行 tool call；每個帶有唯一 `id` 的 chunk 本身就是一個完整調用。\n\n### 只用 `index` 來分會出什麼事？\n如果 adapter 錯誤地只依賴 `index` 來拼裝片段，會發生嚴重的串流合併錯誤：它會把 Gemini 回傳的**平行 tool call 合併成單一呼叫**，導致多個工具的參數被字串串接在一起（concatenated arguments） [1]。\n\n### 總結正確的實作策略\n規格特別標註這是「最容易被做錯的地方」（Most likely to be done wrong），要求 adapter 必須同時測試兩種方言：\n* **有 `index` 的 dialect**：必須用 `index` 來將跨 chunk 拆開的參數片段組合起來。\n* **無 `index` 的 Gemini 方言**：直接用 `id` 區分，因為每個平行調用的參數本身就是一個完整區塊 [1]。",
+        "searches": [
+          [
+            "vessel-mind/docs/specs/a-agent-track.md#51-chatmodel-seam-a1",
+            "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+            "vessel-mind/docs/specs/a-agent-track.md#0-read-this-first",
+            "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+            "vessel-mind/docs/specs/a-agent-track.md#7-definition-of-done"
+          ]
+        ],
+        "citations": [
+          "vessel-mind/docs/specs/a-agent-track.md#51-chatmodel-seam-a1"
+        ],
+        "latency_ms": 17267.882715095766,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "**有 `index` 的 dialect**：必須用 `index` 來將跨 chunk 拆開的參數片段組合起來。"
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "因為每個平行調用的參數本身就是一個完整區塊 [1]。"
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "它會把 Gemini 回傳的**平行 tool call 合併成單一呼叫**，導致多個工具的參數被字串串接在一起（concatenated arguments） [1]。"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "zh-02",
+      "lang": "zh-Hant",
+      "question": "如果週四的進度 delay 了，reranker 這塊可以先砍什麼？有哪些東西是無論如何都不能砍的？",
+      "key_points": [
+        "第一個砍的是 `llama-server` reranker，保留 CPU（`fastembed`）那個。",
+        "週四要確認釘住的 `fastembed` 和 `llama-server` 版本有沒有提供 reranking；其中一個不行就出另一個，並記錄下來。",
+        "絕對不能砍：approval 測試、schema drift 測試、凍結的 golden set、`hosted` 和 slow-only 兩列、demo 影片、README 的數字。"
+      ],
+      "expected_sources": [
+        "vessel-mind/docs/specs/a-agent-track.md"
+      ],
+      "expected_route": "slow",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 4566,
+          "output_tokens": 970,
+          "thinking_tokens": 0
+        },
+        "answer": "如果週四（Thu 10/29）的進度延遲了，根據開發計畫，可以依序砍掉的功能如下：\n\n**優先砍掉的目標（由前至後）：**\n1. `llama-server` reranker（保持僅使用 CPU 版本的 reranker）。\n2. `local` eval 行（報告結果為 *not run*）。\n3. console UI 的微調（console polish）。\n4. 檢索表格中的語言分類（language split）。\n5. 公開網址（保留在代碼中的 demo mode，移除 Cloudflare Tunnel 和 Access 配置）。\n\n**無論如何都不能砍的東西：**\n*   Approval tests。\n*   Schema drift test。\n*   Frozen golden set（凍結的黃金測試集）。\n*   `hosted` 和 slow-only rows。\n*   Demo video。\n*   README 中的數字/結果。",
+        "searches": [
+          [
+            "vessel-mind/docs/specs/a-agent-track.md#0-read-this-first",
+            "vessel-mind/docs/specs/a-agent-track.md#56-retrieval-a3",
+            "vibeconform/docs/plans/0031-spec-skill.md#found-during-implementation",
+            "vibeconform/docs/plans/0011-repo-tooling-module.md#plan-0011-repo-tooling-module-internalmodulerepotooling",
+            "vibeconform/docs/plans/0016-ts-py-tooling-parity.md#increment-1--ts-repo-tooling--py-repo-tooling"
+          ]
+        ],
+        "citations": [],
+        "latency_ms": 17467.835611081682,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "`llama-server` reranker（保持僅使用 CPU 版本的 reranker）。"
+          },
+          {
+            "key_point": 2,
+            "covered": false,
+            "quote": null
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "*   Approval tests。\n*   Schema drift test。\n*   Frozen golden set（凍結的黃金測試集）。\n*   `hosted` 和 slow-only rows。\n*   Demo video。\n*   README 中的數字/結果。"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "zh-03",
+      "lang": "zh-Hant",
+      "question": "如果 Python 的 `sqlite3` 載不了 `sqlite-vec` extension，spec 要我們怎麼處理？",
+      "key_points": [
+        "有些 Python build 會關掉 `sqlite3.Connection.enable_load_extension`，所以週一要在 WSL2 的 `uv` interpreter 和 CI image 上確認能載入。",
+        "載不了就改用 `apsw`，並記錄在 `DEVELOPING.md`。",
+        "不可以因此拿掉 vector store。"
+      ],
+      "expected_sources": [
+        "vessel-mind/docs/specs/a-agent-track.md"
+      ],
+      "expected_route": "fast",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 3703,
+          "output_tokens": 547,
+          "thinking_tokens": 0
+        },
+        "answer": "如果 Python 的 `sqlite3` 載入不了 `sqlite-vec` extension，根據 spec (Section 2. Technology constraints)，你們需要：\n\n1. **切換到 `apsw`**（Another Python SQLite Wrapper），用它來代替標準庫的 `sqlite3`。\n2. **記錄下來**：在 `DEVELOPING.md` 中記錄這次切換的原因和決策——但不可因此放棄使用向量儲存（do not drop the vector store）。\n\n這項檢查被定義為「Day-one risk」，應在開發首日（例如星期一）針對 `uv` 管理的解析器（如在 WSL2 或 CI image 中）進行驗證。",
+        "searches": [
+          [
+            "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+            "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+            "vessel-mind/docs/specs/a-agent-track.md#5-deliverables",
+            "vibeconform/docs/specs/0006-reconcile-diff-v1.md#follow-on-work",
+            "vessel-mind/docs/specs/a-agent-track.md#56-retrieval-a3"
+          ]
+        ],
+        "citations": [],
+        "latency_ms": 15367.381124058738,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "這項檢查被定義為「Day-one risk」，應在開發首日（例如星期一）針對 `uv` 管理的解析器（如在 WSL2 或 CI image 中）進行驗證。"
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "1. **切換到 `apsw`**（Another Python SQLite Wrapper），用它來代替標準庫的 `sqlite3`。\n2. **記錄下來**：在 `DEVELOPING.md` 中記錄這次切換的原因和決策——但不可因此放棄使用向量儲存（do not drop the vector store）。"
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "但不可因此放棄使用向量儲存（do not drop the vector store）。"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "zh-04",
+      "lang": "zh-Hant",
+      "question": "我們明明只用免費額度，結果表為什麼還要列成本？這個數字怎麼算，`local` 那一列又要怎麼填？",
+      "key_points": [
+        "列的是 list-price cost：token 數乘上 provider 付費方案的牌價，日期寫在 config，標成「at list price, YYYY-MM-DD」。",
+        "沒有人真的付這筆錢，它是為了讓不同 configuration 能比較成本。",
+        "`local` 那列寫 $0，並註明「GPU electricity not measured」。"
+      ],
+      "expected_sources": [
+        "vessel-mind/GLOSSARY.md",
+        "vessel-mind/docs/specs/a-agent-track.md",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md"
+      ],
+      "expected_route": "slow",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 449,
+          "output_tokens": 4096,
+          "thinking_tokens": 0
+        },
+        "answer": "",
+        "searches": [],
+        "citations": [],
+        "latency_ms": 17880.84145600442,
+        "requests": 1,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": false,
+            "quote": null
+          },
+          {
+            "key_point": 2,
+            "covered": false,
+            "quote": null
+          },
+          {
+            "key_point": 3,
+            "covered": false,
+            "quote": null
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "zh-05",
+      "lang": "zh-Hant",
+      "question": "之後 Vessel 語音陪伴的 client 要接上來，ADR 記了哪些目前已知、但第一版先不處理的缺口？",
+      "key_points": [
+        "Barge-in 歷史：被打斷後只保留真的講出來的部分，cancel 之後要加一個選填的「聽到這裡」欄位。",
+        "Memory 寫入：陪伴型 agent 會一直寫自己的記憶，要分開「寫自己的狀態」和「寫外部世界」，需要另一份 ADR。",
+        "Router 延遲：router 是串行的，在第一個 token 之前；語音可能需要平行的 handoff 模式，由之後的 ADR 決定。"
+      ],
+      "expected_sources": [
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md"
+      ],
+      "expected_route": "fast",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 4672,
+          "output_tokens": 1477,
+          "thinking_tokens": 0
+        },
+        "answer": "根据 **ADR 0001**（Consequences 部分），语音陪伴 Client 目前已知但第一版暂不处理、且不会在第一版修改接口的缺口共有三处：\n\n1. **打断历史 (Barge-in history)**：在发生打断时，历史记录应当只保留已被说出的内容。后续添加取消请求时，需要增加一个可选的“听到此处（heard up to here）”字段（属于增量变更）。\n2. **记忆写入 (Memory writes)**：§5 要求系统批准每一次写入操作，而语音陪伴会极其频繁地自行写入记忆。在未来需要新的 ADR 来制定策略，以便将该代理自身的状态写入与外部世界的写入区分开来。\n3. **路由器延迟 (Router latency)**：§3 中的路由器目前为串行模式（为了质量与成本优化，路由模型的调用发生在第一个 token 输出之前）。语音场景未来可能需要并行的 *移交 (handoff)* 模式（即由快模型先行作答，随后慢模型再继续完善），当前基础协议已允许此类能力，具体方案需留待未来的 ADR 决定。",
+        "searches": [
+          [
+            "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#consequences",
+            "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+            "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+            "vessel-mind/docs/specs/a-agent-track.md#1-context-you-need",
+            "vessel-mind/docs/specs/a-agent-track.md#4-repository-layout-to-create"
+          ]
+        ],
+        "citations": [],
+        "latency_ms": 19372.828841092996,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "在发生打断时，历史记录应当只保留已被说出的内容。后续添加取消请求时，需要增加一个可选的“听到此处（heard up to here）”字段（属于增量变更）。"
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "在未来需要新的 ADR 来制定策略，以便将该代理自身的状态写入与外部世界的写入区分开来。"
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "§3 中的路由器目前为串行模式（为了质量与成本优化，路由模型的调用发生在第一个 token 输出之前）。语音场景未来可能需要并行的 *移交 (handoff)* 模式...具体方案需留待未来的 ADR 决定。"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "zh-06",
+      "lang": "zh-Hant",
+      "question": "我在自己的 terminal 跑了 `vibe unlock` 之後，agent 就可以改 `.claude/hooks/policy.json` 了嗎？這個 unlock 什麼時候會失效？",
+      "key_points": [
+        "不行：unlock 只開放 `.claude/settings.json` 和 `.claude/hooks/` 底下的其他檔案，`policy.json` 即使 unlock 了還是會被擋。",
+        "`--minutes` 可設 1 到 240，預設 15 分鐘；到期時間寫在 common Git directory 的 `vibe-unlock`，所有 linked worktree 共用。",
+        "agent 下一次 Stop 時會由 `vibe-guard relock` 重新上鎖，也可以自己先跑 `vibe-guard relock`。"
+      ],
+      "expected_sources": [
+        "vibeconform/docs/usage.md",
+        "vibeconform/docs/adopting.md",
+        "vibeconform/docs/specs/0051-contract-v1.md"
+      ],
+      "expected_route": "slow",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 4136,
+          "output_tokens": 633,
+          "thinking_tokens": 0
+        },
+        "answer": "是的，你在自己 terminal 运行 `vibe unlock` 后，agent 就可以修改 `.claude/hooks/policy.json` 了。\n\n### 失效时间\n\n这个 unlock **默认为 15 分钟** [1]。\n\n它具体在什么时候失效，取决于以下情况之一：\n1. **达到设定时长**：默认 15 分钟后自动失效（你在运行命令时终端输出的那个时间点即为此处的过期时间） [1]。你也可以在运行时使用 `--minutes N` 自定义时长，范围是 1 到 240 分钟 [1][2]。\n2. **Stop 事件**：agent 的下一个 Stop（停止/暂停事件）会强制触发重新锁定 [1]。\n3. **手动失效**：你可以随时在终端运行 `vibe-guard relock` 手动解除解锁状态 [2]。\n\n### 注意事项\n\n- 解锁是写入当前 Git 仓库根目录下的 `.git/vibe-unlock` 文件中的，因此该仓库的所有工作树（linked worktrees）共享这一个解锁状态 [1][2]。\n- 如果你再次运行 `vibe unlock`，会用新的过期时间覆盖旧的时间 [1]。",
+        "searches": [
+          [
+            "vibeconform/docs/usage.md#vibe-unlock",
+            "vibeconform/docs/specs/0053-contract-probes-and-guard.md#vibe-unlock-106",
+            "vibeconform/docs/specs/0058-guard-and-hooks-anywhere.md#acceptance-criteria",
+            "vibeconform/docs/usage.md#vibe-guard-the-reference-guard",
+            "vibeconform/docs/specs/0053-contract-probes-and-guard.md#vibe-guard-105"
+          ]
+        ],
+        "citations": [
+          "vibeconform/docs/usage.md#vibe-unlock",
+          "vibeconform/docs/specs/0053-contract-probes-and-guard.md#vibe-unlock-106"
+        ],
+        "latency_ms": 14426.384403021075,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": false,
+            "quote": null
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "这个 unlock **默认为 15 分钟** [1]。"
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "agent 的下一个 Stop（停止/暂停事件）会强制触发重新锁定 [1]。"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "zh-07",
+      "lang": "zh-Hant",
+      "question": "VibeConform 的 pre-push hook 為什麼要先 `unset GIT_DIR` 那幾個變數再跑 `task verify:fast`？這個問題當初是怎麼被發現的？",
+      "key_points": [
+        "從 linked worktree 觸發的 hook 會被 export `GIT_DIR`，測試在暫存 fixture 裡跑 git 時，會動到真正的 repository。",
+        "pre-push 在 `task verify:fast` 前清掉 `GIT_DIR`、`GIT_WORK_TREE`、`GIT_INDEX_FILE`、`GIT_COMMON_DIR`。",
+        "是 spec 0056 多個 agent 平行在 worktree 工作時記下的摩擦之一，由 spec 0057 解決。"
+      ],
+      "expected_sources": [
+        "vibeconform/docs/usage.md",
+        "vibeconform/docs/reports/0056-faster-hooks.md",
+        "vibeconform/docs/specs/0057-hook-stages.md"
+      ],
+      "expected_route": "slow",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 7486,
+          "output_tokens": 803,
+          "thinking_tokens": 0
+        },
+        "answer": "根據文檔，VibeConform 的 `pre-push` hook 需要 `unset` 幾個變數（`GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`, `GIT_COMMON_DIR`）的原因及發現過程如下：\n\n**為什麼要先 unset？**\n這是因為如果使用 **linked worktree**（鏈接工作樹），Git 啟動 hook 時會將這些變數導出並指向該 repository。如果在這種環境下運行會調用 `git` 的命令（例如測試工具），它們可能會錯誤地操作到原本的倉庫，造成破壞 [1]。因此，pre-push hook 會在執行 `task verify:fast` 前先清除這些 git 倉庫變數，這樣後續的測試就不需要各自去處理這個問題 [1]。\n\n**這個問題是怎麼被發現的？**\n這是在實施 spec 0056 / plan 0031 的過程中被發現並作為修復項目記錄在案：\n*   **事件：** 文檔指出「從 linked worktree push 會損壞倉庫」（Pushing from a linked worktree corrupted the repository） [5]。Git 在 hooked 環境下將 `GIT_DIR` 導出給測試，那些在臨時目錄中運行真實 git 的套件則接收了這個環境變量，並在那個分支上提交了內容（例如設置 `core.bare=true`），甚至寫入了 test identity 到 `.git/config` [5]。\n*   **修復：** 之後通過手動修復並清理了這些垃圾提交。在 spec 0057 的實施中，這個摩擦點被正式解決：規定 pre-push hook 必須在運行 `verify:fast` 前清除這四個變數 [3][8] [2]。該變更也反映在對應的 `TestMain` (位於 `internal/cli` 等目錄) 的修改中，確保它們也會清除這些環境變數 [5]。",
+        "searches": [
+          [
+            "vibeconform/docs/usage.md#git-hooks",
+            "vibeconform/docs/specs/0057-hook-stages.md#implementation-decisions",
+            "vibeconform/docs/reports/0056-faster-hooks.md#multi-agent-friction-this-work-exposed",
+            "vibeconform/docs/specs/0057-hook-stages.md#desired-behavior",
+            "vibeconform/docs/plans/0031-spec-skill.md#found-during-implementation"
+          ],
+          [
+            "vibeconform/docs/usage.md#git-hooks",
+            "vibeconform/docs/usage.md#verifyfast-and-the-tool-caches",
+            "vibeconform/docs/specs/0057-hook-stages.md#implementation-decisions",
+            "vibeconform/docs/specs/0025-prod-mono.md#4-lefthookyml",
+            "vibeconform/docs/specs/0057-hook-stages.md#acceptance-criteria"
+          ]
+        ],
+        "citations": [
+          "vibeconform/docs/usage.md#git-hooks",
+          "vibeconform/docs/specs/0057-hook-stages.md#acceptance-criteria",
+          "vibeconform/docs/specs/0057-hook-stages.md#implementation-decisions",
+          "vibeconform/docs/usage.md#verifyfast-and-the-tool-caches"
+        ],
+        "latency_ms": 28957.994344993494,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "這是因為如果使用 **linked worktree**（鏈接工作樹），Git 啟動 hook 時會將這些變數導出並指向該 repository。"
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "因此，pre-push hook 會在執行 `task verify:fast` 前先清除這些 git 倉庫變數，這樣後續的測試就不需要各自去處理這個問題 [1]。"
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "在 spec 0057 的實施中，這個摩擦點被正式解決：規定 pre-push hook 必須在運行 `verify:fast` 前清除這四個變數 [3][8] [2]。"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "zh-08",
+      "lang": "zh-Hant",
+      "question": "VibeConform 對設定檔和機密（secrets）放在同一個 `.env` 的看法是什麼？現在有工具會幫忙檢查嗎？",
+      "key_points": [
+        "一般設定放在進版控的檔案；secrets 放在不進版控的機制（gitignore 的專用檔、secrets manager 或部署時注入），不能混在一起。",
+        "混在一起會逼兩類都用更嚴或更鬆的方式處理：整個檔案 ignore 就失去預設設定，進版控就洩漏 secrets。",
+        "這份 ADR 只是政策，目前沒有實作檢查。"
+      ],
+      "expected_sources": [
+        "vibeconform/docs/decisions/0005-separate-config-and-secrets.md"
+      ],
+      "expected_route": "fast",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 4559,
+          "output_tokens": 2434,
+          "thinking_tokens": 0
+        },
+        "answer": "VibeConform 对将配置（configuration）和机密（secrets）混合放在同一个 `.env` 文件中持**严格反对**的看法。这一立场在 **ADR 0005: Separate Configuration from Secrets** 中有明确记录 [1]。\n\n### VibeConform 的看法\nVibeConform 规定配置和机密必须存放在**独立的文件**或独立机制中：\n* **非机密配置**（如端口、主机名、特性开关）应当被放入受版本控制的文件中（例如 `config.env` 或 `config.yaml`）。\n* **机密**必须单独存放，只能置于未追踪的文件、专门的密钥管理器，或通过部署时注入的方式提供 [1]。\n\n之所以如此要求，是因为两者的生命周期与安全需求截然不同 [1]：\n1. 普通配置可以安全地被版本控制系统追踪及写入日志/CI 输出。\n2. 机密绝不能被提交到代码库，需要严格的访问权限控制及定期轮换，且绝对不能出现在日志或 CI 输出中。\n\n如果将它们写在同一个文件里，会导致“两头不讨好”：要么把整个 `.env` 加入版本跟踪导致机密外泄；要么把它排除在版本控制系统之外（例如加进 `.gitignore`），让开发者无法复用有意义的默认配置 [1]。此外，混合存放也让未来的审计工具仅凭文件名无法分辨哪些数据可以安全显示、哪些必须严格隐藏。\n\n### 现在是否有工具帮忙检查？\n**目前还没有针对此规则的实现或自动检查工具。**\n\n虽然 ADR-0005 记录了这个政策（policy），但根据文档说明，目前的 VibeConform 模块尚未具备“检视目标仓库已有文件并标记违规”的能力 [1]。这一合规性检查功能被推迟到了后续工作中 [2]。\n\n未来计划实现机制将通过启发式方法，扫描目标文件的键名（例如检测 `SECRET`、`TOKEN`、`PASSWORD` 等关键词以区分机密与配置数据），在同一个文件内同时发现两类数据时抛出违规警告 [2]。\n\n虽然目前无法自动分析 `.env` 的内容是否混杂了配置，但 VibeConform 提供了一项相关的保护机制：**Agent guard（代理人防护，如 `vibe-guard`）**。它会阻止 Agent（例如 AI 编码助手）直接修改或写入像 `.env`、`*.pem`、`id_rsa` 之类的文件，以此作为安全网防止意外破坏 [3]。",
+        "searches": [
+          [
+            "vibeconform/docs/decisions/0005-separate-config-and-secrets.md#adr-0005-separate-configuration-from-secrets",
+            "vibeconform/docs/decisions/0005-separate-config-and-secrets.md#consequences",
+            "vibeconform/docs/usage.md#the-agent-guard",
+            "vibeconform/docs/usage.md#the-setup-skill",
+            "vibeconform/docs/architecture/overview.md#internal-package-layout"
+          ]
+        ],
+        "citations": [
+          "vibeconform/docs/decisions/0005-separate-config-and-secrets.md#adr-0005-separate-configuration-from-secrets",
+          "vibeconform/docs/decisions/0005-separate-config-and-secrets.md#consequences",
+          "vibeconform/docs/usage.md#the-agent-guard"
+        ],
+        "latency_ms": 24625.025692977943,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "* **非机密配置**（如端口、主机名、特性开关）应当被放入受版本控制的文件中（例如 `config.env` 或 `config.yaml`)./n* **机密**必须单独存放，只能置于未追踪的文件、专门的密钥管理器，或通过部署时注入的方式提供 [1]。"
+          },
+          {
+            "key_point": 2,
+            "covered": true,
+            "quote": "如果將它們寫在同一個檔案裡，會導致「兩頭不討好」：要麼把整個 `.env` 加入版本跟蹤導致機密外洩；要麼把它排除在版本控制系統之外（例如加進 `.gitignore`），讓開發者無法複用有意義的默認配置 [1]。"
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "**目前還沒有針對此規則的實現或自動檢查工具。**"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "zh-09",
+      "lang": "zh-Hant",
+      "question": "`vibe-guard` 擋得住 `find . -delete` 這種指令嗎？如果機器上根本沒裝 `vibe-guard`，agent 的指令會直接放行嗎？",
+      "key_points": [
+        "擋不住：guard 只擋它那些指令的不同寫法，效果相同的其他指令（如 `find . -delete`、`git checkout -f`）會執行；它不是 sandbox。",
+        "要硬限制請用 Claude Code 的 permission `deny` 規則和 sandbox。",
+        "沒裝 `vibe-guard` 時會 fail closed：hook 指令印出安裝方式並以 exit 2 拒絕，因為 127 在 Claude Code 會被當成放行。"
+      ],
+      "expected_sources": [
+        "vibeconform/docs/usage.md",
+        "vibeconform/docs/decisions/0025-contract-model.md",
+        "vibeconform/docs/specs/0051-contract-v1.md",
+        "vibeconform/docs/architecture/principles.md"
+      ],
+      "expected_route": "slow",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 4767,
+          "output_tokens": 1739,
+          "thinking_tokens": 0
+        },
+        "answer": "根據文件記載：\n\n1. **擋得住 `find . -delete` 嗎？**\n擋不住。`vibe-guard` 的基線規則只負責封鎖特定的已知破壞性命令（如 `rm -rf`、`git reset --hard`）及其各種拼寫變體。它**沒有能力也不試圖封鎖所有能造成同樣破壞的命令**。在文件的「Known limitations」（已知限制）章節中，明確指出 **`find . -delete` 是被允許直接執行的**。[3]\n\n2. **如果機器上沒裝 `vibe-guard`，指令會直接放行嗎？**\n**不會**（預設是「拒絕」而不是「放行」）。`vibe-guard` 的設計遵循 **\"Fail Closed\"（失敗閉鎖）** 原則。其 Agent hooks 會在執行命令前先用 shell 內建指令檢查環境變數 `PATH` 是否包含該程式。如果沒裝，hook 會直接中止並列印安裝錯誤資訊；在這種情況下，**所有的工具調用（tool calls）都會被拒絕**。[1][2]",
+        "searches": [
+          [
+            "vibeconform/docs/usage.md#vibe-guard-the-reference-guard",
+            "vibeconform/docs/decisions/0025-contract-model.md#decision",
+            "vibeconform/docs/usage.md#the-agent-guard",
+            "vibeconform/docs/specs/0051-contract-v1.md#a-agent-guardrails",
+            "vibeconform/docs/specs/0053-contract-probes-and-guard.md#solution"
+          ]
+        ],
+        "citations": [
+          "vibeconform/docs/usage.md#the-agent-guard",
+          "vibeconform/docs/usage.md#vibe-guard-the-reference-guard",
+          "vibeconform/docs/decisions/0025-contract-model.md#decision"
+        ],
+        "latency_ms": 20407.93617698364,
+        "requests": 2,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": true,
+            "quote": "在文件的「Known limitations」（已知限制）章節中，明確指出 **`find . -delete` 是被允許直接執行的**。"
+          },
+          {
+            "key_point": 2,
+            "covered": false,
+            "quote": null
+          },
+          {
+            "key_point": 3,
+            "covered": true,
+            "quote": "`vibe-guard` 的設計遵循 \"Fail Closed\"（失敗閉鎖） 原則。"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "id": "zh-10",
+      "lang": "zh-Hant",
+      "question": "vessel-mind 的 Docker image 是用哪一個 Python base image？",
+      "key_points": [
+        "文件沒有涵蓋：spec 只提到 `deploy/Dockerfile` 和 Notion MCP 的 Docker build stage，沒有指定 base image。"
+      ],
+      "expected_sources": [],
+      "expected_route": "fast",
+      "turn": {
+        "route": "slow",
+        "reason": "router_off",
+        "router_model": null,
+        "answer_model": "qwen3.6:35b-a3b",
+        "router_usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        },
+        "answer_usage": {
+          "input_tokens": 12367,
+          "output_tokens": 5249,
+          "thinking_tokens": 0
+        },
+        "answer": "",
+        "searches": [
+          [
+            "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+            "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+            "vessel-mind/docs/specs/a-agent-track.md#1-context-you-need",
+            "vessel-mind/docs/specs/a-agent-track.md#4-repository-layout-to-create",
+            "vessel-mind/GLOSSARY.md#vessel-mind"
+          ],
+          [
+            "vibeconform/docs/plans/0038-ci-provider.md#resolved-design-questions",
+            "vibeconform/docs/plans/0049-lint-base-configs.md#repository-impact",
+            "vessel-mind/docs/specs/a-agent-track.md#4-repository-layout-to-create",
+            "vibeconform/docs/specs/0049-lint-base-configs.md#non-goals",
+            "vibeconform/docs/plans/0049-lint-base-configs.md#tests"
+          ]
+        ],
+        "citations": [],
+        "latency_ms": 48873.36235202383,
+        "requests": 3,
+        "error": null
+      },
+      "judge": {
+        "model": "qwen3.6:35b-a3b",
+        "verdicts": [
+          {
+            "key_point": 1,
+            "covered": false,
+            "quote": null
+          }
+        ],
+        "error": null
+      }
+    }
+  ],
+  "stopped": null
+}

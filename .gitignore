@@ -7,3 +7,27 @@ __pycache__/
 # checkout.
 .claude/settings.local.json
 .claude/worktrees/
+
+# Secrets for docker compose (GEMINI_API_KEY, NOTION_TOKEN, TUNNEL_TOKEN):
+# .env, or one file per host passed with --env-file (.env.public, .env.local).
+.env
+.env.*
+
+# Local agent configs; the committed examples are config/agent.example.yaml
+# and config/agent.public.example.yaml.
+config/agent.yaml
+config/agent.local.yaml
+config/agent.public.yaml
+
+# Runtime data: the retrieval index (task ingest; rebuilt from the corpus),
+# the state file (sessions, history, proposals; cannot be rebuilt), and the
+# downloaded corpus tarballs and embedding models.
+data/
+.cache/
+
+# A row file of the end-to-end eval being rewritten (an interrupted write).
+*.json.partial
+
+# The Notion MCP server, installed from deploy/notion-mcp/package-lock.json
+# with npm ci; only the two package files are committed.
+deploy/notion-mcp/node_modules/

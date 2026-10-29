@@ -1,0 +1,2215 @@
+{
+  "generated": "2026-10-26",
+  "golden_path": "eval/golden.yaml",
+  "golden_sha256": "80d4880e90641b67d0d31e09b6d399963f91fb16dcfaf6254dee4c9d2e51ae11",
+  "corpus": [
+    {
+      "name": "vessel-mind",
+      "repo": "Manual-debuger/vessel-mind",
+      "commit": "09a08904555f6208dab548a8837a24ac78eb54e5"
+    },
+    {
+      "name": "vibeconform",
+      "repo": "Manual-debuger/VibeConform",
+      "commit": "384d89efc764edbabb6475a1644c4a934be64e82"
+    }
+  ],
+  "chunks": 1178,
+  "embedding_model": "jinaai/jina-embeddings-v2-base-zh",
+  "reranker_model": "BAAI/bge-reranker-v2-m3-int8",
+  "candidate_k": 30,
+  "top_k": 5,
+  "rows": [
+    {
+      "name": "vector",
+      "stage": "vector",
+      "reranked": false,
+      "languages": {
+        "en": {
+          "questions": 22,
+          "timed": 25,
+          "recall_at_k": 0.6636363636363636,
+          "mrr": 0.7083333333333334,
+          "latency_ms_p50": 20.62486798968166,
+          "latency_ms_p95": 24.198273150250316
+        },
+        "zh-Hant": {
+          "questions": 9,
+          "timed": 10,
+          "recall_at_k": 0.5092592592592592,
+          "mrr": 0.6666666666666666,
+          "latency_ms_p50": 23.78208003938198,
+          "latency_ms_p95": 164.85951652866805
+        }
+      }
+    },
+    {
+      "name": "keyword",
+      "stage": "keyword",
+      "reranked": false,
+      "languages": {
+        "en": {
+          "questions": 22,
+          "timed": 25,
+          "recall_at_k": 0.8075757575757575,
+          "mrr": 0.8878787878787879,
+          "latency_ms_p50": 3.894431982189417,
+          "latency_ms_p95": 9.454103605821729
+        },
+        "zh-Hant": {
+          "questions": 9,
+          "timed": 10,
+          "recall_at_k": 0.7685185185185186,
+          "mrr": 0.8333333333333334,
+          "latency_ms_p50": 3.8213334628380835,
+          "latency_ms_p95": 11.894161452073606
+        }
+      }
+    },
+    {
+      "name": "hybrid",
+      "stage": "hybrid",
+      "reranked": false,
+      "languages": {
+        "en": {
+          "questions": 22,
+          "timed": 25,
+          "recall_at_k": 0.8318181818181819,
+          "mrr": 0.9015151515151515,
+          "latency_ms_p50": 21.435932954773307,
+          "latency_ms_p95": 29.611138999462128
+        },
+        "zh-Hant": {
+          "questions": 9,
+          "timed": 10,
+          "recall_at_k": 0.7314814814814814,
+          "mrr": 0.8,
+          "latency_ms_p50": 19.072701456025243,
+          "latency_ms_p95": 22.87939316011034
+        }
+      }
+    },
+    {
+      "name": "hybrid + rerank",
+      "stage": "hybrid",
+      "reranked": true,
+      "languages": {
+        "en": {
+          "questions": 22,
+          "timed": 25,
+          "recall_at_k": 0.8318181818181819,
+          "mrr": 0.893939393939394,
+          "latency_ms_p50": 13039.646649966016,
+          "latency_ms_p95": 17569.32089342736
+        },
+        "zh-Hant": {
+          "questions": 9,
+          "timed": 10,
+          "recall_at_k": 0.7685185185185186,
+          "mrr": 0.8888888888888888,
+          "latency_ms_p50": 13659.466170473024,
+          "latency_ms_p95": 14918.191305419896
+        }
+      }
+    }
+  ],
+  "questions": [
+    {
+      "id": "en-01",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vibeconform/docs/specs/0046-graphify-post-merge.md#acceptance-criteria",
+        "vibeconform/docs/specs/0046-graphify-post-merge.md#spec-0046-graphify-rebuilds-the-graph-after-a-pull",
+        "vibeconform/docs/specs/0057-hook-stages.md#problem",
+        "vibeconform/docs/specs/0057-hook-stages.md#decisions-grilling-2026-10-21",
+        "vibeconform/docs/specs/0057-hook-stages.md#desired-behavior"
+      ],
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "latency_ms": 35.325411008670926
+    },
+    {
+      "id": "en-02",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#4-the-embodiment-contract",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#amendments",
+        "vessel-mind/docs/specs/a-agent-track.md#51-chatmodel-seam-a1",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#alternatives-considered",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 20.68863797467202
+    },
+    {
+      "id": "en-03",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#amendments",
+        "vessel-mind/GLOSSARY.md#side-effects",
+        "vibeconform/docs/decisions/0017-lefthook-local-extension.md#alternatives-considered",
+        "vessel-mind/docs/specs/a-agent-track.md#55-mcp-and-proposals-a2",
+        "vibeconform/docs/reports/contract-v1-pilot.md#p1-meeting-summarizer"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 22.869749926030636
+    },
+    {
+      "id": "en-04",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#alternatives-considered",
+        "vessel-mind/GLOSSARY.md#vessel-mind",
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#consequences",
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access",
+        "vessel-mind/GLOSSARY.md#side-effects"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 22.51092705409974
+    },
+    {
+      "id": "en-05",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#amendments",
+        "vibeconform/docs/decisions/0005-separate-config-and-secrets.md#adr-0005-separate-configuration-from-secrets",
+        "vibeconform/docs/specs/0053-contract-probes-and-guard.md#the-contracts-guard-corpus-103-105-106",
+        "vibeconform/docs/decisions/0017-lefthook-local-extension.md#alternatives-considered",
+        "vibeconform/docs/decisions/0025-contract-model.md#alternatives-considered"
+      ],
+      "recall": 0.3333333333333333,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 20.62486798968166
+    },
+    {
+      "id": "en-06",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vessel-mind/GLOSSARY.md#vessel-mind",
+        "vessel-mind/docs/specs/a-agent-track.md#57-router-a4",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#3-route-by-what-the-turn-needs-not-by-where-the-model-lives",
+        "vibeconform/docs/specs/0043-neutral-agents-routing.md#non-goals",
+        "vibeconform/docs/plans/0043-neutral-agents-routing.md#found-during-implementation"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "latency_ms": 21.827068994753063
+    },
+    {
+      "id": "en-07",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#57-router-a4",
+        "vibeconform/docs/reports/0056-faster-hooks.md#contract-rule-a-05-the-test-cache-not-a-process",
+        "vibeconform/docs/reports/0056-faster-hooks.md#contract-rule-a-05-the-test-cache-not-a-process",
+        "vibeconform/docs/reports/0056-faster-hooks.md#spec-0056-report-short-mode-diagnosis-results-and-multi-agent-friction",
+        "vibeconform/docs/specs/0056-faster-agent-hooks.md#assumptions"
+      ],
+      "recall": 0.5,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 22.473408025689423
+    },
+    {
+      "id": "en-08",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vessel-mind/GLOSSARY.md#side-effects",
+        "vibeconform/docs/plans/0029-text-policy.md#resolved-design-questions",
+        "vibeconform/docs/decisions/0014-managed-sections.md#decision",
+        "vibeconform/docs/specs/0053-contract-probes-and-guard.md#how-the-audit-runs-commands",
+        "vibeconform/docs/decisions/0006-resource-file-mode.md#consequences"
+      ],
+      "recall": 0.5,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 22.069179103709757
+    },
+    {
+      "id": "en-09",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#amendments",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/GLOSSARY.md#vessel-mind",
+        "vessel-mind/GLOSSARY.md#side-effects",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#alternatives-considered"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 24.423728929832578
+    },
+    {
+      "id": "en-10",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vibeconform/docs/specs/0023-agent-lifecycle-hooks.md#known-limitations",
+        "vibeconform/docs/specs/0021-agent-hooks-task-interface.md#problem",
+        "vessel-mind/docs/specs/a-agent-track.md#56-retrieval-a3",
+        "vibeconform/docs/plans/0021-agent-hooks-task-interface.md#checklist",
+        "vibeconform/docs/plans/0023-agent-lifecycle-hooks.md#spike-results-2026-09-24"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 0.3333333333333333,
+      "latency_ms": 22.377260960638523
+    },
+    {
+      "id": "en-11",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vibeconform/docs/specs/0009-vibe-audit-v2.md#behavior",
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/specs/0004-vibe-audit-v1.md#follow-on-work"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "latency_ms": 22.750451928004622
+    },
+    {
+      "id": "en-12",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vibeconform/docs/architecture/principles.md#where-these-principles-already-show-up",
+        "vibeconform/docs/architecture/principles.md#vibeconform-design-principles",
+        "vibeconform/docs/architecture/overview.md#vibeconform-architecture-overview",
+        "vibeconform/docs/architecture/principles.md#2-easy-to-use-on-windows-and-linux-alike",
+        "vibeconform/README.md#core-philosophy"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 23.296450031921268
+    },
+    {
+      "id": "en-13",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vibeconform/docs/adopting.md#leaving",
+        "vibeconform/docs/usage.md#removing-vibeconform",
+        "vibeconform/docs/usage.md#leaving-the-template-sync-system",
+        "vibeconform/README.md#vibeconform",
+        "vibeconform/docs/adopting.md#adopting-an-existing-repository"
+      ],
+      "recall": 0.6,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 19.000002997927368
+    },
+    {
+      "id": "en-14",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vibeconform/docs/usage.md#vibeyaml-version-2",
+        "vibeconform/docs/specs/0013-dogfood-self-management.md#design-notes",
+        "vibeconform/docs/usage.md#vibeyaml-version-2",
+        "vibeconform/docs/decisions/0004-yaml-manifest-format.md#adr-0004-yaml-for-vibeyaml",
+        "vibeconform/docs/adopting.md#4-write-vibeyaml"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 0.25,
+      "latency_ms": 19.635845092125237
+    },
+    {
+      "id": "en-15",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vibeconform/docs/decisions/0010-semver-comparison-dependency.md#adr-0010-depend-on-golangorgxmodsemver-for-version-ordering",
+        "vibeconform/docs/specs/0019-drift-classification.md#a-new-production-dependency-golangorgxmodsemver",
+        "vibeconform/docs/decisions/0010-semver-comparison-dependency.md#decision",
+        "vibeconform/docs/decisions/0010-semver-comparison-dependency.md#consequences",
+        "vibeconform/docs/usage.md#the-setup-action"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 17.791306017898023
+    },
+    {
+      "id": "en-16",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vibeconform/docs/architecture/overview.md#the-reference-guard",
+        "vibeconform/docs/plans/0012-agent-config-module.md#notes",
+        "vibeconform/docs/usage.md#vibe-guard-the-reference-guard",
+        "vibeconform/docs/usage.md#vibe-guard-the-reference-guard",
+        "vibeconform/docs/decisions/0024-floor-and-content-seams.md#alternatives-considered"
+      ],
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "latency_ms": 18.377503962256014
+    },
+    {
+      "id": "en-17",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vibeconform/docs/specs/0028-environment-doctor.md#24-what-doctor-never-does",
+        "vibeconform/docs/usage.md#vibe-doctor",
+        "vibeconform/docs/specs/0028-environment-doctor.md#behavior",
+        "vibeconform/docs/usage.md#vibe-doctor",
+        "vibeconform/docs/specs/0039-doctor-paths-graphify-coexistence.md#non-goals"
+      ],
+      "recall": 0.5,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 17.49666698742658
+    },
+    {
+      "id": "en-18",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vibeconform/docs/specs/0053-contract-probes-and-guard.md#this-repository",
+        "vibeconform/docs/usage.md#the-agent-guard",
+        "vibeconform/docs/specs/0021-agent-hooks-task-interface.md#behavior",
+        "vibeconform/docs/usage.md#codex-hooks-suspended",
+        "vibeconform/docs/specs/0051-contract-v1.md#changes"
+      ],
+      "recall": 0.5,
+      "reciprocal_rank": 0.5,
+      "latency_ms": 19.971556961536407
+    },
+    {
+      "id": "en-19",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/specs/0009-vibe-audit-v2.md#behavior",
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/specs/0009-vibe-audit-v2.md#spec-0009-vibe-audit-v2--strict-conformance-gate"
+      ],
+      "recall": 0.3333333333333333,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 20.507522975094616
+    },
+    {
+      "id": "en-20",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vibeconform/docs/usage.md#vibeconform-user-manual",
+        "vibeconform/README.md#vibeconform",
+        "vibeconform/docs/architecture/overview.md#vibeconform-architecture-overview",
+        "vibeconform/docs/specs/0013-dogfood-self-management.md#design-notes",
+        "vibeconform/docs/plans/0013-dogfood-self-management.md#notes"
+      ],
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "latency_ms": 16.238270909525454
+    },
+    {
+      "id": "en-21",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vibeconform/docs/reports/0056-faster-hooks.md#contract-rule-a-05-the-test-cache-not-a-process",
+        "vibeconform/docs/reports/0056-faster-hooks.md#spec-0056-report-short-mode-diagnosis-results-and-multi-agent-friction",
+        "vibeconform/docs/specs/0056-faster-agent-hooks.md#constraints",
+        "vibeconform/docs/reports/0056-faster-hooks.md#contract-rule-a-05-the-test-cache-not-a-process",
+        "vibeconform/docs/reports/0056-faster-hooks.md#results-2026-10-21-880ce12-quiet-machine"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 19.74933093879372
+    },
+    {
+      "id": "en-22",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vibeconform/docs/specs/0004-vibe-audit-v1.md#follow-on-work",
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/specs/0004-vibe-audit-v1.md#spec-0004-vibe-audit-v1",
+        "vibeconform/docs/specs/0004-vibe-audit-v1.md#design-notes",
+        "vibeconform/docs/adopting.md#7-verify-then-audit"
+      ],
+      "recall": 0.3333333333333333,
+      "reciprocal_rank": 0.5,
+      "latency_ms": 21.22904302086681
+    },
+    {
+      "id": "un-01",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#56-retrieval-a3",
+        "vessel-mind/docs/specs/a-agent-track.md#58-eval-harness-a4",
+        "vibeconform/docs/specs/0019-drift-classification.md#the-information-is-already-there",
+        "vibeconform/docs/specs/0009-vibe-audit-v2.md#behavior",
+        "vibeconform/docs/plans/0029-text-policy.md#verification"
+      ],
+      "recall": null,
+      "reciprocal_rank": null,
+      "latency_ms": 18.85471201967448
+    },
+    {
+      "id": "un-02",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#amendments",
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access",
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#consequences",
+        "vessel-mind/docs/specs/a-agent-track.md#55-mcp-and-proposals-a2",
+        "vessel-mind/docs/specs/a-agent-track.md#57-router-a4"
+      ],
+      "recall": null,
+      "reciprocal_rank": null,
+      "latency_ms": 17.824977985583246
+    },
+    {
+      "id": "un-03",
+      "lang": "en",
+      "row": "vector",
+      "sources": [
+        "vessel-mind/GLOSSARY.md#vessel-mind",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/GLOSSARY.md#side-effects",
+        "vessel-mind/docs/specs/a-agent-track.md#4-repository-layout-to-create",
+        "vessel-mind/docs/specs/a-agent-track.md#1-context-you-need"
+      ],
+      "recall": null,
+      "reciprocal_rank": null,
+      "latency_ms": 17.667704029008746
+    },
+    {
+      "id": "zh-01",
+      "lang": "zh-Hant",
+      "row": "vector",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#51-chatmodel-seam-a1",
+        "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+        "vibeconform/docs/specs/0039-doctor-paths-graphify-coexistence.md#behaviour",
+        "vibeconform/docs/plans/0008-vibe-sync-v1.md#checklist",
+        "vibeconform/docs/specs/0008-vibe-sync-v1.md#scope"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 26.699687005020678
+    },
+    {
+      "id": "zh-02",
+      "lang": "zh-Hant",
+      "row": "vector",
+      "sources": [
+        "vibeconform/docs/specs/0057-hook-stages.md#decisions-grilling-2026-10-21",
+        "vibeconform/docs/specs/0057-hook-stages.md#non-goals",
+        "vibeconform/docs/specs/0057-hook-stages.md#desired-behavior",
+        "vibeconform/docs/plans/0014-m2-milestone.md#commit-2--tool-availability-warnings",
+        "vibeconform/docs/specs/0057-hook-stages.md#testing-decisions"
+      ],
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "latency_ms": 21.694274037145078
+    },
+    {
+      "id": "zh-03",
+      "lang": "zh-Hant",
+      "row": "vector",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+        "vibeconform/docs/plans/0026-optional-integrations.md#found-during-implementation",
+        "vibeconform/docs/specs/0014-m2-milestone.md#ts-tooling-and-python-tooling",
+        "vibeconform/docs/specs/0014-m2-milestone.md#follow-on-work",
+        "vibeconform/docs/specs/0014-m2-milestone.md#design-notes"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 277.3118349723518
+    },
+    {
+      "id": "zh-04",
+      "lang": "zh-Hant",
+      "row": "vector",
+      "sources": [
+        "vibeconform/docs/plans/0019-drift-classification.md#c4--exit-codes-guards-and-the-build-stamp",
+        "vibeconform/docs/specs/0049-lint-base-configs.md#assumptions",
+        "vibeconform/docs/plans/0049-lint-base-configs.md#planning-a-seeded-resource",
+        "vibeconform/docs/plans/0029-text-policy.md#found-during-implementation",
+        "vibeconform/docs/specs/0029-text-policy.md#3-managed-sections"
+      ],
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "latency_ms": 27.41779398638755
+    },
+    {
+      "id": "zh-05",
+      "lang": "zh-Hant",
+      "row": "vector",
+      "sources": [
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#consequences",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vibeconform/docs/reports/contract-v1-pilot.md#p1-meeting-summarizer",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#4-the-embodiment-contract",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#6-the-protocol-is-the-product-boundary-the-console-is-for-operators"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 22.077723988331854
+    },
+    {
+      "id": "zh-06",
+      "lang": "zh-Hant",
+      "row": "vector",
+      "sources": [
+        "vibeconform/docs/usage.md#vibe-unlock",
+        "vibeconform/docs/usage.md#vibe-guard-the-reference-guard",
+        "vibeconform/docs/adopting.md#day-to-day",
+        "vibeconform/docs/specs/0053-contract-probes-and-guard.md#vibe-unlock-106",
+        "vibeconform/docs/usage.md#vibe-guard-the-reference-guard"
+      ],
+      "recall": 0.6666666666666666,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 23.198291077278554
+    },
+    {
+      "id": "zh-07",
+      "lang": "zh-Hant",
+      "row": "vector",
+      "sources": [
+        "vibeconform/docs/usage.md#git-hooks",
+        "vibeconform/docs/specs/0057-hook-stages.md#vibeconforms-own-repository-q8-q14",
+        "vibeconform/docs/usage.md#vibe-init",
+        "vibeconform/docs/adopting.md#8-commit",
+        "vibeconform/docs/usage.md#hookdone-end-of-turn"
+      ],
+      "recall": 0.6666666666666666,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 22.65195397194475
+    },
+    {
+      "id": "zh-08",
+      "lang": "zh-Hant",
+      "row": "vector",
+      "sources": [
+        "vibeconform/docs/architecture/overview.md#internal-package-layout",
+        "vibeconform/README.md#using-vibe",
+        "vibeconform/docs/usage.md#vibeconform-user-manual",
+        "vibeconform/README.md#cli",
+        "vibeconform/README.md#repository-layout"
+      ],
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "latency_ms": 18.616054905578494
+    },
+    {
+      "id": "zh-09",
+      "lang": "zh-Hant",
+      "row": "vector",
+      "sources": [
+        "vibeconform/docs/usage.md#vibe-guard-the-reference-guard",
+        "vibeconform/docs/usage.md#the-agent-guard",
+        "vibeconform/docs/usage.md#vibe-guard-the-reference-guard",
+        "vibeconform/docs/specs/0021-agent-hooks-task-interface.md#behavior",
+        "vibeconform/docs/usage.md#vibe-guard-the-reference-guard"
+      ],
+      "recall": 0.25,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 25.782574899494648
+    },
+    {
+      "id": "zh-10",
+      "lang": "zh-Hant",
+      "row": "vector",
+      "sources": [
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/docs/specs/a-agent-track.md#4-repository-layout-to-create",
+        "vessel-mind/GLOSSARY.md#vessel-mind",
+        "vibeconform/docs/specs/0044-ci-pin-table.md#5-repository-and-examples",
+        "vibeconform/docs/specs/0035-graphify.md#assumptions-not-yet-verified"
+      ],
+      "recall": null,
+      "reciprocal_rank": null,
+      "latency_ms": 24.365869001485407
+    },
+    {
+      "id": "en-01",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#57-router-a4",
+        "vibeconform/docs/specs/0019-drift-classification.md#2-record-what-wrote-the-state",
+        "vibeconform/docs/specs/0019-drift-classification.md#the-ordering-problem-stated-plainly",
+        "vibeconform/docs/specs/0009-vibe-audit-v2.md#spec-0009-vibe-audit-v2--strict-conformance-gate",
+        "vibeconform/docs/specs/0019-drift-classification.md#acceptance-criteria"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 2.9861219227313995
+    },
+    {
+      "id": "en-02",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#4-the-embodiment-contract",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/docs/specs/a-agent-track.md#0-read-this-first",
+        "vibeconform/docs/specs/0051-contract-v1.md#spec-0051-contract-v100",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#alternatives-considered"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 20.280116004869342
+    },
+    {
+      "id": "en-03",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#55-mcp-and-proposals-a2",
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#amendments",
+        "vessel-mind/docs/specs/a-agent-track.md#7-definition-of-done",
+        "vessel-mind/GLOSSARY.md#side-effects",
+        "vessel-mind/docs/specs/a-agent-track.md#a1a4--agent-track--implementation-requirements"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 8.415973978117108
+    },
+    {
+      "id": "en-04",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access",
+        "vessel-mind/docs/specs/a-agent-track.md#a1a4--agent-track--implementation-requirements",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/docs/specs/a-agent-track.md#3-human-only-prerequisites--do-not-attempt-these",
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#amendments"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 9.713636012747884
+    },
+    {
+      "id": "en-05",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#amendments",
+        "vessel-mind/docs/specs/a-agent-track.md#3-human-only-prerequisites--do-not-attempt-these",
+        "vessel-mind/docs/specs/a-agent-track.md#7-definition-of-done",
+        "vessel-mind/docs/specs/a-agent-track.md#a1a4--agent-track--implementation-requirements",
+        "vessel-mind/GLOSSARY.md#side-effects"
+      ],
+      "recall": 0.6666666666666666,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 3.3664730144664645
+    },
+    {
+      "id": "en-06",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#3-route-by-what-the-turn-needs-not-by-where-the-model-lives",
+        "vessel-mind/GLOSSARY.md#vessel-mind",
+        "vessel-mind/docs/specs/a-agent-track.md#57-router-a4",
+        "vessel-mind/docs/specs/a-agent-track.md#a1a4--agent-track--implementation-requirements",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 7.500716019421816
+    },
+    {
+      "id": "en-07",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vessel-mind/GLOSSARY.md#vessel-mind",
+        "vessel-mind/docs/specs/a-agent-track.md#58-eval-harness-a4",
+        "vibeconform/docs/specs/0009-vibe-audit-v2.md#behavior",
+        "vibeconform/docs/plans/0029-text-policy.md#found-during-implementation",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#3-route-by-what-the-turn-needs-not-by-where-the-model-lives"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 4.697846947237849
+    },
+    {
+      "id": "en-08",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#53-protocol-a1",
+        "vessel-mind/docs/specs/a-agent-track.md#56-retrieval-a3",
+        "vessel-mind/docs/specs/a-agent-track.md#4-repository-layout-to-create",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#6-the-protocol-is-the-product-boundary-the-console-is-for-operators",
+        "vessel-mind/docs/specs/a-agent-track.md#0-read-this-first"
+      ],
+      "recall": 0.5,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 5.288853892125189
+    },
+    {
+      "id": "en-09",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#amendments",
+        "vessel-mind/docs/specs/a-agent-track.md#1-context-you-need",
+        "vessel-mind/docs/specs/a-agent-track.md#4-repository-layout-to-create",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#consequences"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 4.6295830979943275
+    },
+    {
+      "id": "en-10",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#4-repository-layout-to-create",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/docs/specs/a-agent-track.md#56-retrieval-a3",
+        "vessel-mind/docs/specs/a-agent-track.md#8-working-conventions",
+        "vibeconform/docs/plans/0030-plan-triggered-sdd.md#resolved-design-questions"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 3.161974949762225
+    },
+    {
+      "id": "en-11",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vibeconform/docs/specs/0028-environment-doctor.md#tests",
+        "vibeconform/docs/specs/0028-environment-doctor.md#design-notes",
+        "vibeconform/docs/plans/0007-m1-milestone.md#sequence",
+        "vibeconform/docs/specs/0014-m2-milestone.md#scope",
+        "vibeconform/docs/decisions/0011-one-module-per-agent-runtime.md#adr-0011-one-module-per-agent-runtime-codex-hooks-suspended"
+      ],
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "latency_ms": 4.072830080986023
+    },
+    {
+      "id": "en-12",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vibeconform/docs/architecture/principles.md#vibeconform-design-principles",
+        "vibeconform/docs/architecture/overview.md#vibeconform-architecture-overview",
+        "vibeconform/docs/architecture/principles.md#where-these-principles-already-show-up",
+        "vibeconform/docs/specs/0057-hook-stages.md#non-goals",
+        "vibeconform/README.md#core-philosophy"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 3.304883954115212
+    },
+    {
+      "id": "en-13",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vibeconform/docs/usage.md#removing-vibeconform",
+        "vibeconform/docs/usage.md#agent-hooks",
+        "vibeconform/docs/usage.md#the-setup-skill",
+        "vibeconform/README.md#core-philosophy",
+        "vibeconform/docs/architecture/principles.md#3-easy-to-install-and-easy-to-remove"
+      ],
+      "recall": 0.6,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 3.6234770668670535
+    },
+    {
+      "id": "en-14",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vibeconform/docs/specs/0014-m2-milestone.md#explicit-non-goals",
+        "vibeconform/docs/plans/0037-generated-paths.md#steps",
+        "vibeconform/docs/usage.md#verifyfast-and-the-tool-caches",
+        "vibeconform/docs/reports/contract-v1-pilot.md#p3-examplespython-from-scratch",
+        "vibeconform/docs/decisions/0004-yaml-manifest-format.md#adr-0004-yaml-for-vibeyaml"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 0.2,
+      "latency_ms": 2.101526944898069
+    },
+    {
+      "id": "en-15",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vibeconform/docs/decisions/0010-semver-comparison-dependency.md#consequences",
+        "vibeconform/docs/decisions/0010-semver-comparison-dependency.md#decision",
+        "vibeconform/docs/decisions/0010-semver-comparison-dependency.md#adr-0010-depend-on-golangorgxmodsemver-for-version-ordering",
+        "vibeconform/docs/specs/0019-drift-classification.md#a-new-production-dependency-golangorgxmodsemver",
+        "vibeconform/docs/plans/0019-drift-classification.md#c2--adr-0010-and-the-semver-dependency"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 2.1451649954542518
+    },
+    {
+      "id": "en-16",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vibeconform/docs/specs/0047-guard-respellings.md#desired-behavior",
+        "vibeconform/docs/plans/0047-guard-respellings.md#plan-0047-the-agent-guard-denies-other-spellings-of-its-commands",
+        "vibeconform/docs/decisions/0025-contract-model.md#decision",
+        "vibeconform/docs/decisions/0006-resource-file-mode.md#adr-0006-resource-file-mode",
+        "vibeconform/docs/usage.md#agent-hooks"
+      ],
+      "recall": 0.6666666666666666,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 3.894431982189417
+    },
+    {
+      "id": "en-17",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vibeconform/docs/specs/0028-environment-doctor.md#24-what-doctor-never-does",
+        "vibeconform/docs/plans/0028-environment-doctor.md#resolved-design-questions",
+        "vibeconform/docs/specs/0059-cutover-and-removal.md#user-stories",
+        "vibeconform/docs/plans/0028-environment-doctor.md#resolved-design-questions",
+        "vibeconform/docs/specs/0039-doctor-paths-graphify-coexistence.md#spec-0039-tool-paths-in-vibe-doctor-and-graphifys-own-skill-beside-vibeconforms"
+      ],
+      "recall": 0.5,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 1.5982140321284533
+    },
+    {
+      "id": "en-18",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vibeconform/docs/usage.md#codex-hooks-suspended",
+        "vibeconform/docs/specs/0023-agent-lifecycle-hooks.md#behavior",
+        "vibeconform/docs/specs/0024-claude-first-agent-modules.md#spec-0024-claude-first-one-module-per-agent-codex-hooks-suspended",
+        "vibeconform/docs/decisions/0011-one-module-per-agent-runtime.md#consequences",
+        "vibeconform/docs/usage.md#agent-hooks"
+      ],
+      "recall": 0.5,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 7.425078889355063
+    },
+    {
+      "id": "en-19",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vibeconform/docs/specs/0052-contract-audit-static.md#rule-registry-and-results-99",
+        "vibeconform/docs/specs/0052-contract-audit-static.md#further-notes",
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/specs/0051-contract-v1.md#spec-0051-contract-v100",
+        "vibeconform/docs/usage.md#vibe-audit"
+      ],
+      "recall": 0.6666666666666666,
+      "reciprocal_rank": 0.3333333333333333,
+      "latency_ms": 7.380627910606563
+    },
+    {
+      "id": "en-20",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vibeconform/docs/decisions/0007-release-tag-naming.md#adr-0007-release-tag-naming",
+        "vibeconform/docs/decisions/0007-release-tag-naming.md#amendment-2026-10-19-spec-0054",
+        "vibeconform/docs/specs/0054-contract-release-and-skill.md#the-install-hint",
+        "vibeconform/docs/usage.md#vibeconform-user-manual",
+        "vibeconform/docs/decisions/0007-release-tag-naming.md#consequences"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 3.5659080604091287
+    },
+    {
+      "id": "en-21",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vibeconform/docs/reports/0056-faster-hooks.md#spec-0056-report-short-mode-diagnosis-results-and-multi-agent-friction",
+        "vibeconform/docs/reports/0056-faster-hooks.md#contract-rule-a-05-the-test-cache-not-a-process",
+        "vibeconform/docs/reports/0056-faster-hooks.md#contract-rule-a-05-the-test-cache-not-a-process",
+        "vibeconform/docs/reports/0056-faster-hooks.md#results-2026-10-21-880ce12-quiet-machine",
+        "vibeconform/docs/specs/0056-faster-agent-hooks.md#constraints"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 4.244773997925222
+    },
+    {
+      "id": "en-22",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vibeconform/docs/specs/0051-contract-v1.md#rules",
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/usage.md#git-hooks",
+        "vibeconform/docs/specs/0053-contract-probes-and-guard.md#planted-defects-104",
+        "vibeconform/docs/specs/0053-contract-probes-and-guard.md#the-rules"
+      ],
+      "recall": 0.6666666666666666,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 4.385252948850393
+    },
+    {
+      "id": "un-01",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#58-eval-harness-a4",
+        "vessel-mind/docs/specs/a-agent-track.md#56-retrieval-a3",
+        "vessel-mind/docs/specs/a-agent-track.md#0-read-this-first",
+        "vessel-mind/docs/specs/a-agent-track.md#7-definition-of-done",
+        "vessel-mind/docs/specs/a-agent-track.md#8-working-conventions"
+      ],
+      "recall": null,
+      "reciprocal_rank": null,
+      "latency_ms": 1.3030689442530274
+    },
+    {
+      "id": "un-02",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#amendments",
+        "vessel-mind/docs/specs/a-agent-track.md#3-human-only-prerequisites--do-not-attempt-these",
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access",
+        "vessel-mind/docs/specs/a-agent-track.md#57-router-a4",
+        "vessel-mind/docs/specs/a-agent-track.md#a1a4--agent-track--implementation-requirements"
+      ],
+      "recall": null,
+      "reciprocal_rank": null,
+      "latency_ms": 1.3769010547548532
+    },
+    {
+      "id": "un-03",
+      "lang": "en",
+      "row": "keyword",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#1-context-you-need",
+        "vessel-mind/docs/specs/a-agent-track.md#4-repository-layout-to-create",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/GLOSSARY.md#vessel-mind",
+        "vibeconform/README.md#license"
+      ],
+      "recall": null,
+      "reciprocal_rank": null,
+      "latency_ms": 0.8222819305956364
+    },
+    {
+      "id": "zh-01",
+      "lang": "zh-Hant",
+      "row": "keyword",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#51-chatmodel-seam-a1",
+        "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+        "vessel-mind/docs/specs/a-agent-track.md#53-protocol-a1",
+        "vibeconform/docs/specs/0034-adopt-docs-layout.md#explicit-non-goals",
+        "vessel-mind/docs/specs/a-agent-track.md#54-operator-console-a1"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 1.5764649724587798
+    },
+    {
+      "id": "zh-02",
+      "lang": "zh-Hant",
+      "row": "keyword",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#56-retrieval-a3",
+        "vessel-mind/docs/specs/a-agent-track.md#0-read-this-first"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 0.20812591537833214
+    },
+    {
+      "id": "zh-03",
+      "lang": "zh-Hant",
+      "row": "keyword",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+        "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+        "vessel-mind/docs/specs/a-agent-track.md#5-deliverables",
+        "vessel-mind/docs/specs/a-agent-track.md#56-retrieval-a3",
+        "vibeconform/docs/plans/0036-lefthook-local-extension.md#steps"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 13.458325061947107
+    },
+    {
+      "id": "zh-04",
+      "lang": "zh-Hant",
+      "row": "keyword",
+      "sources": [
+        "vibeconform/docs/specs/0036-lefthook-local-extension.md#decision",
+        "vibeconform/docs/specs/0036-lefthook-local-extension.md#5-documentation",
+        "vibeconform/docs/decisions/0017-lefthook-local-extension.md#adr-0017-a-project-owned-lefthooklocalyml-through-extends",
+        "vibeconform/docs/decisions/0017-lefthook-local-extension.md#consequences",
+        "vibeconform/docs/plans/0018-prod-go-audit-portability.md#increment-4--remove-buildrun-add-the-local-include-seam"
+      ],
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "latency_ms": 9.65864397585392
+    },
+    {
+      "id": "zh-05",
+      "lang": "zh-Hant",
+      "row": "keyword",
+      "sources": [
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#consequences",
+        "vessel-mind/docs/specs/a-agent-track.md#4-repository-layout-to-create",
+        "vessel-mind/docs/specs/a-agent-track.md#6-explicitly-out-of-scope",
+        "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+        "vessel-mind/docs/specs/a-agent-track.md#7-definition-of-done"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 0.7021179189905524
+    },
+    {
+      "id": "zh-06",
+      "lang": "zh-Hant",
+      "row": "keyword",
+      "sources": [
+        "vibeconform/docs/adopting.md#day-to-day",
+        "vibeconform/docs/usage.md#vibe-unlock",
+        "vibeconform/docs/specs/0053-contract-probes-and-guard.md#vibe-unlock-106",
+        "vibeconform/docs/usage.md#the-setup-skill",
+        "vibeconform/docs/specs/0053-contract-probes-and-guard.md#vibe-guard-105"
+      ],
+      "recall": 0.6666666666666666,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 9.982405928894877
+    },
+    {
+      "id": "zh-07",
+      "lang": "zh-Hant",
+      "row": "keyword",
+      "sources": [
+        "vibeconform/docs/usage.md#git-hooks",
+        "vibeconform/docs/specs/0057-hook-stages.md#desired-behavior",
+        "vibeconform/docs/specs/0057-hook-stages.md#acceptance-criteria",
+        "vibeconform/docs/specs/0057-hook-stages.md#decisions-grilling-2026-10-21",
+        "vibeconform/docs/reports/0056-faster-hooks.md#multi-agent-friction-this-work-exposed"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 1.7871229210868478
+    },
+    {
+      "id": "zh-08",
+      "lang": "zh-Hant",
+      "row": "keyword",
+      "sources": [
+        "vibeconform/docs/decisions/0005-separate-config-and-secrets.md#adr-0005-separate-configuration-from-secrets",
+        "vibeconform/docs/decisions/0005-separate-config-and-secrets.md#consequences",
+        "vibeconform/docs/usage.md#the-agent-guard",
+        "vibeconform/docs/specs/0047-guard-respellings.md#desired-behavior",
+        "vibeconform/docs/adopting.md#2-install-vibe-and-vibe-guard-pinned"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 1.1310279369354248
+    },
+    {
+      "id": "zh-09",
+      "lang": "zh-Hant",
+      "row": "keyword",
+      "sources": [
+        "vibeconform/docs/specs/0047-guard-respellings.md#desired-behavior",
+        "vibeconform/docs/usage.md#the-agent-guard",
+        "vibeconform/docs/usage.md#the-agent-guard",
+        "vibeconform/docs/plans/0021-agent-hooks-task-interface.md#c5-docs-and-cleanup",
+        "vibeconform/docs/usage.md#vibe-unlock"
+      ],
+      "recall": 0.25,
+      "reciprocal_rank": 0.5,
+      "latency_ms": 5.855544004589319
+    },
+    {
+      "id": "zh-10",
+      "lang": "zh-Hant",
+      "row": "keyword",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#1-context-you-need",
+        "vessel-mind/docs/specs/a-agent-track.md#a1a4--agent-track--implementation-requirements",
+        "vibeconform/docs/decisions/0021-ci-floor-environment-seam.md#alternatives-considered",
+        "vibeconform/docs/specs/0040-ci-floor-environment-seam.md#non-goals",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment"
+      ],
+      "recall": null,
+      "reciprocal_rank": null,
+      "latency_ms": 8.175367955118418
+    },
+    {
+      "id": "en-01",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#57-router-a4",
+        "vibeconform/docs/specs/0019-drift-classification.md#the-ordering-problem-stated-plainly",
+        "vibeconform/docs/specs/0035-graphify.md#2-resources-when-selected",
+        "vibeconform/docs/plans/0006-reconcile-diff-v1.md#checklist",
+        "vibeconform/docs/specs/0046-graphify-post-merge.md#acceptance-criteria"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 22.795586031861603
+    },
+    {
+      "id": "en-02",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#4-the-embodiment-contract",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#amendments",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#alternatives-considered",
+        "vessel-mind/docs/specs/a-agent-track.md#51-chatmodel-seam-a1"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 22.460724925622344
+    },
+    {
+      "id": "en-03",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#amendments",
+        "vessel-mind/docs/specs/a-agent-track.md#55-mcp-and-proposals-a2",
+        "vessel-mind/GLOSSARY.md#side-effects",
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access",
+        "vibeconform/docs/decisions/0017-lefthook-local-extension.md#alternatives-considered"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 17.338398029096425
+    },
+    {
+      "id": "en-04",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access",
+        "vessel-mind/GLOSSARY.md#vessel-mind",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#alternatives-considered",
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#consequences"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 20.393135957419872
+    },
+    {
+      "id": "en-05",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#amendments",
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access",
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#alternatives-considered",
+        "vibeconform/docs/decisions/0005-separate-config-and-secrets.md#adr-0005-separate-configuration-from-secrets",
+        "vessel-mind/docs/specs/a-agent-track.md#3-human-only-prerequisites--do-not-attempt-these"
+      ],
+      "recall": 0.6666666666666666,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 17.920298036187887
+    },
+    {
+      "id": "en-06",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vessel-mind/GLOSSARY.md#vessel-mind",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#3-route-by-what-the-turn-needs-not-by-where-the-model-lives",
+        "vessel-mind/docs/specs/a-agent-track.md#57-router-a4",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vibeconform/docs/specs/0019-drift-classification.md#the-ordering-problem-stated-plainly"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "latency_ms": 27.218207018449903
+    },
+    {
+      "id": "en-07",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#57-router-a4",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#3-route-by-what-the-turn-needs-not-by-where-the-model-lives",
+        "vessel-mind/docs/specs/a-agent-track.md#58-eval-harness-a4",
+        "vibeconform/docs/reports/0056-faster-hooks.md#spec-0056-report-short-mode-diagnosis-results-and-multi-agent-friction",
+        "vibeconform/docs/specs/0056-faster-agent-hooks.md#assumptions"
+      ],
+      "recall": 0.5,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 21.435932954773307
+    },
+    {
+      "id": "en-08",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vessel-mind/GLOSSARY.md#side-effects",
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#amendments",
+        "vessel-mind/docs/specs/a-agent-track.md#53-protocol-a1",
+        "vibeconform/docs/plans/0029-text-policy.md#resolved-design-questions",
+        "vessel-mind/docs/specs/a-agent-track.md#56-retrieval-a3"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 21.406907006166875
+    },
+    {
+      "id": "en-09",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#amendments",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/GLOSSARY.md#vessel-mind",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#consequences",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#4-the-embodiment-contract"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 19.989822059869766
+    },
+    {
+      "id": "en-10",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#56-retrieval-a3",
+        "vibeconform/docs/specs/0047-guard-respellings.md#desired-behavior",
+        "vibeconform/docs/specs/0023-agent-lifecycle-hooks.md#5-how-affected-is-chosen",
+        "vibeconform/docs/specs/0023-agent-lifecycle-hooks.md#known-limitations",
+        "vessel-mind/docs/specs/a-agent-track.md#4-repository-layout-to-create"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 28.496822924353182
+    },
+    {
+      "id": "en-11",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vibeconform/docs/usage.md#vibe-doctor",
+        "vibeconform/docs/plans/0009-vibe-audit-v2.md#plan-0009-vibe-audit-v2--strict-conformance-gate",
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/specs/0059-cutover-and-removal.md#the-cli-112",
+        "vibeconform/docs/specs/0009-vibe-audit-v2.md#behavior"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 19.656712072901428
+    },
+    {
+      "id": "en-12",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vibeconform/docs/architecture/principles.md#vibeconform-design-principles",
+        "vibeconform/docs/architecture/principles.md#where-these-principles-already-show-up",
+        "vibeconform/docs/architecture/overview.md#vibeconform-architecture-overview",
+        "vibeconform/README.md#core-philosophy",
+        "vibeconform/docs/architecture/principles.md#3-easy-to-install-and-easy-to-remove"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 15.43996692635119
+    },
+    {
+      "id": "en-13",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vibeconform/docs/usage.md#removing-vibeconform",
+        "vibeconform/docs/architecture/principles.md#3-easy-to-install-and-easy-to-remove",
+        "vibeconform/README.md#core-philosophy",
+        "vibeconform/docs/adopting.md#adopting-vibeconform-in-a-new-repository",
+        "vibeconform/docs/adopting.md#leaving"
+      ],
+      "recall": 0.8,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 22.70991902332753
+    },
+    {
+      "id": "en-14",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vibeconform/docs/usage.md#vibeyaml-version-2",
+        "vibeconform/docs/decisions/0004-yaml-manifest-format.md#adr-0004-yaml-for-vibeyaml",
+        "vibeconform/docs/usage.md#vibe-init",
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/specs/0014-m2-milestone.md#explicit-non-goals"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "latency_ms": 17.126841004937887
+    },
+    {
+      "id": "en-15",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vibeconform/docs/decisions/0010-semver-comparison-dependency.md#adr-0010-depend-on-golangorgxmodsemver-for-version-ordering",
+        "vibeconform/docs/decisions/0010-semver-comparison-dependency.md#consequences",
+        "vibeconform/docs/decisions/0010-semver-comparison-dependency.md#decision",
+        "vibeconform/docs/specs/0019-drift-classification.md#a-new-production-dependency-golangorgxmodsemver",
+        "vibeconform/docs/plans/0019-drift-classification.md#c2--adr-0010-and-the-semver-dependency"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 23.48600106779486
+    },
+    {
+      "id": "en-16",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vibeconform/docs/plans/0047-guard-respellings.md#plan-0047-the-agent-guard-denies-other-spellings-of-its-commands",
+        "vibeconform/docs/plans/0047-guard-respellings.md#steps-one-commit-each-in-order",
+        "vibeconform/docs/specs/0047-guard-respellings.md#problem",
+        "vibeconform/docs/specs/0047-guard-respellings.md#spec-0047-the-agent-guard-denies-other-spellings-of-its-commands",
+        "vibeconform/docs/plans/0047-guard-respellings.md#pattern-design"
+      ],
+      "recall": 0.3333333333333333,
+      "reciprocal_rank": 0.3333333333333333,
+      "latency_ms": 21.728315972723067
+    },
+    {
+      "id": "en-17",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vibeconform/docs/specs/0028-environment-doctor.md#24-what-doctor-never-does",
+        "vibeconform/docs/usage.md#vibe-doctor",
+        "vibeconform/docs/specs/0039-doctor-paths-graphify-coexistence.md#spec-0039-tool-paths-in-vibe-doctor-and-graphifys-own-skill-beside-vibeconforms",
+        "vibeconform/docs/usage.md#vibe-doctor",
+        "vibeconform/docs/specs/0028-environment-doctor.md#2-vibe-doctor"
+      ],
+      "recall": 0.5,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 15.140635892748833
+    },
+    {
+      "id": "en-18",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vibeconform/docs/usage.md#codex-hooks-suspended",
+        "vibeconform/docs/specs/0023-agent-lifecycle-hooks.md#behavior",
+        "vibeconform/docs/decisions/0011-one-module-per-agent-runtime.md#consequences",
+        "vibeconform/docs/specs/0024-claude-first-agent-modules.md#spec-0024-claude-first-one-module-per-agent-codex-hooks-suspended",
+        "vibeconform/docs/specs/0024-claude-first-agent-modules.md#behavior"
+      ],
+      "recall": 0.5,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 29.269950930029154
+    },
+    {
+      "id": "en-19",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/specs/0009-vibe-audit-v2.md#scope",
+        "vibeconform/docs/specs/0052-contract-audit-static.md#side-by-side"
+      ],
+      "recall": 0.3333333333333333,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 34.331066999584436
+    },
+    {
+      "id": "en-20",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vibeconform/docs/usage.md#vibeconform-user-manual",
+        "vibeconform/docs/decisions/0007-release-tag-naming.md#amendment-2026-10-19-spec-0054",
+        "vibeconform/docs/decisions/0007-release-tag-naming.md#adr-0007-release-tag-naming",
+        "vibeconform/docs/usage.md#verifying-a-release",
+        "vibeconform/README.md#vibeconform"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "latency_ms": 19.431813969276845
+    },
+    {
+      "id": "en-21",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vibeconform/docs/reports/0056-faster-hooks.md#contract-rule-a-05-the-test-cache-not-a-process",
+        "vibeconform/docs/reports/0056-faster-hooks.md#spec-0056-report-short-mode-diagnosis-results-and-multi-agent-friction",
+        "vibeconform/docs/reports/0056-faster-hooks.md#contract-rule-a-05-the-test-cache-not-a-process",
+        "vibeconform/docs/specs/0056-faster-agent-hooks.md#constraints",
+        "vibeconform/docs/reports/0056-faster-hooks.md#results-2026-10-21-880ce12-quiet-machine"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 21.76705503370613
+    },
+    {
+      "id": "en-22",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/specs/0004-vibe-audit-v1.md#follow-on-work",
+        "vibeconform/docs/specs/0051-contract-v1.md#rules"
+      ],
+      "recall": 0.6666666666666666,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 29.69643601682037
+    },
+    {
+      "id": "un-01",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#56-retrieval-a3",
+        "vessel-mind/docs/specs/a-agent-track.md#58-eval-harness-a4",
+        "vibeconform/docs/specs/0053-contract-probes-and-guard.md#implementation-decisions",
+        "vibeconform/docs/specs/0019-drift-classification.md#the-information-is-already-there",
+        "vessel-mind/docs/specs/a-agent-track.md#0-read-this-first"
+      ],
+      "recall": null,
+      "reciprocal_rank": null,
+      "latency_ms": 17.24012999329716
+    },
+    {
+      "id": "un-02",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#amendments",
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access",
+        "vessel-mind/docs/specs/a-agent-track.md#57-router-a4",
+        "vessel-mind/GLOSSARY.md#side-effects",
+        "vessel-mind/docs/specs/a-agent-track.md#55-mcp-and-proposals-a2"
+      ],
+      "recall": null,
+      "reciprocal_rank": null,
+      "latency_ms": 22.761077038012445
+    },
+    {
+      "id": "un-03",
+      "lang": "en",
+      "row": "hybrid",
+      "sources": [
+        "vessel-mind/GLOSSARY.md#vessel-mind",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/docs/specs/a-agent-track.md#1-context-you-need",
+        "vessel-mind/docs/specs/a-agent-track.md#4-repository-layout-to-create",
+        "vessel-mind/GLOSSARY.md#side-effects"
+      ],
+      "recall": null,
+      "reciprocal_rank": null,
+      "latency_ms": 14.123825007118285
+    },
+    {
+      "id": "zh-01",
+      "lang": "zh-Hant",
+      "row": "hybrid",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#51-chatmodel-seam-a1",
+        "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+        "vibeconform/docs/specs/0039-doctor-paths-graphify-coexistence.md#behaviour",
+        "vessel-mind/docs/specs/a-agent-track.md#53-protocol-a1",
+        "vibeconform/docs/plans/0008-vibe-sync-v1.md#checklist"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 19.785712007433176
+    },
+    {
+      "id": "zh-02",
+      "lang": "zh-Hant",
+      "row": "hybrid",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#56-retrieval-a3",
+        "vibeconform/docs/specs/0057-hook-stages.md#decisions-grilling-2026-10-21",
+        "vibeconform/docs/specs/0057-hook-stages.md#non-goals",
+        "vessel-mind/docs/specs/a-agent-track.md#0-read-this-first",
+        "vibeconform/docs/specs/0057-hook-stages.md#desired-behavior"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 18.46363500226289
+    },
+    {
+      "id": "zh-03",
+      "lang": "zh-Hant",
+      "row": "hybrid",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+        "vibeconform/docs/plans/0026-optional-integrations.md#found-during-implementation",
+        "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+        "vibeconform/docs/specs/0014-m2-milestone.md#ts-tooling-and-python-tooling",
+        "vessel-mind/docs/specs/a-agent-track.md#5-deliverables"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 16.143993008881807
+    },
+    {
+      "id": "zh-04",
+      "lang": "zh-Hant",
+      "row": "hybrid",
+      "sources": [
+        "vibeconform/docs/plans/0019-drift-classification.md#c4--exit-codes-guards-and-the-build-stamp",
+        "vibeconform/docs/specs/0038-ci-provider.md#4-provider-gitlab",
+        "vibeconform/docs/specs/0036-lefthook-local-extension.md#decision",
+        "vibeconform/docs/specs/0049-lint-base-configs.md#assumptions",
+        "vibeconform/docs/specs/0036-lefthook-local-extension.md#5-documentation"
+      ],
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "latency_ms": 21.446492988616228
+    },
+    {
+      "id": "zh-05",
+      "lang": "zh-Hant",
+      "row": "hybrid",
+      "sources": [
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#consequences",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#alternatives-considered",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#4-the-embodiment-contract",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#6-the-protocol-is-the-product-boundary-the-console-is-for-operators"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 17.401753924787045
+    },
+    {
+      "id": "zh-06",
+      "lang": "zh-Hant",
+      "row": "hybrid",
+      "sources": [
+        "vibeconform/docs/usage.md#vibe-unlock",
+        "vibeconform/docs/adopting.md#day-to-day",
+        "vibeconform/docs/specs/0053-contract-probes-and-guard.md#vibe-unlock-106",
+        "vibeconform/docs/usage.md#vibe-guard-the-reference-guard",
+        "vibeconform/docs/usage.md#the-setup-skill"
+      ],
+      "recall": 0.6666666666666666,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 19.681767909787595
+    },
+    {
+      "id": "zh-07",
+      "lang": "zh-Hant",
+      "row": "hybrid",
+      "sources": [
+        "vibeconform/docs/usage.md#git-hooks",
+        "vibeconform/docs/usage.md#verifyfast-and-the-tool-caches",
+        "vibeconform/docs/adopting.md#8-commit",
+        "vibeconform/docs/usage.md#hookdone-end-of-turn",
+        "vibeconform/docs/specs/0057-hook-stages.md#vibeconforms-own-repository-q8-q14"
+      ],
+      "recall": 0.6666666666666666,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 20.64175100531429
+    },
+    {
+      "id": "zh-08",
+      "lang": "zh-Hant",
+      "row": "hybrid",
+      "sources": [
+        "vibeconform/docs/usage.md#vibe-guard-the-reference-guard",
+        "vibeconform/docs/usage.md#vibe-guard-the-reference-guard",
+        "vibeconform/docs/usage.md#vibe-guard-the-reference-guard",
+        "vibeconform/docs/architecture/overview.md#internal-package-layout",
+        "vibeconform/docs/decisions/0005-separate-config-and-secrets.md#adr-0005-separate-configuration-from-secrets"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 0.2,
+      "latency_ms": 16.91786397714168
+    },
+    {
+      "id": "zh-09",
+      "lang": "zh-Hant",
+      "row": "hybrid",
+      "sources": [
+        "vibeconform/docs/usage.md#the-agent-guard",
+        "vibeconform/docs/usage.md#the-agent-guard",
+        "vibeconform/docs/usage.md#vibe-unlock",
+        "vibeconform/docs/usage.md#vibe-guard-the-reference-guard",
+        "vibeconform/docs/specs/0021-agent-hooks-task-interface.md#behavior"
+      ],
+      "recall": 0.25,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 24.05176602769643
+    },
+    {
+      "id": "zh-10",
+      "lang": "zh-Hant",
+      "row": "hybrid",
+      "sources": [
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/docs/specs/a-agent-track.md#4-repository-layout-to-create",
+        "vessel-mind/GLOSSARY.md#vessel-mind",
+        "vibeconform/docs/plans/0049-lint-base-configs.md#tests",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#alternatives-considered"
+      ],
+      "recall": null,
+      "reciprocal_rank": null,
+      "latency_ms": 16.275358968414366
+    },
+    {
+      "id": "en-01",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#57-router-a4",
+        "vibeconform/docs/specs/0014-m2-milestone.md#design-notes",
+        "vibeconform/docs/specs/0035-graphify.md#3-missing-tool-and-graph-diagnostics",
+        "vibeconform/docs/specs/0019-drift-classification.md#acceptance-criteria",
+        "vibeconform/docs/reports/0056-faster-hooks.md#contract-rule-a-05-the-test-cache-not-a-process"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 20279.399164021015
+    },
+    {
+      "id": "en-02",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#4-the-embodiment-contract",
+        "vessel-mind/docs/specs/a-agent-track.md#0-read-this-first",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/docs/specs/a-agent-track.md#51-chatmodel-seam-a1",
+        "vessel-mind/docs/specs/a-agent-track.md#4-repository-layout-to-create"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 14504.056314006448
+    },
+    {
+      "id": "en-03",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#amendments",
+        "vessel-mind/docs/specs/a-agent-track.md#55-mcp-and-proposals-a2",
+        "vessel-mind/docs/specs/a-agent-track.md#7-definition-of-done",
+        "vessel-mind/docs/specs/a-agent-track.md#a1a4--agent-track--implementation-requirements",
+        "vessel-mind/GLOSSARY.md#side-effects"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 14004.744873964228
+    },
+    {
+      "id": "en-04",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/docs/specs/a-agent-track.md#3-human-only-prerequisites--do-not-attempt-these",
+        "vessel-mind/docs/specs/a-agent-track.md#a1a4--agent-track--implementation-requirements",
+        "vessel-mind/docs/specs/a-agent-track.md#1-context-you-need"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 18168.072012020275
+    },
+    {
+      "id": "en-05",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#amendments",
+        "vessel-mind/docs/specs/a-agent-track.md#7-definition-of-done",
+        "vessel-mind/docs/specs/a-agent-track.md#a1a4--agent-track--implementation-requirements",
+        "vessel-mind/docs/specs/a-agent-track.md#3-human-only-prerequisites--do-not-attempt-these",
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access"
+      ],
+      "recall": 0.6666666666666666,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 13039.646649966016
+    },
+    {
+      "id": "en-06",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vessel-mind/GLOSSARY.md#vessel-mind",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/docs/specs/a-agent-track.md#57-router-a4",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#3-route-by-what-the-turn-needs-not-by-where-the-model-lives",
+        "vessel-mind/docs/specs/a-agent-track.md#1-context-you-need"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "latency_ms": 11118.136066012084
+    },
+    {
+      "id": "en-07",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vessel-mind/GLOSSARY.md#vessel-mind",
+        "vessel-mind/docs/specs/a-agent-track.md#58-eval-harness-a4",
+        "vessel-mind/docs/specs/a-agent-track.md#57-router-a4",
+        "vibeconform/docs/reports/0056-faster-hooks.md#contract-rule-a-05-the-test-cache-not-a-process",
+        "vessel-mind/docs/specs/a-agent-track.md#1-context-you-need"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 13745.429725968279
+    },
+    {
+      "id": "en-08",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#53-protocol-a1",
+        "vessel-mind/docs/specs/a-agent-track.md#0-read-this-first",
+        "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+        "vessel-mind/docs/specs/a-agent-track.md#56-retrieval-a3",
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access"
+      ],
+      "recall": 0.5,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 14597.105682943948
+    },
+    {
+      "id": "en-09",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#amendments",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/GLOSSARY.md#vessel-mind",
+        "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#consequences"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 14540.583599009551
+    },
+    {
+      "id": "en-10",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#4-repository-layout-to-create",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/docs/specs/a-agent-track.md#7-definition-of-done",
+        "vessel-mind/docs/specs/a-agent-track.md#0-read-this-first",
+        "vessel-mind/docs/specs/a-agent-track.md#56-retrieval-a3"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 12872.080054949038
+    },
+    {
+      "id": "en-11",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vibeconform/docs/plans/0019-drift-classification.md#c5--documentation",
+        "vibeconform/docs/plans/0009-vibe-audit-v2.md#plan-0009-vibe-audit-v2--strict-conformance-gate",
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/usage.md#vibe-doctor"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 0.3333333333333333,
+      "latency_ms": 12298.717724042945
+    },
+    {
+      "id": "en-12",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vibeconform/docs/architecture/principles.md#vibeconform-design-principles",
+        "vibeconform/docs/architecture/overview.md#vibeconform-architecture-overview",
+        "vibeconform/docs/architecture/principles.md#3-easy-to-install-and-easy-to-remove",
+        "vibeconform/README.md#core-philosophy",
+        "vibeconform/docs/architecture/principles.md#where-these-principles-already-show-up"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 12688.603008980863
+    },
+    {
+      "id": "en-13",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vibeconform/docs/usage.md#removing-vibeconform",
+        "vibeconform/docs/architecture/principles.md#3-easy-to-install-and-easy-to-remove",
+        "vibeconform/README.md#core-philosophy",
+        "vibeconform/docs/specs/0041-vibeconform-skill.md#scope",
+        "vibeconform/docs/adopting.md#leaving"
+      ],
+      "recall": 0.8,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 12535.227395012043
+    },
+    {
+      "id": "en-14",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vibeconform/docs/decisions/0004-yaml-manifest-format.md#adr-0004-yaml-for-vibeyaml",
+        "vibeconform/docs/specs/0051-contract-v1.md#vibeyaml",
+        "vibeconform/docs/usage.md#vibe-init",
+        "vibeconform/docs/specs/0014-m2-milestone.md#explicit-non-goals",
+        "vibeconform/docs/specs/0013-dogfood-self-management.md#design-notes"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 13751.648967037909
+    },
+    {
+      "id": "en-15",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vibeconform/docs/decisions/0010-semver-comparison-dependency.md#decision",
+        "vibeconform/docs/decisions/0010-semver-comparison-dependency.md#adr-0010-depend-on-golangorgxmodsemver-for-version-ordering",
+        "vibeconform/docs/decisions/0001-go-cli.md#adr-0001-go--cobra-for-the-vibe-cli",
+        "vibeconform/docs/decisions/0010-semver-comparison-dependency.md#consequences",
+        "vibeconform/docs/usage.md#the-setup-action"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 11754.777307040058
+    },
+    {
+      "id": "en-16",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vibeconform/docs/decisions/0025-contract-model.md#decision",
+        "vibeconform/docs/usage.md#the-agent-guard",
+        "vibeconform/docs/usage.md#agent-hooks",
+        "vibeconform/docs/specs/0053-contract-probes-and-guard.md#vibe-guard-105",
+        "vibeconform/docs/decisions/0006-resource-file-mode.md#adr-0006-resource-file-mode"
+      ],
+      "recall": 0.3333333333333333,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 12908.089724951424
+    },
+    {
+      "id": "en-17",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vibeconform/docs/specs/0028-environment-doctor.md#24-what-doctor-never-does",
+        "vibeconform/docs/usage.md#vibe-doctor",
+        "vibeconform/docs/specs/0014-m2-milestone.md#explicit-non-goals",
+        "vibeconform/docs/specs/0028-environment-doctor.md#23-checks",
+        "vibeconform/docs/specs/0059-cutover-and-removal.md#user-stories"
+      ],
+      "recall": 0.5,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 13341.219807043672
+    },
+    {
+      "id": "en-18",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vibeconform/docs/usage.md#codex-hooks-suspended",
+        "vibeconform/docs/decisions/0011-one-module-per-agent-runtime.md#consequences",
+        "vibeconform/docs/usage.md#vibeyaml-version-2",
+        "vibeconform/docs/usage.md#agent-hooks",
+        "vibeconform/docs/decisions/0011-one-module-per-agent-runtime.md#adr-0011-one-module-per-agent-runtime-codex-hooks-suspended"
+      ],
+      "recall": 0.5,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 12622.7300260216
+    },
+    {
+      "id": "en-19",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/specs/0052-contract-audit-static.md#rule-registry-and-results-99",
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/usage.md#vibe-audit"
+      ],
+      "recall": 0.3333333333333333,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 12472.600618959405
+    },
+    {
+      "id": "en-20",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vibeconform/docs/usage.md#vibeconform-user-manual",
+        "vibeconform/docs/decisions/0007-release-tag-naming.md#amendment-2026-10-19-spec-0054",
+        "vibeconform/docs/decisions/0007-release-tag-naming.md#adr-0007-release-tag-naming",
+        "vibeconform/docs/specs/0054-contract-release-and-skill.md#implementation-decisions",
+        "vibeconform/docs/specs/0054-contract-release-and-skill.md#the-install-hint"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 0.5,
+      "latency_ms": 12358.877640916035
+    },
+    {
+      "id": "en-21",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vibeconform/docs/reports/0056-faster-hooks.md#contract-rule-a-05-the-test-cache-not-a-process",
+        "vibeconform/docs/reports/0056-faster-hooks.md#spec-0056-report-short-mode-diagnosis-results-and-multi-agent-friction",
+        "vibeconform/docs/specs/0056-faster-agent-hooks.md#acceptance-criteria",
+        "vibeconform/docs/specs/0056-faster-agent-hooks.md#spec-0056-faster-agent-hooks-and-go-tests",
+        "vibeconform/docs/specs/0053-contract-probes-and-guard.md#the-rules"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 11554.135084967129
+    },
+    {
+      "id": "en-22",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vibeconform/docs/specs/0053-contract-probes-and-guard.md#testing-decisions",
+        "vibeconform/docs/specs/0053-contract-probes-and-guard.md#user-stories",
+        "vibeconform/docs/usage.md#vibe-audit",
+        "vibeconform/docs/specs/0053-contract-probes-and-guard.md#the-rules",
+        "vibeconform/docs/specs/0051-contract-v1.md#rules"
+      ],
+      "recall": 0.6666666666666666,
+      "reciprocal_rank": 0.3333333333333333,
+      "latency_ms": 15174.316419055685
+    },
+    {
+      "id": "un-01",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#58-eval-harness-a4",
+        "vessel-mind/docs/specs/a-agent-track.md#56-retrieval-a3",
+        "vessel-mind/docs/specs/a-agent-track.md#0-read-this-first",
+        "vessel-mind/docs/specs/a-agent-track.md#7-definition-of-done",
+        "vessel-mind/GLOSSARY.md#vessel-mind"
+      ],
+      "recall": null,
+      "reciprocal_rank": null,
+      "latency_ms": 14518.23248702567
+    },
+    {
+      "id": "un-02",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#amendments",
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access",
+        "vessel-mind/docs/specs/a-agent-track.md#57-router-a4",
+        "vessel-mind/docs/specs/a-agent-track.md#7-definition-of-done",
+        "vessel-mind/docs/specs/a-agent-track.md#a1a4--agent-track--implementation-requirements"
+      ],
+      "recall": null,
+      "reciprocal_rank": null,
+      "latency_ms": 11339.076247997582
+    },
+    {
+      "id": "un-03",
+      "lang": "en",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#1-context-you-need",
+        "vessel-mind/docs/specs/a-agent-track.md#3-human-only-prerequisites--do-not-attempt-these",
+        "vessel-mind/docs/specs/a-agent-track.md#a1a4--agent-track--implementation-requirements",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints"
+      ],
+      "recall": null,
+      "reciprocal_rank": null,
+      "latency_ms": 14037.172978976741
+    },
+    {
+      "id": "zh-01",
+      "lang": "zh-Hant",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#51-chatmodel-seam-a1",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+        "vessel-mind/docs/specs/a-agent-track.md#57-router-a4",
+        "vessel-mind/docs/specs/a-agent-track.md#53-protocol-a1"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 12827.083911979571
+    },
+    {
+      "id": "zh-02",
+      "lang": "zh-Hant",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#0-read-this-first",
+        "vessel-mind/docs/specs/a-agent-track.md#56-retrieval-a3",
+        "vibeconform/docs/specs/0057-hook-stages.md#implementation-decisions",
+        "vibeconform/docs/specs/0057-hook-stages.md#problem",
+        "vibeconform/docs/plans/0021-agent-hooks-task-interface.md#deviations-from-the-checklist"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 12516.842472017743
+    },
+    {
+      "id": "zh-03",
+      "lang": "zh-Hant",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+        "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+        "vessel-mind/docs/specs/a-agent-track.md#5-deliverables",
+        "vibeconform/docs/specs/0014-m2-milestone.md#ts-tooling-and-python-tooling",
+        "vibeconform/docs/plans/0026-optional-integrations.md#found-during-implementation"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 14331.659496063367
+    },
+    {
+      "id": "zh-04",
+      "lang": "zh-Hant",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vibeconform/docs/specs/0038-ci-provider.md#4-provider-gitlab",
+        "vibeconform/docs/decisions/0009-managed-file-local-extension.md#consequences",
+        "vibeconform/docs/plans/0019-drift-classification.md#c4--exit-codes-guards-and-the-build-stamp",
+        "vibeconform/docs/plans/0036-lefthook-local-extension.md#steps",
+        "vibeconform/docs/specs/0036-lefthook-local-extension.md#scope"
+      ],
+      "recall": 0.0,
+      "reciprocal_rank": 0.0,
+      "latency_ms": 12162.354789907113
+    },
+    {
+      "id": "zh-05",
+      "lang": "zh-Hant",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#consequences",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+        "vessel-mind/docs/specs/a-agent-track.md#1-context-you-need",
+        "vessel-mind/docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md#adr-0002--expose-the-demo-through-cloudflare-tunnel-and-access"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 14882.058204035275
+    },
+    {
+      "id": "zh-06",
+      "lang": "zh-Hant",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vibeconform/docs/adopting.md#day-to-day",
+        "vibeconform/docs/usage.md#vibe-guard-the-reference-guard",
+        "vibeconform/docs/decisions/0025-contract-model.md#decision",
+        "vibeconform/docs/reports/contract-v1-pilot.md#real-session-checks",
+        "vibeconform/docs/usage.md#vibe-unlock"
+      ],
+      "recall": 0.6666666666666666,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 12959.90536804311
+    },
+    {
+      "id": "zh-07",
+      "lang": "zh-Hant",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vibeconform/docs/usage.md#git-hooks",
+        "vibeconform/docs/reports/0056-faster-hooks.md#multi-agent-friction-this-work-exposed",
+        "vibeconform/docs/specs/0057-hook-stages.md#problem",
+        "vibeconform/docs/usage.md#hookdone-end-of-turn",
+        "vibeconform/docs/specs/0057-hook-stages.md#implementation-decisions"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 13958.642493002117
+    },
+    {
+      "id": "zh-08",
+      "lang": "zh-Hant",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vibeconform/docs/decisions/0005-separate-config-and-secrets.md#adr-0005-separate-configuration-from-secrets",
+        "vibeconform/docs/decisions/0005-separate-config-and-secrets.md#consequences",
+        "vibeconform/docs/usage.md#the-agent-guard",
+        "vibeconform/docs/usage.md#the-setup-skill",
+        "vibeconform/docs/architecture/overview.md#internal-package-layout"
+      ],
+      "recall": 1.0,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 14508.302113041282
+    },
+    {
+      "id": "zh-09",
+      "lang": "zh-Hant",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vibeconform/docs/usage.md#the-agent-guard",
+        "vibeconform/docs/usage.md#vibe-guard-the-reference-guard",
+        "vibeconform/docs/usage.md#vibe-guard-the-reference-guard",
+        "vibeconform/docs/specs/0047-guard-respellings.md#desired-behavior",
+        "vibeconform/docs/usage.md#vibe-guard-the-reference-guard"
+      ],
+      "recall": 0.25,
+      "reciprocal_rank": 1.0,
+      "latency_ms": 13360.289847943932
+    },
+    {
+      "id": "zh-10",
+      "lang": "zh-Hant",
+      "row": "hybrid + rerank",
+      "sources": [
+        "vessel-mind/docs/specs/a-agent-track.md#2-technology-constraints",
+        "vessel-mind/docs/adr/0001-an-agent-runtime-separate-from-embodiment.md#adr-0001--an-agent-runtime-separate-from-embodiment",
+        "vessel-mind/docs/specs/a-agent-track.md#4-repository-layout-to-create",
+        "vessel-mind/GLOSSARY.md#vessel-mind",
+        "vessel-mind/docs/specs/a-agent-track.md#1-context-you-need"
+      ],
+      "recall": null,
+      "reciprocal_rank": null,
+      "latency_ms": 14947.754752007313
+    }
+  ]
+}
