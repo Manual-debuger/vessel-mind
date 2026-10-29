@@ -379,6 +379,9 @@ slow path; 1 costly misroute (en-03).
       build，app 狀態為 healthy）。未完成：容器內一輪真實的 Gemini 對話尚未記錄。
 - [ ] 2–3 分鐘的 demo 影片，並從這份 README 連結。**未完成：**由作者錄製。需要在 localhost 透過
       proposal 和 Approve 真的寫入 Notion（#9），以及一題英文、一題繁體中文的問題，附 `[n]` 連結和截圖（#11）。
+- [ ] [交接文件](docs/specs/a-agent-track-handoff.md#manual-test-plan)的手動測試：3、4、8 和 10 通過
+      （2026-10-28 和 2026-10-29）。**未完成：**1 透過 HTTP API 測試通過，但還沒在瀏覽器裡確認；5 還沒跑；
+      6 未通過：被取消的輪次不會留下 route 紀錄（#28）；2、7、9 和 11 見上方。
 - [x] 公開網址在 Access 後面、開啟 demo mode，而且連不到 Ollama（2026-10-28）：tunnel 只轉送到
       `app:8000`；作者用 email PIN 登入，確認核准被拒絕；使用唯讀 token 時，Notion 會拒絕寫入（#16）。
 - [x] README：架構圖、結果表格、協定摘要、公開語料聲明；提到 Vessel 是未來的 client，但在它還是私有專案時
