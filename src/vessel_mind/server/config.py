@@ -77,6 +77,9 @@ class RouterSettings(_Config):
     timeout: float = Field(default=10.0, gt=0)
     # The classification's token budget. Gemini counts thinking tokens in it.
     max_tokens: int | None = Field(default=None, gt=0)
+    # Seconds a model that failed before answering is asked after its fallbacks,
+    # when its failure carried no Retry-After (#32).
+    cooldown: float = Field(default=300.0, gt=0)
 
 
 class Retry(_Config):

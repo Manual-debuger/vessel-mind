@@ -100,7 +100,12 @@ class OpenAICompatibleModel:
                 raise ChatModelError(f"{self.id}: {type(error).__name__}") from None
             delay = self._retry_delay(retryable, retry_after, attempt)
             if delay is None:
-                raise ChatModelError(f"{self.id}: {problem}")
+                # The wait the provider asked for goes with the error: the router
+                # asks this model's fallbacks first until it has passed.
+                raise ChatModelError(
+                    f"{self.id}: {problem}",
+                    retry_after=float(retry_after) if retry_after.isdigit() else None,
+                )
             attempt += 1
             await self._sleep(delay)
 

@@ -391,10 +391,11 @@ async def test_http_429_without_retry_after_backs_off_exponentially_then_raises(
         backoff_base=0.5,
     )
 
-    with pytest.raises(ChatModelError, match="429"):
+    with pytest.raises(ChatModelError, match="429") as raised:
         await collect(model, question())
 
     assert sleeps.delays == [0.5, 1.0, 2.0]
+    assert raised.value.retry_after is None
 
 
 @pytest.mark.asyncio
@@ -407,10 +408,12 @@ async def test_retry_after_longer_than_the_cap_raises_instead_of_waiting():
         backoff_max=30.0,
     )
 
-    with pytest.raises(ChatModelError, match="429"):
+    with pytest.raises(ChatModelError, match="429") as raised:
         await collect(model, question())
 
     assert sleeps.delays == []
+    # The router asks the fallback first until then (#32).
+    assert raised.value.retry_after == 80422.0
 
 
 @pytest.mark.asyncio
