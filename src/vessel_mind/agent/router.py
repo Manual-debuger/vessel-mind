@@ -80,12 +80,12 @@ class RouteDecision(BaseModel):
 
 
 class _Failures:
-    """The models that failed before answering, remembered across turns (#32).
+    """The models that failed before answering, remembered across turns (spec §5.1).
 
     A model is remembered from its failure until the wait its failure asked for
     (a 429's Retry-After) has passed, or, when it asked for none, for the
-    cool-down, in seconds. Until then each turn asks it after the rest of its
-    path, not before.
+    cooldown, in seconds. Until then each turn asks it after the rest of its
+    path, not before. A later failure never shortens the wait of an earlier one.
     """
 
     def __init__(self, cooldown: float, clock: Callable[[], float]) -> None:
@@ -95,9 +95,10 @@ class _Failures:
 
     def remember(self, model: ChatModel, error: ChatModelError) -> None:
         wait = self._cooldown if error.retry_after is None else error.retry_after
-        self._until[model.id] = self._clock() + wait
+        until = self._clock() + wait
+        self._until[model.id] = max(self._until.get(model.id, until), until)
 
-    def order(self, models: Sequence[ChatModel]) -> tuple[ChatModel, ...]:
+    def failed_last(self, models: Sequence[ChatModel]) -> tuple[ChatModel, ...]:
         """The models with the remembered ones moved to the end, each group in its order."""
         now = self._clock()
         failed = [model for model in models if now < self._until.get(model.id, now)]
@@ -170,7 +171,7 @@ class Router:
 
     A model that fails before answering is asked after the rest of its path in
     later turns too, until the Retry-After its failure carried has passed, or,
-    without one, cooldown seconds on clock (#32).
+    without one, cooldown seconds on clock (spec §5.1).
 
     telemetry receives each turn's route decision, with both models' usage, when
     the turn ends: done, in an error, cancelled, or raising. A turn that ends
@@ -245,12 +246,11 @@ class Router:
                 model=answering,
             )
 
-        if not waiting:
-            decision = decide(model.id)
-            yield decision
-
         recorded = False
         try:
+            if not waiting:
+                decision = decide(model.id)
+                yield decision
             async for event in self._answer(
                 route,
                 model,
@@ -266,7 +266,9 @@ class Router:
                     if model.answered is None and not isinstance(event, DoneEvent | ErrorEvent):
                         held.append(event)
                         continue
-                    decision = decide(model.answered or model.id)
+                    # When every model failed, the route names the one it asked last,
+                    # as a cancel does.
+                    decision = decide(model.answered or model.asking)
                     yield decision
                     for earlier in held:
                         yield earlier
@@ -285,7 +287,7 @@ class Router:
 
     def _path(self, first: ChatModel, fallbacks: Sequence[ChatModel]) -> _FirstThatAnswers:
         """One path's models for this turn, the recently failed ones last."""
-        return _FirstThatAnswers(self._failures.order((first, *fallbacks)), self._failures)
+        return _FirstThatAnswers(self._failures.failed_last((first, *fallbacks)), self._failures)
 
     def _record_route(self, routed: RouteEvent, answer_usage: Usage) -> None:
         """The turn's route line: its route event and the answering model's usage."""

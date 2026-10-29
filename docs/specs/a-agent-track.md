@@ -206,7 +206,7 @@ honouring `Retry-After` when present, up to a configured limit. Each path then h
 retries are exhausted, the next model is tried, and the `route` event names the model that
 actually answered. A model that failed before answering is remembered by the router: later turns
 ask it after its fallbacks until the failure's `Retry-After` has passed, or else for
-`router.cooldown` seconds (#32). The eval spaces its requests to stay inside free-tier limits; a question that
+`router.cooldown` seconds (ticket #32). The eval spaces its requests to stay inside free-tier limits; a question that
 still fails is reported as *failed*, never dropped.
 
 **Acceptance:** per adapter, a recorded fixture with text plus two tool calls yields the exact
