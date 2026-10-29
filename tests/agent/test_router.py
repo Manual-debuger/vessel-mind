@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from collections.abc import AsyncGenerator
 
 import pytest
 from pydantic import JsonValue
@@ -550,3 +551,121 @@ async def test_the_classification_sees_the_session_as_text_only():
         AssistantMessage(text="Found x [1]."),
         UserMessage(text="And y?"),
     ]
+
+
+class SearchesThenHangs:
+    """Calls search_docs in its first step, then streams a delta and hangs until cancelled."""
+
+    id = "large"
+
+    def __init__(self) -> None:
+        self.requests: list[ChatRequest] = []
+        self.hanging = asyncio.Event()
+
+    async def stream(self, req: ChatRequest):
+        self.requests.append(req)
+        if len(self.requests) == 1:
+            yield ToolCall(id="c1", name="search_docs", input={"query": "x"})
+            yield Stop(reason="tool_use", usage=ANSWER_USAGE)
+            return
+        yield TextDelta(delta="Comparing")
+        self.hanging.set()
+        await asyncio.Event().wait()
+
+
+@pytest.mark.asyncio
+async def test_a_turn_cancelled_after_its_route_still_records_the_route_with_the_usage_so_far():
+    fast = ScriptedModel("small", classified('{"route": "slow"}'))
+    slow = SearchesThenHangs()
+    telemetry = RecordedTelemetry()
+    router = Router(fast, slow, telemetry=telemetry)
+
+    async def consume() -> None:
+        async for _ in router.run([], "Compare X and Y.", tools=tools(FakeSearch(RESULTS))):
+            pass
+
+    task = asyncio.create_task(consume())
+    await asyncio.wait_for(slow.hanging.wait(), timeout=1)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert telemetry.records == [
+        (
+            "route",
+            {
+                "route": "slow",
+                "reason": "classified",
+                "router_model": "small",
+                "router_usage": ROUTER_USAGE.model_dump(),
+                "model": "large",
+                "usage": ANSWER_USAGE.model_dump(),
+            },
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_a_turn_cancelled_before_any_fallback_answered_records_the_paths_first_model():
+    # The route is decided; which model would answer is not. As when every model
+    # fails, the route names the path's first model.
+    fast = ScriptedModel("small", classified('{"route": "slow"}'))
+    slow = HangingModel()
+    telemetry = RecordedTelemetry()
+    router = Router(fast, slow, slow_fallbacks=[ScriptedModel("large-older")], telemetry=telemetry)
+
+    async def consume() -> None:
+        async for _ in router.run([], "Compare X and Y."):
+            pass
+
+    task = asyncio.create_task(consume())
+    while not slow.requests:
+        await asyncio.sleep(0)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert telemetry.records == [
+        (
+            "route",
+            {
+                "route": "slow",
+                "reason": "classified",
+                "router_model": "small",
+                "router_usage": ROUTER_USAGE.model_dump(),
+                "model": "hanging",
+                "usage": Usage().model_dump(),
+            },
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_a_turn_closed_after_its_done_event_records_its_route_once():
+    fast = ScriptedModel("small", classified('{"route": "fast"}'), answer("Hello!"))
+    telemetry = RecordedTelemetry()
+    events = Router(fast, ScriptedModel("large"), telemetry=telemetry).run([], "Hi")
+    assert isinstance(events, AsyncGenerator)
+
+    async for event in events:
+        if isinstance(event, DoneEvent):
+            break
+    await events.aclose()
+
+    assert [kind for kind, _ in telemetry.records] == ["route"]
+
+
+@pytest.mark.asyncio
+async def test_a_turn_cancelled_while_classifying_records_no_route():
+    fast = HangingModel()
+    telemetry = RecordedTelemetry()
+    router = Router(fast, ScriptedModel("large"), timeout=60, telemetry=telemetry)
+
+    task = asyncio.create_task(collect(router, [], "Hi"))
+    while not fast.requests:
+        await asyncio.sleep(0)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert telemetry.records == []
