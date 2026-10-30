@@ -409,6 +409,9 @@ From [the spec](docs/specs/a-agent-track.md) §7. An open item names its reason.
 - [x] Public hostname behind Access, in demo mode, with Ollama not reachable from it
       (2026-10-28): the tunnel routes only `app:8000`; the author signed in with the email PIN
       and saw an approval refused; Notion refuses a write with the read-only token (#16).
+      Redeployed on 2026-10-30 with node 26 (#39) and the router change: over the HTTP API,
+      the example question that adds an action item took the slow path and made a proposal,
+      and its approval was refused with 403 `demo_mode`.
 - [x] README: architecture diagram, results tables, protocol summary, public-corpus statement;
       Vessel named as the future client and not linked while it is private.
 - [x] Whole git history scanned for secrets: `gitleaks detect --log-opts="--all"` (v8.16.0)

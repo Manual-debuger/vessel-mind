@@ -389,6 +389,8 @@ slow path; 1 costly misroute (en-17).
       2、7、9 和 11 見上方。
 - [x] 公開網址在 Access 後面、開啟 demo mode，而且連不到 Ollama（2026-10-28）：tunnel 只轉送到
       `app:8000`；作者用 email PIN 登入，確認核准被拒絕；使用唯讀 token 時，Notion 會拒絕寫入（#16）。
+      2026-10-30 以 node 26（#39）和 router 的修改重新部署：透過 HTTP API，新增待辦事項的範例問題走了
+      慢路徑並產生 proposal，核准時被拒絕，回傳 403 `demo_mode`。
 - [x] README：架構圖、結果表格、協定摘要、公開語料聲明；提到 Vessel 是未來的 client，但在它還是私有專案時
       不放連結。
 - [x] 掃描整個 git 歷史，確認沒有機密：`gitleaks detect --log-opts="--all"`（v8.16.0）在所有分支的
