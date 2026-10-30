@@ -398,3 +398,7 @@ slow path; 1 costly misroute (en-03).
 ## 授權
 
 [Apache License 2.0](LICENSE)。
+
+`.claude/skills/` 裡的 agent skill 保留各自的授權：改編自
+[mattpocock/skills](https://github.com/mattpocock/skills) 的 skill 和 `asd-ste100` 採用 MIT，
+授權條款放在各自目錄的 `LICENSE` 檔。

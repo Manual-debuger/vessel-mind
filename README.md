@@ -418,3 +418,7 @@ request. `task eval` runs the eval (`-- --retrieval-only` for table 1, `-- --con
 ## License
 
 [Apache License 2.0](LICENSE).
+
+The agent skills in `.claude/skills/` keep their own licenses: those adapted from
+[mattpocock/skills](https://github.com/mattpocock/skills) and `asd-ste100` are MIT, each with
+the `LICENSE` file in its directory.
