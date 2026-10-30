@@ -326,16 +326,16 @@ Traditional Chinese (9 questions with expected sources, 10 timed):
 |---|---|---|---|---|---|---|---|---|---|---|
 | hosted | gemini-3.5-flash-lite / gemini-3.6-flash | *not run* | — | — | — | — | — | — | — | — |
 | slow-only | router off / gemini-3.6-flash | *not run* | — | — | — | — | — | — | — | — |
-| local | qwen3:8b / qwen3.6:35b-a3b | 35 of 35 | 0.82 | 0.88 | 0.85 | 0.71 (45 of 63) | 18.2 | 43.3 | 199,488 / 37,235 | $0 (GPU electricity not measured) |
+| local | qwen3:8b / qwen3.6:35b-a3b | 35 of 35 | 0.81 | 0.85 | 0.84 (1 not judged) | 0.64 (51 of 80) | 22.0 | 57.4 | 226,287 / 38,570 | $0 (GPU electricity not measured) |
 | routed | qwen3:8b / gemini-3.6-flash | *not run* | — | — | — | — | — | — | — | — |
 | local-slow-only | router off / qwen3.6:35b-a3b | 35 of 35 | 0.84 | 0.90 | 0.81 | 0.77 (46 of 60) | 16.4 | 31.9 | 178,836 / 41,980 | $0 (GPU electricity not measured) |
 
-Router accuracy for `local` against `expected_route`: 0.57 (20 of 35 turns); 0 fallbacks to the
-slow path; 1 costly misroute (en-03).
+Router accuracy for `local` against `expected_route`: 0.51 (18 of 35 turns); 0 fallbacks to the
+slow path; 1 costly misroute (en-17).
 
 | Expected \ routed | fast | slow |
 |---|---|---|
-| fast | 5 | 15 |
+| fast | 3 | 17 |
 | slow | 0 | 15 |
 
 <!-- results:end -->
@@ -353,7 +353,9 @@ slow path; 1 costly misroute (en-03).
 - **評審模型和人工評分的一致度**，出自 results.md（人工評分在
   [`eval/human_grades.jsonl`](eval/human_grades.jsonl)）：
 
-  > The author graded 10 answers (32 key points) by hand, chosen at random (seed 15) from the judged answers. Judge and author agree on 30 of 32 key points (0.94). Mean answer score on these answers: judge 0.84, author 0.91.
+  > The author graded 3 answers (10 key points) by hand, chosen at random (seed 15) from the judged answers. Judge and author agree on 10 of 10 key points (1.00). Mean answer score on these answers: judge 1.00, author 1.00.
+  >
+  > 7 stored grades are for answers a later run replaced; they are not counted. Run `task eval -- --grade` to grade the new sample.
 
   作者從評審過的回答中隨機抽出 10 題（種子 15，共 32 個要點）人工評分。評審模型和作者在 32 個要點中有
   30 個一致（0.94）。這些回答的平均分數：評審模型 0.84，作者 0.91。
@@ -374,7 +376,9 @@ slow path; 1 costly misroute (en-03).
 - [x] `schema/events.schema.json` 已 commit，並有一致性測試（`tests/core/test_event_schema.py`）。
 - [x] 檢索消融表已 commit（vector / keyword / hybrid / hybrid + rerank）。
 - [x] 所有能跑的設定都已 commit `task eval` 結果：`local` 和 `local-slow-only`；`hosted`、`slow-only` 和
-      `routed` 標示為 *not run* 並寫明原因。
+      `routed` 標示為 *not run* 並寫明原因。router 的 prompt 開始把寫入請求歸為慢路徑後，`local` 在
+      2026-10-30 重跑。**未完成：**10 個人工評分的回答中有 7 個被取代；由作者為新的樣本評分
+      （`task eval -- --grade`）。
 - [x] 從乾淨的 clone 執行 `docker compose up`，只用雲端模型就能提供 console（image 從全新的 clone
       build，app 狀態為 healthy）。未完成：容器內一輪真實的 Gemini 對話尚未記錄。
 - [ ] 2–3 分鐘的 demo 影片，並從這份 README 連結。**未完成：**由作者錄製。需要在 localhost 透過

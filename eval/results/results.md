@@ -36,7 +36,7 @@ Each row asks every golden question once, as a new turn through the router, the 
 |---|---|---|---|---|---|---|---|---|---|---|
 | hosted | gemini-3.5-flash-lite / gemini-3.6-flash | *not run* | — | — | — | — | — | — | — | — |
 | slow-only | router off / gemini-3.6-flash | *not run* | — | — | — | — | — | — | — | — |
-| local | qwen3:8b / qwen3.6:35b-a3b | 35 of 35 | 0.82 | 0.88 | 0.85 | 0.71 (45 of 63) | 18.2 | 43.3 | 199,488 / 37,235 | $0 (GPU electricity not measured) |
+| local | qwen3:8b / qwen3.6:35b-a3b | 35 of 35 | 0.81 | 0.85 | 0.84 (1 not judged) | 0.64 (51 of 80) | 22.0 | 57.4 | 226,287 / 38,570 | $0 (GPU electricity not measured) |
 | routed | qwen3:8b / gemini-3.6-flash | *not run* | — | — | — | — | — | — | — | — |
 | local-slow-only | router off / qwen3.6:35b-a3b | 35 of 35 | 0.84 | 0.90 | 0.81 | 0.77 (46 of 60) | 16.4 | 31.9 | 178,836 / 41,980 | $0 (GPU electricity not measured) |
 
@@ -48,16 +48,16 @@ Questions: answered of the golden set; a failed question is counted, never dropp
 
 ### Router: local
 
-Router accuracy against `expected_route`: 0.57 (20 of 35 turns). A fallback counts as the slow route it took.
+Router accuracy against `expected_route`: 0.51 (18 of 35 turns). A fallback counts as the slow route it took.
 
 Fallbacks to the slow path: 0.
 
 | Expected \ routed | fast | slow |
 |---|---|---|
-| fast | 5 | 15 |
+| fast | 3 | 17 |
 | slow | 0 | 15 |
 
-Costly misroutes: 1 (en-03). A costly misroute is a fast-path answer scoring at least 0.25 below the slow-only answer to the same question.
+Costly misroutes: 1 (en-17). A costly misroute is a fast-path answer scoring at least 0.25 below the slow-only answer to the same question.
 
 ### Judge
 
@@ -67,4 +67,6 @@ The judge `qwen3.6:35b-a3b` shares a model family (`qwen`) with the measured row
 
 ### Judge–human agreement
 
-The author graded 10 answers (32 key points) by hand, chosen at random (seed 15) from the judged answers. Judge and author agree on 30 of 32 key points (0.94). Mean answer score on these answers: judge 0.84, author 0.91.
+The author graded 3 answers (10 key points) by hand, chosen at random (seed 15) from the judged answers. Judge and author agree on 10 of 10 key points (1.00). Mean answer score on these answers: judge 1.00, author 1.00.
+
+7 stored grades are for answers a later run replaced; they are not counted. Run `task eval -- --grade` to grade the new sample.
