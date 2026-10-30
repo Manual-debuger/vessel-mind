@@ -195,6 +195,17 @@ def test_the_runtime_stage_is_last_and_never_holds_npm_or_the_git_history():
     assert any("/usr/local/bin/node" in line for line in runtime if line.startswith("COPY"))
 
 
+def test_the_runtime_stage_runs_the_copied_node_so_a_missing_library_fails_the_build():
+    runtime = stages()["runtime"]
+    copy = next(i for i, line in enumerate(runtime) if "/usr/local/bin/node" in line)
+
+    # node 26 needs libatomic.so.1, which the python image does not have; the
+    # app then fails at startup, when it starts the Notion server.
+    assert any(
+        re.search(r"\bnode --version\b", line) for line in runtime[copy:] if line.startswith("RUN")
+    )
+
+
 def test_only_the_index_stage_reads_the_git_history_through_a_bind_mount():
     readers = [
         name
