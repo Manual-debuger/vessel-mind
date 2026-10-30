@@ -398,15 +398,16 @@ From [the spec](docs/specs/a-agent-track.md) §7. An open item names its reason.
       English and one Traditional Chinese question with `[n]` links and screenshots (#11).
 - [ ] The manual tests of [the hand-off](docs/specs/a-agent-track-handoff.md#manual-test-plan):
       3, 4, 8 and 10 pass (2026-10-28 and 2026-10-29). **Open:** 1 passes over the HTTP API
-      but is not yet checked in a browser; 5 has not run; 6 fails: a cancelled turn leaves no
-      route line (#28); 2, 7, 9 and 11 as above.
+      but is not yet checked in a browser; 5 has not run; 6 failed on 2026-10-29 because a
+      cancelled turn left no route line (#28): the fix is merged, the test is not yet re-run;
+      2, 7, 9 and 11 as above.
 - [x] Public hostname behind Access, in demo mode, with Ollama not reachable from it
       (2026-10-28): the tunnel routes only `app:8000`; the author signed in with the email PIN
       and saw an approval refused; Notion refuses a write with the read-only token (#16).
 - [x] README: architecture diagram, results tables, protocol summary, public-corpus statement;
       Vessel named as the future client and not linked while it is private.
-- [x] Whole git history scanned for secrets: `gitleaks git --log-opts="--all"` (v8.24.3) found
-      none in 48 commits (2026-10-29).
+- [x] Whole git history scanned for secrets: `gitleaks detect --log-opts="--all"` (v8.16.0)
+      found none in the 63 non-merge commits of every branch (2026-10-30).
 
 ## Development
 
