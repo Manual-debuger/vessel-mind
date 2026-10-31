@@ -22,7 +22,7 @@ RUN npm ci --ignore-scripts --omit=dev
 
 FROM ghcr.io/astral-sh/uv:0.13.6@sha256:af22a52f5eafef3d78e551599d405c02df61919d18028f0cea8eda93bc9986d0 AS uv
 
-FROM python:3.13.17-slim-trixie@sha256:d98cc29d3266e535dd9da1099688d9cb3ca4753813571e071763d17725460962 AS python-deps
+FROM python:3.15.0-slim-trixie@sha256:f5b92f2a669a4c347044f29367f31983280b648250ca94dea66f98c53bc87e58 AS python-deps
 COPY --from=uv /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -56,7 +56,7 @@ RUN --mount=type=bind,source=.git,target=/repo/.git \
         --cache-dir .cache/corpus \
         --model-cache-dir .cache/fastembed
 
-FROM python:3.13.17-slim-trixie@sha256:d98cc29d3266e535dd9da1099688d9cb3ca4753813571e071763d17725460962 AS runtime
+FROM python:3.15.0-slim-trixie@sha256:f5b92f2a669a4c347044f29367f31983280b648250ca94dea66f98c53bc87e58 AS runtime
 RUN groupadd --system app \
     && useradd --system --gid app --home-dir /app --no-create-home app
 # node 26 links against libatomic.so.1, which the python image does not have.
