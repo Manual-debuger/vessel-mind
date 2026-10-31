@@ -11,6 +11,9 @@
 - **Required reading before starting:** ADR [0001](../adr/0001-an-agent-runtime-separate-from-embodiment.md)
   and [0002](../adr/0002-demo-exposure-cloudflare-tunnel-access.md).
 
+> The repository was made public on 2026-10-31. This spec is kept as written during the
+> sprint, so the text that calls the repository private describes that time.
+
 ## 0. Read this first
 
 1. **Evidence over volume.** A number that was not measured is not reported. Fixtures are
