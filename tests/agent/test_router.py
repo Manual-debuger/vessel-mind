@@ -625,6 +625,20 @@ async def test_the_classification_is_told_that_a_request_to_change_something_is_
     assert "needs a write tool, so it is slow" in system
 
 
+@pytest.mark.asyncio
+async def test_the_classification_is_told_that_a_message_about_a_notion_page_is_slow():
+    # Only the slow path has the Notion tools, and the fast path's search does
+    # not index the page. Unprompted, qwen3:8b routed 11 of 40 Notion reads fast.
+    fast = ScriptedModel("small", classified('{"route": "slow"}'))
+    slow = ScriptedModel("large", answer("Ok."))
+
+    await collect(Router(fast, slow), [], "Which items on the Notion page are open?")
+
+    system = fast.requests[0].system
+    assert system is not None
+    assert "A message about a Notion page needs a Notion tool" in system
+
+
 class SearchesThenHangs:
     """Calls search_docs in its first step, then streams a delta and hangs until cancelled."""
 
