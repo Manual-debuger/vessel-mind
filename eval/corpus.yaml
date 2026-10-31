@@ -2,7 +2,7 @@
 # A corpus change is a commit to this file plus an eval re-run.
 #
 # fetch: git-archive  reads the commit from this clone with `git archive`,
-#                     so it needs no token while the repository is private.
+#                     so it needs no network and no download.
 # fetch: tarball      downloads https://github.com/<repo>/archive/<commit>.tar.gz,
 #                     refuses it unless its SHA-256 matches, and caches it
 #                     (default .cache/corpus/, git-ignored).

@@ -7,6 +7,9 @@ windows) are green. What remains needs the author's accounts, hardware or a brow
 the [manual test plan](#manual-test-plan) and the
 [checklist before the repository is made public](#before-the-repository-is-made-public).
 
+> The repository was made public on 2026-10-31; see the checklist below for what was
+> applied then.
+
 ## Decisions
 
 These are settled; the PR body and the README record them too.
@@ -29,8 +32,9 @@ These are settled; the PR body and the README record them too.
   `eval/golden-changes.md`.
 - **Accepted advisory:** GHSA-mrhx-c7xc-m3w5 in `@notionhq/notion-mcp-server` 2.5.2,
   recorded in `DEVELOPING.md`.
-- **Branch protection:** not applied: the repository is private on GitHub Free, where
-  protection returns 403.
+- **Branch protection:** applied on 2026-10-31, after the repository was made public
+  (while it was private on GitHub Free, protection returned 403). See the checklist
+  below.
 
 ## Re-running the eval
 
@@ -103,17 +107,20 @@ stream read by a script), not in a browser. Test 5 did not run.
 - [x] Scan the whole git history for secrets, for example
       `gitleaks git --log-opts="--all"`. A finding means: rotate that key first, then
       rewrite the history. Done 2026-10-29 with gitleaks v8.24.3: no leaks in 48 commits.
-- [ ] No personal data in the repository: README, screenshots, `eval/results/`,
+- [x] No personal data in the repository: README, screenshots, `eval/results/`,
       `eval/human_grades.jsonl`, test fixtures. `config/agent.yaml` and env files never
-      committed (`git log --all -- config/agent.yaml` prints nothing).
-- [ ] Vessel is named but not linked while it is private (`tests/test_readme.py`
+      committed (`git log --all -- config/agent.yaml` prints nothing). Checked
+      2026-10-31.
+- [x] Vessel is named but not linked while it is private (`tests/test_readme.py`
       checks it).
-- [ ] The public-host config is `config/agent.public.example.yaml`: `demo_mode: true`,
+- [x] The public-host config is `config/agent.public.example.yaml`: `demo_mode: true`,
       `public_host: true`, `sessions.max_turns_per_day` set, Notion read-only.
 - [x] Manual tests 1–11 above done, or listed as open in the README's definition of
       done.
 - [x] PR #21 merged into `main`; the tickets close with it.
-- [ ] After the repository is public, protect `main` (GitHub flow): require a pull
+- [x] After the repository is public, protect `main` (GitHub flow): require a pull
       request and the checks `verify (ubuntu-latest)`, `verify (windows-latest)`,
       `security` and `audit` (strict); no force push or deletion; include admins; no
-      required approvals for a single owner.
+      required approvals for a single owner. Done 2026-10-31, with secret scanning and
+      push protection on, and the `codeql` and `dependency-review` CI jobs, which run
+      only while the repository is public.
