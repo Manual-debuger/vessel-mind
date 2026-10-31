@@ -6,6 +6,8 @@ No test here calls a live API. The Gemini fixtures were recorded from decoded by
 import asyncio
 import json
 import time
+from datetime import UTC, datetime, timedelta
+from email.utils import format_datetime
 from pathlib import Path
 
 import httpx
@@ -391,10 +393,11 @@ async def test_http_429_without_retry_after_backs_off_exponentially_then_raises(
         backoff_base=0.5,
     )
 
-    with pytest.raises(ChatModelError, match="429"):
+    with pytest.raises(ChatModelError, match="429") as raised:
         await collect(model, question())
 
     assert sleeps.delays == [0.5, 1.0, 2.0]
+    assert raised.value.retry_after is None
 
 
 @pytest.mark.asyncio
@@ -407,10 +410,50 @@ async def test_retry_after_longer_than_the_cap_raises_instead_of_waiting():
         backoff_max=30.0,
     )
 
-    with pytest.raises(ChatModelError, match="429"):
+    with pytest.raises(ChatModelError, match="429") as raised:
         await collect(model, question())
 
     assert sleeps.delays == []
+    # The router asks the fallback first until then (spec §5.1).
+    assert raised.value.retry_after == 80422.0
+
+
+def http_date(from_now: timedelta) -> str:
+    return format_datetime(datetime.now(UTC) + from_now, usegmt=True)
+
+
+@pytest.mark.asyncio
+async def test_a_retry_after_given_as_a_date_is_the_seconds_until_then():
+    sleeps = Sleeps()
+    model = make_model(
+        lambda request: httpx.Response(429, headers={"retry-after": http_date(timedelta(hours=2))}),
+        sleep=sleeps,
+        backoff_max=30.0,
+    )
+
+    with pytest.raises(ChatModelError, match="429") as raised:
+        await collect(model, question())
+
+    assert sleeps.delays == []
+    assert raised.value.retry_after is not None
+    assert 7190 <= raised.value.retry_after <= 7200
+
+
+@pytest.mark.asyncio
+async def test_a_retry_after_date_in_the_past_is_retried_at_once():
+    sleeps = Sleeps()
+    model = make_model(
+        replies(
+            httpx.Response(429, headers={"retry-after": http_date(-timedelta(minutes=1))}),
+            sse_response("gemini_text.sse"),
+        ),
+        sleep=sleeps,
+    )
+
+    events = await collect(model, question())
+
+    assert sleeps.delays == [0.0]
+    assert isinstance(events[-1], Stop)
 
 
 @pytest.mark.asyncio

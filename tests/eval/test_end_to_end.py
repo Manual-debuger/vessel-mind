@@ -594,6 +594,25 @@ async def test_q_stops_grading_and_a_grade_of_a_replaced_answer_is_not_counted(t
     assert "4 stored grades are for answers a later run replaced; they are not counted." in text
 
 
+@pytest.mark.asyncio
+async def test_the_report_asks_for_grades_only_while_a_sampled_answer_is_not_graded(tmp_path):
+    from vessel_mind.eval.grades import grade
+
+    await _all_rows(tmp_path)
+    results = tmp_path / "results"
+    grade(results, ask=Author("y").ask, show=lambda _: None, today=TODAY)
+    await _run(tmp_path, router_on=False, fresh=True, models=Models(slow=_reworded))
+    hint = "Run `task eval -- --grade` to grade the new sample."
+
+    assert hint in render_results(results)
+
+    grade(results, ask=Author("y").ask, show=lambda _: None, today=TODAY)
+    text = render_results(results)
+
+    assert "4 stored grades are for answers a later run replaced; they are not counted." in text
+    assert hint not in text
+
+
 def _reworded(req: ChatRequest):
     events = slow_reply(req)
     return [

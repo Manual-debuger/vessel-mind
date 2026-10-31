@@ -10,7 +10,8 @@ the slow path the slow model runs the full tool loop.
 import asyncio
 import json
 import logging
-from collections.abc import AsyncIterator, Sequence
+import time
+from collections.abc import AsyncIterator, Callable, Sequence
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
@@ -59,6 +60,10 @@ fast: one document search answers the message, or it needs no knowledge at all
 slow: the message needs a tool other than one search, more than one search (for
 example a comparison of two topics), or reasoning beyond the retrieved text
 (planning, calculation, code, a multi-step argument).
+A message about a Notion page needs a Notion tool, not a document search, so it
+is slow.
+A message that asks to add, change or delete something (for example a page, an item
+or a note) needs a write tool, so it is slow.
 If you are not sure, choose slow."""
 
 FAST_CONTEXT = """\
@@ -78,35 +83,83 @@ class RouteDecision(BaseModel):
     route: Route
 
 
+class _Failures:
+    """The models that failed before answering, remembered across turns (spec §5.1).
+
+    A model is remembered from its failure until the wait its failure asked for
+    (a 429's Retry-After) has passed, or, when it asked for none, for the
+    cooldown, in seconds. Until then each turn asks it after the rest of its
+    path, not before. A later failure never shortens the wait of an earlier one.
+    """
+
+    def __init__(self, cooldown: float, clock: Callable[[], float]) -> None:
+        self._cooldown = cooldown
+        self._clock = clock
+        self._until: dict[str, float] = {}
+
+    def remember(self, model: ChatModel, error: ChatModelError) -> None:
+        wait = self._cooldown if error.retry_after is None else error.retry_after
+        until = self._clock() + wait
+        self._until[model.id] = max(self._until.get(model.id, until), until)
+
+    def failed_last(self, models: Sequence[ChatModel]) -> tuple[ChatModel, ...]:
+        """The models with the remembered ones moved to the end, each group in its order."""
+        now = self._clock()
+        failed = [model for model in models if now < self._until.get(model.id, now)]
+        return (*(model for model in models if model not in failed), *failed)
+
+
 class _FirstThatAnswers:
     """One path's models, in order, as one ChatModel for one turn.
 
     A model that fails before its first event (its adapter has spent its retries)
     hands the request to the next one. A model that fails after it started
     answering is not replaced: the client has already seen part of its answer.
-    answered is the id of the model that answered last, or None.
+    Once a model has answered, the turn's later steps start from it: the models
+    before it, which failed, are not asked again in this turn.
+    asking is the id of the model asked now, or asked last; answered is the id of
+    the model that answered last, or None. failures remembers the models that
+    failed before their first event, for later turns.
     """
 
-    def __init__(self, models: Sequence[ChatModel]) -> None:
+    def __init__(self, models: Sequence[ChatModel], failures: _Failures) -> None:
         self.models = models
+        self.failures = failures
         self.id = models[0].id
-        self.answered: str | None = None
+        self._asking = 0
+        self._answered: int | None = None
+
+    @property
+    def asking(self) -> str:
+        return self.models[self._asking].id
+
+    @property
+    def answered(self) -> str | None:
+        return None if self._answered is None else self.models[self._answered].id
+
+    def from_answered(self) -> "_FirstThatAnswers":
+        """The models from the one that answered last on, for another use in this turn."""
+        return _FirstThatAnswers(self.models[self._answered or 0 :], self.failures)
 
     async def stream(self, req: ChatRequest) -> AsyncIterator[ChatEvent]:
-        for number, model in enumerate(self.models):
+        for number in range(self._answered or 0, len(self.models)):
+            self._asking = number
+            model = self.models[number]
             started = False
             try:
                 async for event in model.stream(req):
                     if not started:
                         started = True
-                        self.answered = model.id
+                        self._answered = number
                     yield event
             except ChatModelError as error:
+                if not started:
+                    self.failures.remember(model, error)
                 if started or number == len(self.models) - 1:
                     raise
                 log.warning("%s failed, trying %s: %s", model.id, self.models[number + 1].id, error)
                 continue
-            self.answered = model.id
+            self._answered = number
             return
 
 
@@ -120,8 +173,13 @@ class Router:
     (spec §5.1): when a path's model fails after its retries, the next one is
     asked, and the route event names the model that answered.
 
+    A model that fails before answering is asked after the rest of its path in
+    later turns too, until the Retry-After its failure carried has passed, or,
+    without one, cooldown seconds on clock (spec §5.1).
+
     telemetry receives each turn's route decision, with both models' usage, when
-    the turn is done.
+    the turn ends: done, in an error, cancelled, or raising. A turn that ends
+    while it is classified has no route and records none.
     """
 
     def __init__(
@@ -134,6 +192,8 @@ class Router:
         max_tokens: int | None = None,
         fast_fallbacks: Sequence[ChatModel] = (),
         slow_fallbacks: Sequence[ChatModel] = (),
+        cooldown: float = 300.0,
+        clock: Callable[[], float] = time.monotonic,
         telemetry: Telemetry | None = None,
     ) -> None:
         self.telemetry: Telemetry = telemetry if telemetry is not None else NoTelemetry()
@@ -144,6 +204,9 @@ class Router:
         self.enabled = enabled
         self.timeout = timeout
         self.max_tokens = max_tokens
+        self.cooldown = cooldown
+        # Per router: shared by the sessions of its configuration.
+        self._failures = _Failures(cooldown, clock)
 
     async def run(
         self,
@@ -163,11 +226,14 @@ class Router:
         """
         tally = tally if tally is not None else TurnTally()
         registry = tools if tools is not None else CapabilityRegistry()
-        route, reason, usage, router_model = await self._decide_route(history, user_text)
+        fast = self._path(self.fast, self.fast_fallbacks)
+        route, reason, usage, router_model = await self._decide_route(fast, history, user_text)
         if route == "fast":
-            model = _FirstThatAnswers((self.fast, *self.fast_fallbacks))
+            # The fast path's answer starts from the model that classified: the
+            # ones before it failed in this turn.
+            model = fast.from_answered()
         else:
-            model = _FirstThatAnswers((self.slow, *self.slow_fallbacks))
+            model = self._path(self.slow, self.slow_fallbacks)
         # With a fallback list, which model answers is known only once one has
         # started: the turn's events wait until then, so the route event, which
         # names that model, still comes first.
@@ -175,51 +241,71 @@ class Router:
         held: list[AgentEvent] = []
         decision: RouteEvent | None = None
 
-        def decide() -> RouteEvent:
+        def decide(answering: str) -> RouteEvent:
             return RouteEvent(
                 route=route,
                 reason=reason,
                 router_model=router_model,
                 router_usage=usage,
-                model=model.answered or model.id,
+                model=answering,
             )
 
-        if not waiting:
-            decision = decide()
-            yield decision
-
-        async for event in self._answer(
-            route,
-            model,
-            history,
-            user_text,
-            registry=registry,
-            proposals=proposals,
-            system=system,
-            max_tokens=max_tokens,
-            tally=tally,
-        ):
-            if decision is None:
-                if model.answered is None and not isinstance(event, DoneEvent | ErrorEvent):
-                    held.append(event)
-                    continue
-                decision = decide()
+        recorded = False
+        try:
+            if not waiting:
+                decision = decide(model.id)
                 yield decision
-                for earlier in held:
-                    yield earlier
-            if isinstance(event, DoneEvent):
-                self.telemetry.record(
-                    "route",
-                    {
-                        "route": route,
-                        "reason": reason,
-                        "router_model": decision.router_model,
-                        "router_usage": usage.model_dump(),
-                        "model": decision.model,
-                        "usage": event.usage.model_dump(),
-                    },
-                )
-            yield event
+            async for event in self._answer(
+                route,
+                model,
+                history,
+                user_text,
+                registry=registry,
+                proposals=proposals,
+                system=system,
+                max_tokens=max_tokens,
+                tally=tally,
+            ):
+                if decision is None:
+                    if model.answered is None and not isinstance(event, DoneEvent | ErrorEvent):
+                        held.append(event)
+                        continue
+                    # When every model failed, the route names the one it asked last,
+                    # as a cancel does.
+                    decision = decide(model.answered or model.asking)
+                    yield decision
+                    for earlier in held:
+                        yield earlier
+                if isinstance(event, DoneEvent | ErrorEvent):
+                    # Before the event goes out: the caller writes its turn line on it.
+                    self._record_route(decision, tally.usage)
+                    recorded = True
+                yield event
+        finally:
+            # A turn that is cancelled, or whose path raises, ends without a done or
+            # error event (the caller publishes one): its route is recorded here, with
+            # the usage spent until then. Before any model answered, the route names
+            # the model it was asking.
+            if not recorded:
+                self._record_route(decision or decide(model.asking), tally.usage)
+
+    def _path(self, first: ChatModel, fallbacks: Sequence[ChatModel]) -> _FirstThatAnswers:
+        """One path's models for this turn, the recently failed ones last."""
+        return _FirstThatAnswers(self._failures.failed_last((first, *fallbacks)), self._failures)
+
+    def _record_route(self, routed: RouteEvent, answer_usage: Usage) -> None:
+        """The turn's route line: its route event and the answering model's usage."""
+        self.telemetry.record(
+            "route",
+            {
+                "route": routed.route,
+                "reason": routed.reason,
+                "router_model": routed.router_model,
+                "router_usage": routed.router_usage.model_dump(),
+                "model": routed.model,
+                "usage": answer_usage.model_dump(),
+            },
+        )
 
     async def _answer(
         self,
@@ -283,19 +369,18 @@ class Router:
             yield event
 
     async def _decide_route(
-        self, history: Sequence[ChatMessage], user_text: str
+        self, classifier: _FirstThatAnswers, history: Sequence[ChatMessage], user_text: str
     ) -> tuple[Route, RouteReason, Usage, str | None]:
         """The route, how it was reached, the classification's usage, and the model
         that classified (None when the router is off)."""
         if not self.enabled:
             return "slow", "router_off", Usage(), None
-        route, reason, usage, classifier = await self._ask_fast_model(history, user_text)
+        route, reason, usage = await self._ask_fast_model(classifier, history, user_text)
         return route, reason, usage, classifier.answered or classifier.id
 
     async def _ask_fast_model(
-        self, history: Sequence[ChatMessage], user_text: str
-    ) -> tuple[Route, RouteReason, Usage, _FirstThatAnswers]:
-        classifier = _FirstThatAnswers((self.fast, *self.fast_fallbacks))
+        self, classifier: _FirstThatAnswers, history: Sequence[ChatMessage], user_text: str
+    ) -> tuple[Route, RouteReason, Usage]:
         request = ChatRequest(
             system=ROUTER_SYSTEM,
             messages=[*_as_text(history), UserMessage(text=user_text)],
@@ -308,10 +393,10 @@ class Router:
             log.warning(
                 "route classification by %s timed out after %ss", self.fast.id, self.timeout
             )
-            return "slow", "timeout", Usage(), classifier
+            return "slow", "timeout", Usage()
         except ChatModelError as error:
             log.warning("route classification failed: %s", error)
-            return "slow", "model_error", Usage(), classifier
+            return "slow", "model_error", Usage()
         usage = reply.usage
         try:
             decision = RouteDecision.model_validate_json(unfenced(reply.text))
@@ -324,10 +409,10 @@ class Router:
                     classifier.answered,
                     self.max_tokens,
                 )
-                return "slow", "max_tokens", usage, classifier
+                return "slow", "max_tokens", usage
             log.warning("route classification by %s was not the expected JSON", classifier.answered)
-            return "slow", "invalid", usage, classifier
-        return decision.route, "classified", usage, classifier
+            return "slow", "invalid", usage
+        return decision.route, "classified", usage
 
 
 def _as_text(history: Sequence[ChatMessage]) -> list[ChatMessage]:

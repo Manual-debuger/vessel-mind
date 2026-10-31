@@ -7,8 +7,10 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
+from vessel_mind.agent.router import Router
 from vessel_mind.core.chat import (
     AssistantMessage,
+    ChatModelError,
     ChatRequest,
     Stop,
     TextDelta,
@@ -217,6 +219,96 @@ def test_each_turn_ends_with_a_summary_in_the_telemetry_file(tmp_path):
     assert summary["status"] == "done"
     assert summary["steps"] == 1
     assert summary["usage"] == {"input_tokens": 1, "output_tokens": 1, "thinking_tokens": 0}
+
+
+class RoutesSlow:
+    """A fast model that classifies every turn as slow."""
+
+    id = "small"
+
+    async def stream(self, req: ChatRequest):
+        yield TextDelta(delta='{"route": "slow"}')
+        yield Stop(reason="end", usage=Usage(input_tokens=5, output_tokens=2))
+
+
+def test_a_cancelled_turn_leaves_a_route_line_and_a_turn_line_in_the_telemetry_file(tmp_path):
+    telemetry = tmp_path / "telemetry.jsonl"
+    sink = JsonlTelemetry(telemetry)
+    slow = HangOnFirstModel()
+    app = create_app(
+        slow,
+        router=Router(RoutesSlow(), slow, telemetry=sink),
+        state_path=tmp_path / "state.db",
+        telemetry=sink,
+    )
+    with TestClient(app) as client:
+        started = client.post("/turns", json={"text": "Tell me a long story."}).json()
+        names: list[str] = []
+        with client.stream("GET", f"/turns/{started['turn_id']}/events") as response:
+            for line in response.iter_lines():
+                if line.startswith("data: "):
+                    names.append(json.loads(line.removeprefix("data: "))["type"])
+                    if names[-1] == "text":
+                        client.post(f"/turns/{started['turn_id']}/cancel")
+
+    assert names == ["route", "text", "done"]
+    lines = [json.loads(line) for line in telemetry.read_text(encoding="utf-8").splitlines()]
+    assert [(line["kind"], line.get("status")) for line in lines] == [
+        ("route", None),
+        ("turn", "cancelled"),
+    ]
+    assert lines[0]["route"] == "slow"
+    assert lines[0]["model"] == "hang-on-first"
+    assert lines[0]["usage"] == lines[1]["usage"]
+
+
+class FailsAfterStarting:
+    """Streams a delta, then raises failure."""
+
+    id = "fails"
+
+    def __init__(self, failure: Exception) -> None:
+        self.failure = failure
+
+    async def stream(self, req: ChatRequest):
+        yield TextDelta(delta="Starting")
+        raise self.failure
+
+
+@pytest.mark.parametrize(
+    ("failure", "code"),
+    [(ChatModelError("fails: HTTP 500"), "model_error"), (RuntimeError("a bug"), "internal_error")],
+)
+def test_a_turn_that_fails_after_its_route_leaves_a_route_line_and_a_turn_line(
+    tmp_path, failure, code
+):
+    telemetry = tmp_path / "telemetry.jsonl"
+    sink = JsonlTelemetry(telemetry)
+    slow = FailsAfterStarting(failure)
+    app = create_app(
+        slow,
+        router=Router(RoutesSlow(), slow, telemetry=sink),
+        state_path=tmp_path / "state.db",
+        telemetry=sink,
+    )
+    with TestClient(app) as client:
+        started = client.post("/turns", json={"text": "Tell me a long story."}).json()
+        events: list[dict] = []
+        with client.stream("GET", f"/turns/{started['turn_id']}/events") as response:
+            for line in response.iter_lines():
+                if line.startswith("data: "):
+                    events.append(json.loads(line.removeprefix("data: ")))
+
+    assert [event["type"] for event in events] == ["route", "text", "error"]
+    assert events[-1]["code"] == code
+    lines = [json.loads(line) for line in telemetry.read_text(encoding="utf-8").splitlines()]
+    assert [(line["kind"], line.get("status")) for line in lines] == [
+        ("route", None),
+        ("turn", "error"),
+    ]
+    assert lines[0]["route"] == "slow"
+    assert lines[0]["model"] == "fails"
+    assert lines[0]["usage"] == lines[1]["usage"]
 
 
 def test_an_unknown_session_is_a_404(tmp_path):

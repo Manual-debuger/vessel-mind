@@ -487,6 +487,12 @@ def test_the_router_can_be_turned_off_for_the_slow_only_baseline(tmp_path):
     assert build_router(load_config(config), {"GEMINI_API_KEY": "k"}).enabled is False
 
 
+def test_the_failed_model_cool_down_reaches_the_router(tmp_path):
+    assert build_router(load_config(EXAMPLE), {"GEMINI_API_KEY": "k"}).cooldown == 300.0
+    config = config_with(tmp_path, "cooldown: 300", "cooldown: 60")
+    assert build_router(load_config(config), {"GEMINI_API_KEY": "k"}).cooldown == 60.0
+
+
 def test_an_undefined_configuration_is_a_config_error():
     with pytest.raises(ConfigError, match="'remote' is not defined"):
         build_router(load_config(EXAMPLE), {}, configuration="remote")
