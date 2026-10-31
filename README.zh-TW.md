@@ -2,7 +2,7 @@
 
 # vessel-mind
 
-**會引用來源、為每一輪挑選合適模型，而且沒有你按下 Approve 就絕不寫入的 agent runtime。**
+**會引用來源、在快慢兩個模型間分派每一輪，而且沒有你按下 Approve 就絕不寫入的 agent runtime。**
 
 [![Python 3.13](https://img.shields.io/badge/python-3.13-0b7fc4?style=for-the-badge&logo=python&logoColor=white)](pyproject.toml)
 [![CI](https://img.shields.io/github/actions/workflow/status/Manual-debuger/vessel-mind/ci.yml?branch=main&style=for-the-badge&label=CI&logo=githubactions&logoColor=white)](https://github.com/Manual-debuger/vessel-mind/actions/workflows/ci.yml)
@@ -53,7 +53,7 @@ Approve 才會執行。Router 會把每一輪對話分派給快模型或慢模�
 |---|---|
 | **附引用的回答** | 在固定版本的公開語料上做混合檢索（向量 + 關鍵字，以 RRF 合併後再 rerank）；回答用 `[n]` 連結標出引用的段落。 |
 | **人在迴圈中** | 工具標記為 `read`、`write` 或 `irreversible`。讀取直接執行；寫入會變成 proposal，按下 Approve 後才執行，而且只執行一次。沒有標記的 MCP 工具一律不註冊。 |
-| **快慢雙路徑** | 由小模型判斷每一輪：快路徑先檢索再回答，慢路徑跑工具迴圈。每條路徑都可以設定備援模型。 |
+| **快慢雙路徑** | 由小模型判斷每一輪：快路徑先檢索再回答，慢路徑跑工具迴圈。每條路徑都可以設定備援模型。路由準確率目前為 0.51，關閉路由時引用反而更準（見[評測結果](#評測結果)）；下一步改用 embedding 分類器。 |
 | **免費執行** | 使用沒有綁定帳單的 Gemini 免費額度，或 Ollama 上的本機模型。下方所有數字都來自免費模型。 |
 | **單一協定** | HTTP 加 Server-Sent Events，並匯出成 JSON Schema。Console 只用這個協定，作者的語音夥伴 Vessel 之後也是。 |
 | **雙語** | 提問和評測的 golden set 都有英文和繁體中文。 |
@@ -257,7 +257,8 @@ OLLAMA_CONTEXT_LENGTH=16384 ollama serve
 
 `config/agent.public.example.yaml` 是公開網站的設定：`routed`、開啟 demo mode（console 會顯示 proposal，
 但所有核准都回 403 `demo_mode`）、免費額度提示、每個 session 最多 20 輪、所有 session 每天合計最多 100 輪，
-以及唯讀的 Notion integration。把它複製成 `config/agent.public.yaml`（git-ignored），把機密和設定檔名稱
+唯讀的 Notion integration，以及不做 rerank（`reranker: none`）：在檢索消融中，reranker 讓每次搜尋多花約
+13 秒，recall 和 MRR 卻幾乎沒有提升。Image 仍然內含 reranker 模型，改回 `reranker: cpu` 就能重新開啟。把它複製成 `config/agent.public.yaml`（git-ignored），把機密和設定檔名稱
 寫進 git-ignored 的 `.env.public`，然後連同 tunnel 一起啟動：
 
 ```sh
