@@ -2,7 +2,7 @@
 
 # vessel-mind
 
-**An agent runtime that cites its sources, routes each turn to the right model, and never writes without your Approve.**
+**An agent runtime that cites its sources, routes each turn between a fast and a slow model, and never writes without your Approve.**
 
 [![Python 3.13](https://img.shields.io/badge/python-3.13-0b7fc4?style=for-the-badge&logo=python&logoColor=white)](pyproject.toml)
 [![CI](https://img.shields.io/github/actions/workflow/status/Manual-debuger/vessel-mind/ci.yml?branch=main&style=for-the-badge&label=CI&logo=githubactions&logoColor=white)](https://github.com/Manual-debuger/vessel-mind/actions/workflows/ci.yml)
@@ -53,7 +53,7 @@ everything a turn does: streamed text, every tool call, the route, token usage a
 |---|---|
 | **Cited answers** | Hybrid retrieval (vector + keyword, fused with RRF, then reranked) over a pinned public corpus; answers cite the passages they use with `[n]` links. |
 | **Human in the loop** | Tools are labelled `read`, `write` or `irreversible`. A read runs; a write becomes a proposal that runs once, only after Approve. Unlabelled MCP tools are never registered. |
-| **Fast and slow paths** | A small model classifies each turn: retrieve-then-answer on the fast path, or a tool loop on the slow path. Each path can list fallback models. |
+| **Fast and slow paths** | A small model classifies each turn: retrieve-then-answer on the fast path, or a tool loop on the slow path. Each path can list fallback models. Router accuracy is 0.51 for now, and citations are more accurate with the router off (see [Results](#results)); the next step is an embedding classifier. |
 | **Free to run** | Gemini's free tier on a key with no billing account, or local models on Ollama. Every number below comes from free models. |
 | **One protocol** | HTTP and Server-Sent Events, exported as a JSON Schema. The console uses nothing else, and so will Vessel, the author's voice companion. |
 | **Bilingual** | Questions and the eval's golden set in English and in Traditional Chinese. |
@@ -267,7 +267,9 @@ it needs both Ollama and `GEMINI_API_KEY`.
 `config/agent.public.example.yaml` is the public host's configuration: `routed`, demo mode on
 (the console shows proposals, and every approval is refused with 403 `demo_mode`), the
 free-tier notice, a limit of 20 turns per session and of 100 turns a day across all sessions,
-and a read-only Notion integration. Copy it to `config/agent.public.yaml` (git-ignored), put
+a read-only Notion integration, and no rerank stage (`reranker: none`): in the retrieval
+ablation the reranker adds about 13 s to each search and gains little recall or MRR. The image
+still ships the reranker model, so `reranker: cpu` turns it back on. Copy it to `config/agent.public.yaml` (git-ignored), put
 the secrets and the file's name in a git-ignored `.env.public`, and start the tunnel too:
 
 ```sh

@@ -94,7 +94,10 @@ retrieval:
   candidate_k: 30
   top_k: 5
   embedding_model: jinaai/jina-embeddings-v2-base-zh
-  reranker: cpu
+  # No rerank stage: in the retrieval ablation it adds about 13 s to a search
+  # on the CPU, and recall@5 and MRR@5 gain little (eval/results/results.md).
+  # The image still ships the model, so cpu turns it back on.
+  reranker: none
   reranker_model: BAAI/bge-reranker-v2-m3-int8
   model_cache: .cache/fastembed
   tarball_cache: .cache/corpus

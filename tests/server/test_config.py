@@ -251,7 +251,9 @@ def test_the_public_example_runs_routed_in_demo_mode_with_a_turn_limit():
 
 def test_the_public_example_retrieves_like_the_example_the_image_was_built_for():
     # The image's index and model caches are built for the example's retrieval settings.
-    assert load_config(PUBLIC).retrieval == load_config(EXAMPLE).retrieval
+    # The public host only turns the rerank stage off; it reorders, and builds nothing.
+    example = load_config(EXAMPLE).retrieval
+    assert load_config(PUBLIC).retrieval == example.model_copy(update={"reranker": "none"})
     assert load_config(PUBLIC).state == load_config(EXAMPLE).state
 
 
