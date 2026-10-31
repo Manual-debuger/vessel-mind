@@ -338,16 +338,16 @@ Traditional Chinese (9 questions with expected sources, 10 timed):
 |---|---|---|---|---|---|---|---|---|---|---|
 | hosted | gemini-3.5-flash-lite / gemini-3.6-flash | *not run* | — | — | — | — | — | — | — | — |
 | slow-only | router off / gemini-3.6-flash | *not run* | — | — | — | — | — | — | — | — |
-| local | qwen3:8b / qwen3.6:35b-a3b | 35 of 35 | 0.82 | 0.88 | 0.85 | 0.71 (45 of 63) | 18.2 | 43.3 | 199,488 / 37,235 | $0 (GPU electricity not measured) |
+| local | qwen3:8b / qwen3.6:35b-a3b | 35 of 35 | 0.81 | 0.85 | 0.84 (1 not judged) | 0.64 (51 of 80) | 22.0 | 57.4 | 226,287 / 38,570 | $0 (GPU electricity not measured) |
 | routed | qwen3:8b / gemini-3.6-flash | *not run* | — | — | — | — | — | — | — | — |
 | local-slow-only | router off / qwen3.6:35b-a3b | 35 of 35 | 0.84 | 0.90 | 0.81 | 0.77 (46 of 60) | 16.4 | 31.9 | 178,836 / 41,980 | $0 (GPU electricity not measured) |
 
-Router accuracy for `local` against `expected_route`: 0.57 (20 of 35 turns); 0 fallbacks to the
-slow path; 1 costly misroute (en-03).
+Router accuracy for `local` against `expected_route`: 0.51 (18 of 35 turns); 0 fallbacks to the
+slow path; 1 costly misroute (en-17).
 
 | Expected \ routed | fast | slow |
 |---|---|---|
-| fast | 5 | 15 |
+| fast | 3 | 17 |
 | slow | 0 | 15 |
 
 <!-- results:end -->
@@ -368,7 +368,7 @@ slow path; 1 costly misroute (en-03).
 - **Judge–human agreement**, from results.md (the hand grades are in
   [`eval/human_grades.jsonl`](eval/human_grades.jsonl)):
 
-  > The author graded 10 answers (32 key points) by hand, chosen at random (seed 15) from the judged answers. Judge and author agree on 30 of 32 key points (0.94). Mean answer score on these answers: judge 0.84, author 0.91.
+  > The author graded 13 answers (39 key points) by hand, chosen at random (seed 15) from the judged answers. Judge and author agree on 36 of 39 key points (0.92). Mean answer score on these answers: judge 0.88, author 0.91.
 - **Cost is at list price**: tokens × the provider's paid list price, dated in the config
   (Google's prices as of 2026-10-26). Nobody paid it. Self-hosted rows are $0, with GPU
   electricity not measured.
@@ -390,6 +390,8 @@ From [the spec](docs/specs/a-agent-track.md) §7. An open item names its reason.
 - [x] Retrieval ablation table committed (vector / keyword / hybrid / hybrid + rerank).
 - [x] `task eval` results committed for every configuration that could run: `local` and
       `local-slow-only`; `hosted`, `slow-only` and `routed` are *not run*, with the reason.
+      `local` was run again on 2026-10-30, after the router prompt began to name write
+      requests as slow. The author graded the new sample on 2026-10-31.
 - [x] `docker compose up` from a clean clone serves the console with hosted providers only (the
       image was built from a fresh clone and the app became healthy). Open: a live Gemini turn
       in the container is not yet recorded.
@@ -404,6 +406,9 @@ From [the spec](docs/specs/a-agent-track.md) §7. An open item names its reason.
 - [x] Public hostname behind Access, in demo mode, with Ollama not reachable from it
       (2026-10-28): the tunnel routes only `app:8000`; the author signed in with the email PIN
       and saw an approval refused; Notion refuses a write with the read-only token (#16).
+      Redeployed on 2026-10-30 with node 26 (#39) and the router change: over the HTTP API,
+      the example question that adds an action item took the slow path and made a proposal,
+      and its approval was refused with 403 `demo_mode`.
 - [x] README: architecture diagram, results tables, protocol summary, public-corpus statement;
       Vessel named as the future client and not linked while it is private.
 - [x] Whole git history scanned for secrets: `gitleaks detect --log-opts="--all"` (v8.16.0)

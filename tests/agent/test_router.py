@@ -610,6 +610,21 @@ async def test_the_classification_sees_the_session_as_text_only():
     ]
 
 
+@pytest.mark.asyncio
+async def test_the_classification_is_told_that_a_request_to_change_something_is_slow():
+    # The fast path offers no tools, so a write routed fast can never become a
+    # proposal. Unprompted, qwen3:8b routed 5 of 6 such requests fast.
+    fast = ScriptedModel("small", classified('{"route": "slow"}'))
+    slow = ScriptedModel("large", answer("Ok."))
+
+    await collect(Router(fast, slow), [], "Add an item to the Notion page.")
+
+    system = fast.requests[0].system
+    assert system is not None
+    assert "add, change or delete something" in system
+    assert "needs a write tool, so it is slow" in system
+
+
 class SearchesThenHangs:
     """Calls search_docs in its first step, then streams a delta and hangs until cancelled."""
 
