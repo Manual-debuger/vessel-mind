@@ -353,12 +353,10 @@ slow path; 1 costly misroute (en-17).
 - **評審模型和人工評分的一致度**，出自 results.md（人工評分在
   [`eval/human_grades.jsonl`](eval/human_grades.jsonl)）：
 
-  > The author graded 3 answers (10 key points) by hand, chosen at random (seed 15) from the judged answers. Judge and author agree on 10 of 10 key points (1.00). Mean answer score on these answers: judge 1.00, author 1.00.
-  >
-  > 7 stored grades are for answers a later run replaced; they are not counted. Run `task eval -- --grade` to grade the new sample.
+  > The author graded 13 answers (39 key points) by hand, chosen at random (seed 15) from the judged answers. Judge and author agree on 36 of 39 key points (0.92). Mean answer score on these answers: judge 0.88, author 0.91.
 
-  作者從評審過的回答中隨機抽出 10 題（種子 15，共 32 個要點）人工評分。評審模型和作者在 32 個要點中有
-  30 個一致（0.94）。這些回答的平均分數：評審模型 0.84，作者 0.91。
+  作者從評審過的回答中隨機抽出 13 題（種子 15，共 39 個要點）人工評分。評審模型和作者在 39 個要點中有
+  36 個一致（0.92）。這些回答的平均分數：評審模型 0.88，作者 0.91。
 - **成本以牌價計算**：token 數 × 供應商的付費牌價，牌價日期寫在設定檔裡（Google 2026-10-26 的價格）。
   實際上沒有付任何費用。自架模型的列是 $0，GPU 電費沒有計算。
 - 延遲是作者機器上一輪的實際經過時間，扣掉評測為了錯開請求而等待的時間。
@@ -377,8 +375,7 @@ slow path; 1 costly misroute (en-17).
 - [x] 檢索消融表已 commit（vector / keyword / hybrid / hybrid + rerank）。
 - [x] 所有能跑的設定都已 commit `task eval` 結果：`local` 和 `local-slow-only`；`hosted`、`slow-only` 和
       `routed` 標示為 *not run* 並寫明原因。router 的 prompt 開始把寫入請求歸為慢路徑後，`local` 在
-      2026-10-30 重跑。**未完成：**10 個人工評分的回答中有 7 個被取代；由作者為新的樣本評分
-      （`task eval -- --grade`）。
+      2026-10-30 重跑。作者在 2026-10-31 為新的樣本評分。
 - [x] 從乾淨的 clone 執行 `docker compose up`，只用雲端模型就能提供 console（image 從全新的 clone
       build，app 狀態為 healthy）。未完成：容器內一輪真實的 Gemini 對話尚未記錄。
 - [ ] 2–3 分鐘的 demo 影片，並從這份 README 連結。**未完成：**由作者錄製。需要在 localhost 透過

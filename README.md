@@ -368,9 +368,7 @@ slow path; 1 costly misroute (en-17).
 - **Judge–human agreement**, from results.md (the hand grades are in
   [`eval/human_grades.jsonl`](eval/human_grades.jsonl)):
 
-  > The author graded 3 answers (10 key points) by hand, chosen at random (seed 15) from the judged answers. Judge and author agree on 10 of 10 key points (1.00). Mean answer score on these answers: judge 1.00, author 1.00.
-  >
-  > 7 stored grades are for answers a later run replaced; they are not counted. Run `task eval -- --grade` to grade the new sample.
+  > The author graded 13 answers (39 key points) by hand, chosen at random (seed 15) from the judged answers. Judge and author agree on 36 of 39 key points (0.92). Mean answer score on these answers: judge 0.88, author 0.91.
 - **Cost is at list price**: tokens × the provider's paid list price, dated in the config
   (Google's prices as of 2026-10-26). Nobody paid it. Self-hosted rows are $0, with GPU
   electricity not measured.
@@ -393,8 +391,7 @@ From [the spec](docs/specs/a-agent-track.md) §7. An open item names its reason.
 - [x] `task eval` results committed for every configuration that could run: `local` and
       `local-slow-only`; `hosted`, `slow-only` and `routed` are *not run*, with the reason.
       `local` was run again on 2026-10-30, after the router prompt began to name write
-      requests as slow. **Open:** 7 of the 10 hand-graded answers were replaced; the author
-      grades the new sample (`task eval -- --grade`).
+      requests as slow. The author graded the new sample on 2026-10-31.
 - [x] `docker compose up` from a clean clone serves the console with hosted providers only (the
       image was built from a fresh clone and the app became healthy). Open: a live Gemini turn
       in the container is not yet recorded.
