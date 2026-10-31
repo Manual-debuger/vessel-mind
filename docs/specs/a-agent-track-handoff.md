@@ -51,13 +51,14 @@ model change needs a full re-run (see `eval/golden-changes.md`). Commit
 
 ## Manual test plan
 
-None of these has run. Each needs a person, an account or a browser. Screenshots must
-show only the public corpus and demo pages, never personal data.
+Each needs a person, an account or a browser. Screenshots must show only the public
+corpus and demo pages, never personal data. [Results](#results-2026-10-29) of the runs
+so far follow the plan.
 
 1. **Console in a browser (`task dev`, `hosted`).** Ask an English question: the text
    streams, the route badge names the route and both models, and each `[n]` opens its
-   source. Cancel a turn mid-answer: it stops at once. Reload the page: the session is
-   kept. Turn the network off in the browser's developer tools mid-turn, then on again:
+   source. Cancel a turn mid-answer: it stops at once. Reload the page: a new session
+   starts (the console keeps the session id only in the page). Turn the network off in the browser's developer tools mid-turn, then on again:
    the status shows the disconnect, and the answer is not repeated after the reconnect.
 2. **Citations (#11).** One English and one Traditional Chinese question, each with
    `[n]` links to the right documents. Take screenshots.
@@ -84,11 +85,24 @@ show only the public corpus and demo pages, never personal data.
     is refused with 403), the read-only Notion integration, and the daily cap of 100.
 11. **Demo video,** linked from the README, after 2 and 7.
 
+### Results (2026-10-29)
+
+Tests 1, 3, 4, 6 and 8 ran on localhost against the HTTP API (`POST /turns`, the SSE
+stream read by a script), not in a browser. Test 5 did not run.
+
+| Test | Result | What was seen |
+|---|---|---|
+| 1 | pass, except the browser | The text streams as `text` events; the `route` event names the router model and the answering model; the answers carry `[n]` with source URLs. A cancel returns 202 and the stream ends at once with `done` (`cancelled`). A stream closed after event 3 and reopened with `Last-Event-ID: 3` continues at event 4, with no event repeated. Not checked: the console's rendering, a click on `[n]`, the disconnect status in a browser. |
+| 3 | pass | One session: a fast turn (`gemini-3.5-flash-lite`), then a slow turn (`gemini-3.6-flash`, 3 steps), answered with no HTTP 400. |
+| 4 | pass | The slow model set to `gemini-does-not-exist` returns HTTP 404; `gemini-3.5-flash-lite` answers and the `route` event names it. The failed model is asked again on each step (#29). |
+| 6 | fail | No message text in the telemetry file. A cancelled turn has a `turn` line but no `route` line (#28). |
+| 8 | pass, with a swap | `configuration: local` with no `GEMINI_API_KEY`: both turns answered by `qwen3.6:35b-a3b`, routed by `qwen3:8b`. Ollama ran with a 32768-token context, not 16384, so the two models did not stay loaded together; one classification timed out during a swap and the turn went slow (`reason: timeout`). |
+
 ## Before the repository is made public
 
-- [ ] Scan the whole git history for secrets, for example
-      `gitleaks detect --log-opts="--all"`. A finding means: rotate that key first, then
-      rewrite the history.
+- [x] Scan the whole git history for secrets, for example
+      `gitleaks git --log-opts="--all"`. A finding means: rotate that key first, then
+      rewrite the history. Done 2026-10-29 with gitleaks v8.24.3: no leaks in 48 commits.
 - [ ] No personal data in the repository: README, screenshots, `eval/results/`,
       `eval/human_grades.jsonl`, test fixtures. `config/agent.yaml` and env files never
       committed (`git log --all -- config/agent.yaml` prints nothing).
@@ -96,9 +110,9 @@ show only the public corpus and demo pages, never personal data.
       checks it).
 - [ ] The public-host config is `config/agent.public.example.yaml`: `demo_mode: true`,
       `public_host: true`, `sessions.max_turns_per_day` set, Notion read-only.
-- [ ] Manual tests 1–11 above done, or listed as open in the README's definition of
+- [x] Manual tests 1–11 above done, or listed as open in the README's definition of
       done.
-- [ ] PR #21 merged into `main`; the tickets close with it.
+- [x] PR #21 merged into `main`; the tickets close with it.
 - [ ] After the repository is public, protect `main` (GitHub flow): require a pull
       request and the checks `verify (ubuntu-latest)`, `verify (windows-latest)`,
       `security` and `audit` (strict); no force push or deletion; include admins; no
