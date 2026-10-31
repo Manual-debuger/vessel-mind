@@ -69,4 +69,4 @@ The judge `qwen3.6:35b-a3b` shares a model family (`qwen`) with the measured row
 
 The author graded 13 answers (39 key points) by hand, chosen at random (seed 15) from the judged answers. Judge and author agree on 36 of 39 key points (0.92). Mean answer score on these answers: judge 0.88, author 0.91.
 
-7 stored grades are for answers a later run replaced; they are not counted. Run `task eval -- --grade` to grade the new sample.
+7 stored grades are for answers a later run replaced; they are not counted.
