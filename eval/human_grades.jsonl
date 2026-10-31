@@ -8,3 +8,13 @@
 {"row":"local","id":"en-04","answer_sha256":"6e26e845931550b53e4ca2e63a95ae05d08279b27f7b38995e1ae2d187ccf48c","covered":[true,true,true],"graded":"2026-10-27"}
 {"row":"local-slow-only","id":"en-22","answer_sha256":"1ccdd72f718d519027321d528ae3303176e64c873bba4ed6c97482b84402fbf4","covered":[true,true,true,true],"graded":"2026-10-27"}
 {"row":"local-slow-only","id":"en-17","answer_sha256":"4983b5ed7bbf26b82b39a209cc571aa79b12f8f8d7abf0617f0fabad2571efaa","covered":[true,true,true],"graded":"2026-10-27"}
+{"row":"local","id":"zh-03","answer_sha256":"e20f2745ce25c51582fa187c876332c0770f5f0a49a19a8c8865d0a394226f58","covered":[true,true,true],"graded":"2026-10-31"}
+{"row":"local","id":"en-02","answer_sha256":"21cab3a6b5920a643c6f9c3175852f69cbb812f1e38866d56e434cfc723810ce","covered":[true,true,true],"graded":"2026-10-31"}
+{"row":"local-slow-only","id":"zh-08","answer_sha256":"3966341cfeedd236e79b5fbfbbf2f2904ab8e5c149bcd4e18df628bd26fb4242","covered":[true,true,true],"graded":"2026-10-31"}
+{"row":"local","id":"en-05","answer_sha256":"2e0701e584af812f479e65e331921b421ff68ed1bb6e999a51c5bfb15ca9c373","covered":[false,true,true,false],"graded":"2026-10-31"}
+{"row":"local","id":"en-21","answer_sha256":"d99450e09fd7fac103b0834833f4530631f8926b699e704f94f38c1db5b204d2","covered":[true,true,true],"graded":"2026-10-31"}
+{"row":"local","id":"zh-07","answer_sha256":"139a0566946b4712e331118d173e165ca72195b7daa0fbfcbee96ae315f4a7c9","covered":[true,true,true],"graded":"2026-10-31"}
+{"row":"local-slow-only","id":"zh-09","answer_sha256":"2e94003fd9d6140c085d7823418ee8f373004236b67f593061b6bb3325f674ff","covered":[true,false,false],"graded":"2026-10-31"}
+{"row":"local","id":"en-04","answer_sha256":"fea3225fc4f639a399fe324e94d4cba55c83673881bb38867c869c1b24173a0b","covered":[true,true,true],"graded":"2026-10-31"}
+{"row":"local-slow-only","id":"un-01","answer_sha256":"00b9965139a7baf80a4ae5840f6e9e5a3a2aad39d8f71fedda9030b5cbab7e65","covered":[true],"graded":"2026-10-31"}
+{"row":"local-slow-only","id":"en-18","answer_sha256":"370bc48d36bfd8cbf4b8f08cc188135396d863a4388e62bebafa76175b2b86d7","covered":[true,true,true],"graded":"2026-10-31"}

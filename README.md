@@ -1,4 +1,27 @@
+<div align="center">
+
 # vessel-mind
+
+**An agent runtime that cites its sources, routes each turn to the right model, and never writes without your Approve.**
+
+[![Python 3.13](https://img.shields.io/badge/python-3.13-0b7fc4?style=for-the-badge&logo=python&logoColor=white)](pyproject.toml)
+[![CI](https://img.shields.io/github/actions/workflow/status/Manual-debuger/vessel-mind/ci.yml?branch=main&style=for-the-badge&label=CI&logo=githubactions&logoColor=white)](https://github.com/Manual-debuger/vessel-mind/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-4c1?style=for-the-badge&logo=apache&logoColor=white)](LICENSE)
+
+[![Live demo](https://img.shields.io/badge/live%20demo-try%20it-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://vessel-mind.hissnake.com)
+[![Demo Notion page](https://img.shields.io/badge/corpus%20page-Notion-000000?style=for-the-badge&logo=notion&logoColor=white)](https://chill-crocus-566.notion.site/Vessel-Mind-Public-Read-Only-4075c26c138880c98aa7e12b309df513)
+[![Docker](https://img.shields.io/badge/docker-compose%20up-2496ED?style=for-the-badge&logo=docker&logoColor=white)](#run-it)
+
+[![English](https://img.shields.io/badge/English-read%20docs-555?style=for-the-badge&logo=readthedocs&logoColor=white)](README.md)
+[![繁體中文](https://img.shields.io/badge/%E7%B9%81%E9%AB%94%E4%B8%AD%E6%96%87-%E9%96%B1%E8%AE%80%E6%96%87%E4%BB%B6-555?style=for-the-badge&logo=readthedocs&logoColor=white)](README.zh-TW.md)
+[![ADR](https://img.shields.io/badge/design-ADR-6f42c1?style=for-the-badge&logo=markdown&logoColor=white)](docs/adr)
+[![Eval results](https://img.shields.io/badge/eval-results-6f42c1?style=for-the-badge&logo=markdown&logoColor=white)](eval/results/results.md)
+
+**English** · [繁體中文](README.zh-TW.md)
+
+</div>
+
+---
 
 vessel-mind is a standalone agent runtime in Python. It answers questions about a pinned public
 corpus with `[n]` citations, calls tools from an MCP server (Notion), and never runs a write
@@ -6,9 +29,36 @@ tool without a human's Approve. A router sends each turn to a fast model or a sl
 free-tier hosted models (Gemini) or on local models (Ollama). An operator console shows
 everything a turn does: streamed text, every tool call, the route, token usage and proposals.
 
-The product boundary is an event protocol (HTTP and Server-Sent Events). The operator console
-uses only that protocol. Vessel, the author's voice companion, is the future client of the same
-protocol; vessel-mind never depends on it. The design is in
+> [!TIP]
+> **Live demo:** <https://vessel-mind.hissnake.com>. Sign in with any email address and the
+> one-time PIN that Cloudflare Access sends to it. The agent reads
+> [this public Notion page](https://chill-crocus-566.notion.site/Vessel-Mind-Public-Read-Only-4075c26c138880c98aa7e12b309df513),
+> so you can check its answers. The demo runs in demo mode: ask it to change the page and you
+> see its proposal, but every approval is refused, so nothing is written.
+
+## Contents
+
+- [Highlights](#highlights)
+- [Public corpus only](#public-corpus-only)
+- [Architecture](#architecture)
+- [Event protocol](#event-protocol)
+- [Run it](#run-it)
+- [Results](#results)
+- [Definition of done](#definition-of-done)
+- [Development](#development)
+
+## Highlights
+
+| | |
+|---|---|
+| **Cited answers** | Hybrid retrieval (vector + keyword, fused with RRF, then reranked) over a pinned public corpus; answers cite the passages they use with `[n]` links. |
+| **Human in the loop** | Tools are labelled `read`, `write` or `irreversible`. A read runs; a write becomes a proposal that runs once, only after Approve. Unlabelled MCP tools are never registered. |
+| **Fast and slow paths** | A small model classifies each turn: retrieve-then-answer on the fast path, or a tool loop on the slow path. Each path can list fallback models. |
+| **Free to run** | Gemini's free tier on a key with no billing account, or local models on Ollama. Every number below comes from free models. |
+| **One protocol** | HTTP and Server-Sent Events, exported as a JSON Schema. The console uses nothing else, and so will Vessel, the author's voice companion. |
+| **Bilingual** | Questions and the eval's golden set in English and in Traditional Chinese. |
+
+The design is in
 [ADR 0001](docs/adr/0001-an-agent-runtime-separate-from-embodiment.md) and
 [ADR 0002](docs/adr/0002-demo-exposure-cloudflare-tunnel-access.md); the requirements are in
 [the agent-track spec](docs/specs/a-agent-track.md); the terms are in the
@@ -27,7 +77,7 @@ globs.
 
 Each Notion integration is shared with one demo page only, never a personal page.
 
-## Gemini free-tier notice
+### Gemini free-tier notice
 
 The hosted configurations send messages to Google Gemini's free tier, on a key that belongs to a
 Google Cloud project with no billing account. On the public host, the console shows this line:
@@ -73,12 +123,17 @@ flowchart LR
 ```
 
 The package has four layers, and an import-linter contract checks them in
-`tests/test_architecture.py`: `core` (chat types, capabilities, credentials, protocol events)
-imports nothing else; `agent` (loop, router, proposals, MCP client, model adapter) and `rag`
-(chunk, embed, store, search, ingest) import only `core`, and `agent` never imports `rag`;
-`server` wires them together. Retrieval reaches the loop as an injected `read` tool,
-`search_docs`. `eval` (the harness behind `task eval`) is a second composition root above
-`server`: it imports `server` for config, and nothing imports `eval`.
+`tests/test_architecture.py`:
+
+| Layer | Holds | May import |
+|---|---|---|
+| `core` | chat types, capabilities, credentials, protocol events | nothing else |
+| `agent` | loop, router, proposals, MCP client, model adapter | `core` (never `rag`) |
+| `rag` | chunk, embed, store, search, ingest | `core` |
+| `server` | wires them together | all of the above |
+| `eval` | the harness behind `task eval`, a second composition root | `server`, for config; nothing imports `eval` |
+
+Retrieval reaches the loop as an injected `read` tool, `search_docs`.
 
 Each path of a configuration can list fallback models (`fast_fallbacks`, `slow_fallbacks`):
 when a model still fails after its retries (HTTP 429 or 503, or no first byte in time), the next
@@ -90,7 +145,7 @@ The retrieval pipeline reranks on the CPU only (a fastembed cross-encoder). The 
 reranker that the spec offered as a second provider was cut: config refuses
 `reranker: llama-server`.
 
-The deployment (ADR 0002):
+### Deployment (ADR 0002)
 
 ```
 reviewer --HTTPS--> Cloudflare Access (email PIN) --> Cloudflare Tunnel
@@ -131,14 +186,17 @@ expires, and a turn that was running is not resumed.
 
 ## Run it
 
-### From a clean clone, `hosted` (needs only `GEMINI_API_KEY`)
+| Configuration | Fast path | Slow path | Needs |
+|---|---|---|---|
+| `hosted` (default) | `gemini-3.5-flash-lite` | `gemini-3.6-flash` | `GEMINI_API_KEY` |
+| `local` | `qwen3:8b` on Ollama | `qwen3.6:35b-a3b` on Ollama | a GPU with about 28 GB of VRAM |
+| `routed` | `qwen3:8b` on Ollama | `gemini-3.6-flash` | both |
 
-`hosted` is the default configuration: Gemini on both paths, `gemini-3.5-flash-lite` (fast) and
-`gemini-3.6-flash` (slow). Google routes `gemini-3.5-flash` to `gemini-3.6-flash`, so the slow
-model is pinned as `gemini-3.6-flash`. Use a key from a Google Cloud project with no billing
-account (AI Studio, "Create API key").
+### Quick start: `hosted` with Docker
 
-With Docker, from the repository root of a full clone:
+Google routes `gemini-3.5-flash` to `gemini-3.6-flash`, so the slow model is pinned as
+`gemini-3.6-flash`. Use a key from a Google Cloud project with no billing account (AI Studio,
+"Create API key").
 
 ```sh
 git clone https://github.com/Manual-debuger/vessel-mind.git
@@ -152,8 +210,10 @@ reads `.git`, so a shallow clone (`--depth 1`), a source archive or a git worktr
 built. Keys come from the shell or a git-ignored `.env` file; no file in the repository holds
 one.
 
-Without Docker (Python 3.13, [uv](https://docs.astral.sh/uv/) and
-[Task](https://taskfile.dev/)):
+<details>
+<summary><b>Without Docker</b></summary>
+
+With Python 3.13, [uv](https://docs.astral.sh/uv/) and [Task](https://taskfile.dev/):
 
 ```sh
 uv sync
@@ -161,13 +221,23 @@ task ingest                       # builds data/index.sqlite from the pinned cor
 GEMINI_API_KEY=... task dev       # http://127.0.0.1:8000
 ```
 
+</details>
+
+<details>
+<summary><b>Configuration files and Notion</b></summary>
+
 To change a setting, copy `config/agent.example.yaml` to `config/agent.yaml` (git-ignored); the
-app reads that file when it exists. `VESSEL_MIND_CONFIG` names another file. The Notion MCP
-server is off in the example; to enable it, run `npm ci --ignore-scripts` in
+app reads that file when it exists. `VESSEL_MIND_CONFIG` names another file. The configuration
+files name the environment variables (`key_env: NOTION_TOKEN`), never the secrets.
+
+The Notion MCP server is off in the example; to enable it, run `npm ci --ignore-scripts` in
 `deploy/notion-mcp`, set `mcp_servers.notion.enabled: true` and set `NOTION_TOKEN` (an
 integration shared with one demo page only).
 
-### Local models with Ollama (`local`, no key)
+</details>
+
+<details>
+<summary><b>Local models with Ollama (<code>local</code>, no key)</b></summary>
 
 `local` runs both paths on Ollama: `qwen3:8b` (fast, with `reasoning_effort: none`, so the
 router's classification stays inside its 10 s timeout) and `qwen3.6:35b-a3b` (slow, a mixture
@@ -189,14 +259,16 @@ run `task ingest` and `task dev` as above (no `GEMINI_API_KEY` needed). The exam
 `routed` uses `qwen3:8b` on Ollama for the fast path and `gemini-3.6-flash` for the slow path;
 it needs both Ollama and `GEMINI_API_KEY`.
 
-### The public host
+</details>
+
+<details>
+<summary><b>The public host (Cloudflare Tunnel and Access)</b></summary>
 
 `config/agent.public.example.yaml` is the public host's configuration: `routed`, demo mode on
 (the console shows proposals, and every approval is refused with 403 `demo_mode`), the
 free-tier notice, a limit of 20 turns per session and of 100 turns a day across all sessions,
-and a read-only Notion integration. Copy it
-to `config/agent.public.yaml` (git-ignored), put the secrets and the file's name in a
-git-ignored `.env.public`, and start the tunnel too:
+and a read-only Notion integration. Copy it to `config/agent.public.yaml` (git-ignored), put
+the secrets and the file's name in a git-ignored `.env.public`, and start the tunnel too:
 
 ```sh
 # .env.public
@@ -210,14 +282,18 @@ TUNNEL_TOKEN=...
 docker compose --env-file .env.public --profile tunnel up -d --build
 ```
 
-The configuration files name the environment variables (`key_env: NOTION_TOKEN`), never
-the secrets. The optional `console` block links the demo Notion page, published to the web,
-so a visitor can check the agent's answers against it, and lists example questions that
-fill the question box when clicked. A localhost configuration works the same way: `config/agent.local.yaml`
-(demo mode off) and `.env.local` with the write integration's token.
+On the public host the console explains the demo to a visitor: what the agent answers from,
+what to try, how to read an answer, and the turn limits. The optional `console` block links
+the demo Notion page, published to the web, so a visitor can check the agent's answers against
+it, and lists example questions that fill the question box when clicked.
+
+A localhost configuration works the same way: `config/agent.local.yaml` (demo mode off) and
+`.env.local` with the write integration's token.
 
 The tunnel reaches only the app. The state file, the MCP servers and Ollama have no route from
 the public hostname.
+
+</details>
 
 ## Results
 
@@ -262,16 +338,16 @@ Traditional Chinese (9 questions with expected sources, 10 timed):
 |---|---|---|---|---|---|---|---|---|---|---|
 | hosted | gemini-3.5-flash-lite / gemini-3.6-flash | *not run* | — | — | — | — | — | — | — | — |
 | slow-only | router off / gemini-3.6-flash | *not run* | — | — | — | — | — | — | — | — |
-| local | qwen3:8b / qwen3.6:35b-a3b | 35 of 35 | 0.82 | 0.88 | 0.85 | 0.71 (45 of 63) | 18.2 | 43.3 | 199,488 / 37,235 | $0 (GPU electricity not measured) |
+| local | qwen3:8b / qwen3.6:35b-a3b | 35 of 35 | 0.81 | 0.85 | 0.84 (1 not judged) | 0.64 (51 of 80) | 22.0 | 57.4 | 226,287 / 38,570 | $0 (GPU electricity not measured) |
 | routed | qwen3:8b / gemini-3.6-flash | *not run* | — | — | — | — | — | — | — | — |
 | local-slow-only | router off / qwen3.6:35b-a3b | 35 of 35 | 0.84 | 0.90 | 0.81 | 0.77 (46 of 60) | 16.4 | 31.9 | 178,836 / 41,980 | $0 (GPU electricity not measured) |
 
-Router accuracy for `local` against `expected_route`: 0.57 (20 of 35 turns); 0 fallbacks to the
-slow path; 1 costly misroute (en-03).
+Router accuracy for `local` against `expected_route`: 0.51 (18 of 35 turns); 0 fallbacks to the
+slow path; 1 costly misroute (en-17).
 
 | Expected \ routed | fast | slow |
 |---|---|---|
-| fast | 5 | 15 |
+| fast | 3 | 17 |
 | slow | 0 | 15 |
 
 <!-- results:end -->
@@ -292,7 +368,7 @@ slow path; 1 costly misroute (en-03).
 - **Judge–human agreement**, from results.md (the hand grades are in
   [`eval/human_grades.jsonl`](eval/human_grades.jsonl)):
 
-  > The author graded 10 answers (32 key points) by hand, chosen at random (seed 15) from the judged answers. Judge and author agree on 30 of 32 key points (0.94). Mean answer score on these answers: judge 0.84, author 0.91.
+  > The author graded 13 answers (39 key points) by hand, chosen at random (seed 15) from the judged answers. Judge and author agree on 36 of 39 key points (0.92). Mean answer score on these answers: judge 0.88, author 0.91.
 - **Cost is at list price**: tokens × the provider's paid list price, dated in the config
   (Google's prices as of 2026-10-26). Nobody paid it. Self-hosted rows are $0, with GPU
   electricity not measured.
@@ -314,19 +390,29 @@ From [the spec](docs/specs/a-agent-track.md) §7. An open item names its reason.
 - [x] Retrieval ablation table committed (vector / keyword / hybrid / hybrid + rerank).
 - [x] `task eval` results committed for every configuration that could run: `local` and
       `local-slow-only`; `hosted`, `slow-only` and `routed` are *not run*, with the reason.
+      `local` was run again on 2026-10-30, after the router prompt began to name write
+      requests as slow. The author graded the new sample on 2026-10-31.
 - [x] `docker compose up` from a clean clone serves the console with hosted providers only (the
       image was built from a fresh clone and the app became healthy). Open: a live Gemini turn
       in the container is not yet recorded.
 - [ ] A 2–3 minute demo video, linked from this README. **Open:** the author records it. It
       needs a live Notion write on localhost through a proposal and Approve (#9), and one
       English and one Traditional Chinese question with `[n]` links and screenshots (#11).
-- [ ] Public hostname behind Access, in demo mode, with Ollama not reachable from it. **Open:**
-      the author's Cloudflare account: the tunnel, the Access email PIN, the read-only Notion
-      integration and the public-host checks (#16).
+- [ ] The manual tests of [the hand-off](docs/specs/a-agent-track-handoff.md#manual-test-plan):
+      3, 4, 8 and 10 pass (2026-10-28 and 2026-10-29). **Open:** 1 passes over the HTTP API
+      but is not yet checked in a browser; 5 has not run; 6 failed on 2026-10-29 because a
+      cancelled turn left no route line (#28): the fix is merged, the test is not yet re-run;
+      2, 7, 9 and 11 as above.
+- [x] Public hostname behind Access, in demo mode, with Ollama not reachable from it
+      (2026-10-28): the tunnel routes only `app:8000`; the author signed in with the email PIN
+      and saw an approval refused; Notion refuses a write with the read-only token (#16).
+      Redeployed on 2026-10-30 with node 26 (#39) and the router change: over the HTTP API,
+      the example question that adds an action item took the slow path and made a proposal,
+      and its approval was refused with 403 `demo_mode`.
 - [x] README: architecture diagram, results tables, protocol summary, public-corpus statement;
       Vessel named as the future client and not linked while it is private.
-- [ ] Whole git history scanned for secrets (for example with `gitleaks`). **Open:** the author
-      does it before the repository is made public.
+- [x] Whole git history scanned for secrets: `gitleaks detect --log-opts="--all"` (v8.16.0)
+      found none in the 63 non-merge commits of every branch (2026-10-30).
 
 ## Development
 
@@ -337,4 +423,8 @@ request. `task eval` runs the eval (`-- --retrieval-only` for table 1, `-- --con
 
 ## License
 
-See [LICENSE](LICENSE).
+[Apache License 2.0](LICENSE).
+
+The agent skills in `.claude/skills/` keep their own licenses: those adapted from
+[mattpocock/skills](https://github.com/mattpocock/skills) and `asd-ste100` are MIT, each with
+the `LICENSE` file in its directory.

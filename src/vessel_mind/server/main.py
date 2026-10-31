@@ -80,6 +80,7 @@ def build_router(
         enabled=settings.enabled if enabled is None else enabled,
         timeout=settings.timeout,
         max_tokens=settings.max_tokens,
+        cooldown=settings.cooldown,
         fast_fallbacks=[model(c) for c in selected.fast_fallbacks] if fallbacks else [],
         slow_fallbacks=[model(c) for c in selected.slow_fallbacks] if fallbacks else [],
         telemetry=telemetry,

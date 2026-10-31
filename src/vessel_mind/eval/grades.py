@@ -174,7 +174,13 @@ def agreement_lines(
         yield "No stored grade matches a current answer."
     if stale:
         yield ""
+        graded = {(g.row, g.id, g.answer_sha256) for g in grades}
+        ungraded = any(
+            (row, record.id, answer_sha256(record.turn.answer)) not in graded
+            for row, record in sample_answers(rows)
+        )
+        hint = " Run `task eval -- --grade` to grade the new sample." if ungraded else ""
         yield (
-            f"{stale} stored grades are for answers a later run replaced; they are not counted. "
-            "Run `task eval -- --grade` to grade the new sample."
+            f"{stale} stored grades are for answers a later run replaced; they are not counted."
+            + hint
         )

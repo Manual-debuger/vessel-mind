@@ -68,6 +68,10 @@ router:
   timeout: 10.0
   # The classification's token budget; Gemini counts thinking tokens in it.
   max_tokens: 1024
+  # A model that fails before answering is asked after its fallbacks in later
+  # turns too: until its 429's Retry-After has passed, or else for `cooldown`
+  # seconds.
+  cooldown: 300
 
 # HTTP 429 and 503: exponential backoff from backoff_base seconds, honouring
 # Retry-After. A wait longer than backoff_max seconds (Gemini's daily limit
