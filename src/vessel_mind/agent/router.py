@@ -60,6 +60,8 @@ fast: one document search answers the message, or it needs no knowledge at all
 slow: the message needs a tool other than one search, more than one search (for
 example a comparison of two topics), or reasoning beyond the retrieved text
 (planning, calculation, code, a multi-step argument).
+A message about a Notion page needs a Notion tool, not a document search, so it
+is slow.
 A message that asks to add, change or delete something (for example a page, an item
 or a note) needs a write tool, so it is slow.
 If you are not sure, choose slow."""
