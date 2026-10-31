@@ -59,12 +59,18 @@ RUN --mount=type=bind,source=.git,target=/repo/.git \
 FROM python:3.13.17-slim-trixie@sha256:d98cc29d3266e535dd9da1099688d9cb3ca4753813571e071763d17725460962 AS runtime
 RUN groupadd --system app \
     && useradd --system --gid app --home-dir /app --no-create-home app
+# node 26 links against libatomic.so.1, which the python image does not have.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libatomic1 \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV PATH=/app/.venv/bin:$PATH \
     PYTHONPATH=/app/src \
     PYTHONUNBUFFERED=1
 # node alone starts the pinned Notion MCP server over stdio; npm is not copied.
 COPY --from=notion-mcp /usr/local/bin/node /usr/local/bin/node
+# A shared library node needs and the image lacks fails here, not at startup.
+RUN node --version
 COPY --from=notion-mcp /build/deploy/notion-mcp/node_modules deploy/notion-mcp/node_modules
 COPY deploy/notion-mcp/package.json deploy/notion-mcp/package-lock.json deploy/notion-mcp/
 COPY --from=python-deps /app/.venv /app/.venv
