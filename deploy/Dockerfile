@@ -14,7 +14,7 @@
 #                and the reranker model
 #   runtime      the app; it starts with a complete index and embeds nothing
 
-FROM node:26.12.0-trixie-slim@sha256:e556a144463cc8dc53afe8de6d2fa0db5c132fd39ffa232c17641bd40df2bf11 AS notion-mcp
+FROM node:26.13.0-trixie-slim@sha256:e4db4c914bf8ad241bd24804fc25d272d89bad97e68cdc8a1414862790a02c39 AS notion-mcp
 WORKDIR /build/deploy/notion-mcp
 COPY deploy/notion-mcp/package.json deploy/notion-mcp/package-lock.json ./
 # Exactly the versions in the committed lockfile; no install scripts run.
