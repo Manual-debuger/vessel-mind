@@ -47,7 +47,7 @@ services:
     restart: unless-stopped
 
   cloudflared:
-    image: cloudflare/cloudflared:2026.10.3@sha256:faa8e0a1475f137c910be6025f43c8e4092fdd35461b31e19fd1390657a1ff39
+    image: cloudflare/cloudflared:2026.10.7@sha256:4955524aeaa379e154023d5a027c250f7b35041a2e7e950cf13f144bc9b9c5ba
     profiles: [tunnel]
     # A remotely managed tunnel: its public hostname maps to http://app:8000 in
     # the Cloudflare dashboard. cloudflared reads the token from TUNNEL_TOKEN.
